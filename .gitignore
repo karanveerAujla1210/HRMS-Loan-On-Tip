@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+build/
+
+# Env files — never commit secrets
+.env
+.env.local
+.env.*.local
+
+# Supabase local dev
+supabase/.branches/
+supabase/.temp/
+
+# Expo / React Native
+apps/mobile/.expo/
+apps/mobile/dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo

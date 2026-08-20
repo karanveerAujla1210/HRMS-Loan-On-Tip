@@ -1,0 +1,3 @@
+-- This file is superseded by the numbered migration suite.
+-- Run migrations 01 through 18 in order instead.
+-- See supabase/migrations/01_extensions.sql → 18_seed_data.sql
