@@ -1,3 +1,6 @@
+# Bundled node tooling — not needed in repo
+.tools/
+
 # Dependencies
 node_modules/
 .pnp
