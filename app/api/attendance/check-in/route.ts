@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     .select("response_body")
     .eq("employee_id", profile.employee_id)
     .eq("idempotency_key", idempotency_key)
-    .single();
+    .maybeSingle();
   if (existing) return NextResponse.json(existing.response_body);
 
   // Duplicate device check
@@ -140,36 +140,36 @@ export async function POST(req: NextRequest) {
   const exceptions: Promise<unknown>[] = [];
 
   if (isException && att) {
-    exceptions.push(supabase.from("attendance_exceptions").insert({
+    exceptions.push(Promise.resolve(supabase.from("attendance_exceptions").insert({
       attendance_id: att.id,
       employee_id: profile.employee_id,
       exception_type: "GEO_OUTSIDE_RADIUS",
       description: `Check-in location outside ${geoRadius}m radius`,
       severity: "MEDIUM",
       status: "OPEN",
-    }));
+    })));
   }
 
   if (accuracy_m > 100 && att) {
-    exceptions.push(supabase.from("attendance_exceptions").insert({
+    exceptions.push(Promise.resolve(supabase.from("attendance_exceptions").insert({
       attendance_id: att.id,
       employee_id: profile.employee_id,
       exception_type: "POOR_GPS_ACCURACY",
       description: `GPS accuracy ${accuracy_m}m exceeds 100m threshold`,
       severity: "LOW",
       status: "OPEN",
-    }));
+    })));
   }
 
   if (is_mock_location && att) {
-    exceptions.push(supabase.from("attendance_exceptions").insert({
+    exceptions.push(Promise.resolve(supabase.from("attendance_exceptions").insert({
       attendance_id: att.id,
       employee_id: profile.employee_id,
       exception_type: "MOCK_LOCATION",
       description: "Mock location detected on device",
       severity: "HIGH",
       status: "OPEN",
-    }));
+    })));
   }
 
   await Promise.all(exceptions);

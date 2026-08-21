@@ -84,7 +84,7 @@ export default function IdCardPage() {
               ["Blood group",  emp.blood_group],
             ].map(([label, val]) => val ? (
               <div key={String(label)} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
-                <span style={{ color: "var(--text-3)", fontWeight: 600 }}>{label}</span>
+                <span style={{ color: "var(--text-3)", fontWeight: 600 }}>{String(label)}</span>
                 <span style={{ color: "var(--text)", fontWeight: 500 }}>{String(val)}</span>
               </div>
             ) : null)}

@@ -41,13 +41,15 @@ export async function POST(req: NextRequest) {
   if (run.status !== "DRAFT") return NextResponse.json({ error: "Only DRAFT runs can be calculated" }, { status: 400 });
 
   // Get all active salary assignments for this company
+  const empRes = await supabase.from("employees").select("id").eq("company_id", profile.company_id).eq("employment_status", "ACTIVE");
+  const empIds = (empRes.data ?? []).map((e: { id: string }) => e.id);
+  if (!empIds.length) return NextResponse.json({ error: "No active employees found" }, { status: 400 });
+
   const { data: assignments } = await supabase
     .from("employee_salary_assignments")
     .select("id,employee_id,annual_ctc,monthly_ctc")
     .eq("is_current", true)
-    .in("employee_id", (
-      await supabase.from("employees").select("id").eq("company_id", profile.company_id).eq("employment_status", "ACTIVE")
-    ).data?.map((e: { id: string }) => e.id) ?? []);
+    .in("employee_id", empIds);
 
   if (!assignments?.length) return NextResponse.json({ error: "No active salary assignments found" }, { status: 400 });
 

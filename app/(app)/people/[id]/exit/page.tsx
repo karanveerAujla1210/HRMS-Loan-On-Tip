@@ -22,7 +22,7 @@ export default function EmployeeExitPage() {
   const load = useCallback(async () => {
     setLoading(true);
     const [empRes, resignRes, assetsRes] = await Promise.all([
-      supabase.from("employees").select("id,display_name,employee_code,joining_date,employment_status,notice_period_days,last_working_date").eq("id", id).single(),
+      supabase.from("employees").select("id,display_name,employee_code,joining_date,employment_status,notice_period_days,last_working_date,company_id").eq("id", id).single(),
       supabase.from("resignations").select("*").eq("employee_id", id).maybeSingle(),
       supabase.from("asset_assignments").select("id,assets(asset_code,model,serial_number)").eq("employee_id", id).eq("status", "ACTIVE"),
     ]);
@@ -45,7 +45,7 @@ export default function EmployeeExitPage() {
 
     const { error } = await supabase.from("resignations").insert({
       employee_id: id,
-      company_id: (emp as { company_id?: string })?.company_id ?? "00000000-0000-0000-0000-000000000001",
+      company_id: (emp as { company_id?: string })?.company_id ?? "",
       resignation_date: resDate,
       last_working_date: lwd || null,
       reason: fd.get("reason") || null,

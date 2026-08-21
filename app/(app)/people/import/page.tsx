@@ -78,7 +78,7 @@ export default function ImportPage() {
 
   useEffect(() => {
     async function loadLookups() {
-      if (!companyId) { setLoading(false); return; }
+      if (!companyId) { setLookupReady(true); return; }
       const [d, dg, l, et, emps] = await Promise.all([
         supabase.from("departments").select("id,name").eq("company_id", companyId),
         supabase.from("designations").select("id,name").eq("company_id", companyId),

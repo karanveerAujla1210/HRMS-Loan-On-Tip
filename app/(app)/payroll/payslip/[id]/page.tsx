@@ -82,7 +82,8 @@ export default function PayslipViewPage() {
     }
 
     // Fetch employee statutory & bank details
-    const empId = (slip.employee as { id: string } | null)?.id;
+    const empRelation = (slip.employee as unknown) as { id: string }[] | { id: string } | null;
+    const empId = (Array.isArray(empRelation) ? empRelation[0] : empRelation)?.id ?? null;
     let bankInfo = null;
     let statInfo = null;
     if (empId) {
@@ -122,15 +123,15 @@ export default function PayslipViewPage() {
   }
 
   const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const run = data.payroll_run as Record<string, unknown> | null;
-  const company = run?.company as Record<string, unknown> | null;
-  const emp = data.employee as Record<string, unknown> | null;
-  const item = data.payroll_item as Record<string, unknown> | null;
-  const bank = data.bank as Record<string, unknown> | null;
-  const statutory = data.statutory as Record<string, unknown> | null;
-  const dept = emp?.department as Record<string, unknown> | null;
-  const desig = emp?.designation as Record<string, unknown> | null;
-  const loc = emp?.location as Record<string, unknown> | null;
+  const run = (data.payroll_run as unknown) as Record<string, unknown> | null;
+  const company = (run?.company as unknown) as Record<string, unknown> | null;
+  const emp = (data.employee as unknown) as Record<string, unknown> | null;
+  const item = (data.payroll_item as unknown) as Record<string, unknown> | null;
+  const bank = (data.bank as unknown) as Record<string, unknown> | null;
+  const statutory = (data.statutory as unknown) as Record<string, unknown> | null;
+  const dept = (emp?.department as unknown) as Record<string, unknown> | null;
+  const desig = (emp?.designation as unknown) as Record<string, unknown> | null;
+  const loc = (emp?.location as unknown) as Record<string, unknown> | null;
 
   const monthNum = Number(run?.payroll_month ?? 1);
   const periodTitle = `${MONTH_NAMES[monthNum - 1]} ${run?.payroll_year}`;

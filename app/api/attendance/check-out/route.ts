@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     .select("id,check_in_at,status,late_minutes")
     .eq("employee_id", profile.employee_id)
     .eq("attendance_date", today)
-    .single();
+    .maybeSingle();
 
   if (!att?.check_in_at) return NextResponse.json({ error: "No check-in found for today" }, { status: 400 });
 

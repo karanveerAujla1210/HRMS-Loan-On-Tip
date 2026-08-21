@@ -86,7 +86,7 @@ export async function PATCH(req: NextRequest) {
     .from("attendance_adjustments")
     .select("id,attendance_id,new_values")
     .eq("id", adjustment_id)
-    .single();
+    .maybeSingle();
   if (!adj) return NextResponse.json({ error: "Adjustment not found" }, { status: 404 });
 
   await supabase.from("attendance_adjustments").update({

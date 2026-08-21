@@ -144,7 +144,7 @@ export default function EmployeeSalaryPage() {
                   ["Effective from", curr?.effective_from ?? "—"],
                 ].map(([label, val]) => (
                   <div key={String(label)}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".5px" }}>{label}</div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".5px" }}>{String(label)}</div>
                     <div style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", marginTop: 4 }}>{String(val)}</div>
                   </div>
                 ))}

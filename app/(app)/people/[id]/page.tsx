@@ -89,9 +89,11 @@ export default function EmployeeDetailPage() {
     }).filter(cu => cu.field_value !== null);
     
     if (customUpserts.length > 0) {
-      await supabase.from("employee_custom_data").upsert(customUpserts, { onConflict: "employee_id, custom_field_id" });
+      const { error: upsertError } = await supabase
+        .from("employee_custom_data")
+        .upsert(customUpserts, { onConflict: "employee_id, custom_field_id" });
+      if (upsertError) { setMsg(`Error: ${upsertError.message}`); setSaving(false); return; }
     }
-    if (error) { setMsg(`Error: ${error.message}`); setSaving(false); return; }
     setMsg("Profile updated.");
     setEditing(false);
     void load();
@@ -297,7 +299,7 @@ export default function EmployeeDetailPage() {
                 ["Nationality", emp.nationality],
               ].map(([label, val]) => (
                 <div key={String(label)}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".5px" }}>{label}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".5px" }}>{String(label)}</div>
                   <div style={{ fontSize: 13, color: "var(--text)", marginTop: 3 }}>{val ? String(val) : <span style={{ color: "var(--text-4)" }}>—</span>}</div>
                 </div>
               ))}

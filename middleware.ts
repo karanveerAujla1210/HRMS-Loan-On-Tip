@@ -1,4 +1,4 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
@@ -10,8 +10,8 @@ export async function middleware(request: NextRequest) {
     {
       cookies: {
         getAll: () => request.cookies.getAll(),
-        setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) =>
+        setAll: (cookiesToSet: { name: string; value: string; options: CookieOptions }[]) => {
+          cookiesToSet.forEach(({ name, value, options }: { name: string; value: string; options: CookieOptions }) =>
             response.cookies.set(name, value, options)
           );
         },
@@ -24,13 +24,14 @@ export async function middleware(request: NextRequest) {
 
   const isAuthRoute = pathname.startsWith("/login");
   const isApiRoute = pathname.startsWith("/api/");
+  const isCallbackRoute = pathname.startsWith("/api/auth/callback");
 
   if (!session && !isAuthRoute && !isApiRoute) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
   if (session && isAuthRoute) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   return response;
