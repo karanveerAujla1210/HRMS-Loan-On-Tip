@@ -1,0 +1,6 @@
+first_name,last_name,middle_name,official_email,personal_email,official_mobile,personal_mobile,gender,date_of_birth,joining_date,employment_type,department,designation,location,manager_email,employment_status,nationality,marital_status,probation_end_date,notice_period_days
+Rahul,Sharma,,rahul.sharma@acgleasing.com,rahul.personal@gmail.com,9876543210,,Male,1995-06-15,2023-01-10,Full Time,Sales,Executive,Delhi Head Office,,ACTIVE,Indian,Single,2023-04-10,30
+Priya,Verma,,priya.verma@acgleasing.com,priya.v@gmail.com,9876543211,,Female,1997-03-22,2023-02-01,Full Time,Human Resources,Assistant Manager,Delhi Head Office,rahul.sharma@acgleasing.com,ACTIVE,Indian,Married,,60
+Amit,Kumar,Singh,amit.kumar@acgleasing.com,,9876543212,,Male,1990-11-05,2022-06-15,Full Time,Finance,Manager,Mumbai Branch,,ACTIVE,Indian,Married,2022-09-15,90
+Sneha,Patel,,sneha.patel@acgleasing.com,sneha.p@gmail.com,9876543213,,Female,1998-08-30,2024-03-01,Contract,Technology,Executive,Noida Branch,,ACTIVE,Indian,Single,,30
+Vikram,Joshi,,vikram.joshi@acgleasing.com,,9876543214,,Male,1993-12-10,2021-09-20,Full Time,Operations,Deputy Manager,Gurugram Branch,amit.kumar@acgleasing.com,ACTIVE,Indian,Married,2021-12-20,60

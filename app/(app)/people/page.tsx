@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
@@ -11,6 +12,7 @@ type Row = Record<string, unknown>;
 const COLUMNS = ["employee_code", "display_name", "department", "designation", "location", "employment_status", "joining_date", "official_email"];
 
 export default function PeoplePage() {
+  const router = useRouter();
   const [employees, setEmployees] = useState<Row[]>([]);
   const [filtered, setFiltered] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
@@ -79,9 +81,14 @@ export default function PeoplePage() {
         title="People"
         subtitle={`${employees.length} employees`}
         actions={
-          <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>
-            + Add employee
-          </button>
+          <>
+            <button className="btn btn-secondary btn-sm" onClick={() => router.push("/people/import")}>
+              ⬆ Import CSV
+            </button>
+            <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>
+              + Add employee
+            </button>
+          </>
         }
       />
 
