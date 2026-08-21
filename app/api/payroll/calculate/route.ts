@@ -59,7 +59,6 @@ export async function POST(req: NextRequest) {
   const totalDays = Math.round((periodEnd.getTime() - periodStart.getTime()) / 86400000) + 1;
 
   // Get attendance summaries for the period
-  const empIds = assignments.map((a: { employee_id: string }) => a.employee_id);
   const { data: attSummaries } = await supabase
     .from("attendance")
     .select("employee_id,status")
