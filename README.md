@@ -9,6 +9,18 @@ Responsive MVP for the ACG Leasing Limited brand: employee master, attendance, p
 3. Run `npm install`, then `npm run dev`.
 4. Deploy the repository to Vercel; set the same environment variables in Vercel.
 
+## Deploy to Vercel
+
+This repository includes `vercel.json`; Vercel will install with `npm ci` and build with `npm run build`.
+
+1. Import the `karanveerAujla1210/HRMS-Loan-On-Tip` repository into Vercel (or open its existing Vercel project).
+2. In **Settings → Environment Variables**, add these values for Production, Preview and Development:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+3. Deploy from the Vercel dashboard, or push a commit to the connected production branch (`main`).
+
+Do not add `SUPABASE_SERVICE_ROLE_KEY` until server-side privileged API routes exist. When it is needed, add it only in Vercel environment variables—never commit it or prefix it with `NEXT_PUBLIC_`.
+
 ## Architecture
 
 ```
