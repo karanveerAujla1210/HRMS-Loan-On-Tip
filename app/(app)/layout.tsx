@@ -6,6 +6,8 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 
+type Profile = { employee_id: string | null; company_id: string | null; role: string | null };
+
 const NAV: { href: string; label: string; Icon: () => React.JSX.Element }[] = [
   { href: "/dashboard", label: "Dashboard", Icon: IconGrid },
   { href: "/people", label: "People", Icon: IconUsers },
@@ -13,21 +15,43 @@ const NAV: { href: string; label: string; Icon: () => React.JSX.Element }[] = [
   { href: "/leave", label: "Leave", Icon: IconCalendar },
   { href: "/payroll", label: "Payroll", Icon: IconCash },
   { href: "/assets", label: "Assets", Icon: IconBox },
+  { href: "/self-service", label: "Self Service", Icon: IconPerson },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) {
         router.replace("/login");
-      } else {
-        setUser(data.session.user);
+        setChecking(false);
+        return;
       }
+      setUser(data.session.user);
+
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("employee_id,company_id")
+        .eq("auth_user_id", data.session.user.id)
+        .single();
+
+      let role: string | null = null;
+      if (prof?.employee_id) {
+        const { data: roleRow } = await supabase
+          .from("employee_roles")
+          .select("role")
+          .eq("employee_id", prof.employee_id)
+          .eq("is_active", true)
+          .single();
+        role = roleRow?.role ?? null;
+      }
+
+      setProfile({ employee_id: prof?.employee_id ?? null, company_id: prof?.company_id ?? null, role });
       setChecking(false);
     });
 
@@ -54,6 +78,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   const initials = user?.email?.slice(0, 2).toUpperCase() ?? "HR";
+  const roleLabel = profile?.role
+    ? profile.role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    : "Employee";
 
   return (
     <div className="app-shell">
@@ -85,7 +112,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="avatar">{initials}</div>
             <div className="user-info">
               <strong>{user?.email?.split("@")[0] ?? "Admin"}</strong>
-              <span>HR Admin</span>
+              <span>{roleLabel}</span>
             </div>
             <button className="btn-signout" onClick={signOut} title="Sign out">
               <IconLogout />
@@ -116,6 +143,9 @@ function IconCash() {
 }
 function IconBox() {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>;
+}
+function IconPerson() {
+  return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>;
 }
 function IconLogout() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>;

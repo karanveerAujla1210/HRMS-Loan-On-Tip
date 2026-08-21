@@ -3,16 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
-
-const COMPANY_ID = "00000000-0000-0000-0000-000000000001";
 type Row = Record<string, unknown>;
 
 const COLUMNS = ["employee_code", "display_name", "department", "designation", "location", "employment_status", "joining_date", "official_email"];
 
 export default function PeoplePage() {
   const router = useRouter();
+  const { companyId } = useProfile();
   const [employees, setEmployees] = useState<Row[]>([]);
   const [filtered, setFiltered] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
@@ -24,18 +24,19 @@ export default function PeoplePage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!companyId) return;
     setLoading(true);
     setError(null);
     const { data, error } = await supabase
       .from("v_employee_directory")
       .select("*")
-      .eq("company_id", COMPANY_ID)
+      .eq("company_id", companyId)
       .order("display_name")
       .limit(200);
     if (error) setError(error.message);
     setEmployees((data as Row[]) ?? []);
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -60,7 +61,7 @@ export default function PeoplePage() {
     const fd = new FormData(e.currentTarget);
 
     const { error } = await supabase.from("employees").insert({
-      company_id: COMPANY_ID,
+      company_id: companyId,
       first_name: fd.get("first_name"),
       last_name: fd.get("last_name"),
       official_email: fd.get("official_email") || null,

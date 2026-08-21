@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
-
-const COMPANY_ID = "00000000-0000-0000-0000-000000000001";
 type Row = Record<string, unknown>;
 
 const COLS = ["payroll_month", "payroll_year", "status", "employee_count", "gross_pay", "net_pay", "created_at"];
@@ -16,6 +15,7 @@ const MONTHS = [
 ];
 
 export default function PayrollPage() {
+  const { companyId } = useProfile();
   const [runs, setRuns] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,20 +24,34 @@ export default function PayrollPage() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
+    if (!companyId) return;
     setLoading(true);
     setError(null);
     const { data, error } = await supabase
       .from("payroll_runs")
       .select("id,payroll_month,payroll_year,status,employee_count,gross_pay,net_pay,created_at")
-      .eq("company_id", COMPANY_ID)
+      .eq("company_id", companyId)
       .order("created_at", { ascending: false })
       .limit(50);
     if (error) setError(error.message);
     setRuns((data as Row[]) ?? []);
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { void load(); }, [load]);
+
+  async function calculateRun(row: Row) {
+    setMsg(null);
+    const res = await fetch("/api/payroll/calculate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payroll_run_id: row.id }),
+    });
+    const json = await res.json() as { error?: string; data?: { employee_count: number; net_pay: number } };
+    if (json.error) { setMsg(`Error: ${json.error}`); return; }
+    setMsg(`Calculated: ${json.data?.employee_count} employees, net ₹${json.data?.net_pay?.toLocaleString("en-IN")}.`);
+    void load();
+  }
 
   async function approveRun(row: Row) {
     setMsg(null);
@@ -55,10 +69,16 @@ export default function PayrollPage() {
     setSaving(true);
     setMsg(null);
     const fd = new FormData(e.currentTarget);
+    const month = Number(fd.get("month"));
+    const year = Number(fd.get("year"));
+    const periodStart = new Date(year, month - 1, 1).toISOString().slice(0, 10);
+    const periodEnd = new Date(year, month, 0).toISOString().slice(0, 10);
     const { error } = await supabase.from("payroll_runs").insert({
-      company_id: COMPANY_ID,
-      payroll_month: Number(fd.get("month")),
-      payroll_year: Number(fd.get("year")),
+      company_id: companyId,
+      payroll_month: month,
+      payroll_year: year,
+      period_start: periodStart,
+      period_end: periodEnd,
       status: "DRAFT",
     });
     if (error) { setMsg(`Error: ${error.message}`); setSaving(false); return; }
@@ -94,13 +114,17 @@ export default function PayrollPage() {
             <DataTable
               rows={runs}
               columns={COLS}
-              action={(row) =>
-                String(row.status) === "DRAFT" ? (
-                  <button className="btn btn-sm btn-primary" onClick={() => approveRun(row)}>
-                    Approve
-                  </button>
-                ) : null
-              }
+              action={(row) => (
+                <div style={{ display: "flex", gap: 6 }}>
+                  <a href={`/payroll/${String(row.id)}`} className="btn btn-sm btn-secondary">View</a>
+                  {String(row.status) === "DRAFT" && (
+                    <button className="btn btn-sm btn-secondary" onClick={() => calculateRun(row)}>Calculate</button>
+                  )}
+                  {String(row.status) === "CALCULATED" && (
+                    <button className="btn btn-sm btn-primary" onClick={() => approveRun(row)}>Approve</button>
+                  )}
+                </div>
+              )}
             />
           )}
         </div>

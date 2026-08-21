@@ -2,16 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
-
-const COMPANY_ID = "00000000-0000-0000-0000-000000000001";
 type Row = Record<string, unknown>;
 type Asset = Row & { id: string; asset_code: string; status: string };
 
 const COLS = ["asset_code", "category", "brand", "model", "serial_number", "assigned_to", "status", "warranty_end"];
 
 export default function AssetsPage() {
+  const { companyId } = useProfile();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [employees, setEmployees] = useState<Row[]>([]);
   const [categories, setCategories] = useState<Row[]>([]);
@@ -21,17 +21,19 @@ export default function AssetsPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [assigning, setAssigning] = useState<Asset | null>(null);
+  const [returning, setReturning] = useState<Asset | null>(null);
   const [saving, setSaving] = useState(false);
   const [statusFilter, setStatusFilter] = useState("ALL");
 
   const load = useCallback(async () => {
+    if (!companyId) return;
     setLoading(true);
     setError(null);
     const [assetsRes, empRes, catRes, locRes] = await Promise.all([
-      supabase.from("v_asset_inventory").select("*").eq("company_id", COMPANY_ID).order("asset_code"),
-      supabase.from("v_employee_directory").select("id,display_name,employee_code").eq("company_id", COMPANY_ID).eq("employment_status", "ACTIVE").order("display_name").limit(200),
-      supabase.from("asset_categories").select("id,name,prefix").eq("company_id", COMPANY_ID).eq("is_active", true).order("name"),
-      supabase.from("locations").select("id,name").eq("company_id", COMPANY_ID).eq("is_active", true).order("name"),
+      supabase.from("v_asset_inventory").select("*").eq("company_id", companyId).order("asset_code"),
+      supabase.from("v_employee_directory").select("id,display_name,employee_code").eq("company_id", companyId).eq("employment_status", "ACTIVE").order("display_name").limit(200),
+      supabase.from("asset_categories").select("id,name,prefix").eq("company_id", companyId).eq("is_active", true).order("name"),
+      supabase.from("locations").select("id,name").eq("company_id", companyId).eq("is_active", true).order("name"),
     ]);
     if (assetsRes.error) setError(assetsRes.error.message);
     setAssets((assetsRes.data as Asset[]) ?? []);
@@ -39,7 +41,7 @@ export default function AssetsPage() {
     setCategories((catRes.data as Row[]) ?? []);
     setLocations((locRes.data as Row[]) ?? []);
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -54,7 +56,7 @@ export default function AssetsPage() {
     if (!category) { setMsg("Select a category."); setSaving(false); return; }
 
     const { error } = await supabase.from("assets").insert({
-      company_id: COMPANY_ID,
+      company_id: companyId,
       asset_category_id: category.id,
       location_id: fd.get("location_id") || null,
       asset_code: `${String(category.prefix ?? "AST").toUpperCase()}-${Date.now().toString().slice(-8)}`,
@@ -95,6 +97,46 @@ export default function AssetsPage() {
     else setMsg("Asset assigned successfully.");
 
     setAssigning(null);
+    void load();
+    setSaving(false);
+  }
+
+  async function handleReturn(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!returning) return;
+    setSaving(true);
+    setMsg(null);
+    const fd = new FormData(e.currentTarget);
+
+    // Find active assignment
+    const { data: asgn } = await supabase
+      .from("asset_assignments")
+      .select("id")
+      .eq("asset_id", returning.id)
+      .eq("status", "ACTIVE")
+      .single();
+
+    if (!asgn) { setMsg("No active assignment found."); setSaving(false); return; }
+
+    await supabase.from("asset_returns").insert({
+      asset_assignment_id: asgn.id,
+      return_date: new Date().toISOString().slice(0, 10),
+      condition_at_return: fd.get("condition") || "GOOD",
+      remarks: fd.get("remarks") || null,
+    });
+
+    await supabase.from("asset_assignments").update({
+      status: "RETURNED",
+      returned_at: new Date().toISOString(),
+    }).eq("id", asgn.id);
+
+    await supabase.from("assets").update({
+      status: "AVAILABLE",
+      current_employee_id: null,
+    }).eq("id", returning.id);
+
+    setMsg("Asset returned successfully.");
+    setReturning(null);
     void load();
     setSaving(false);
   }
@@ -148,13 +190,16 @@ export default function AssetsPage() {
             <DataTable
               rows={filtered}
               columns={COLS}
-              action={(row) =>
-                (row as Asset).status === "AVAILABLE" ? (
-                  <button className="btn btn-sm btn-primary" onClick={() => setAssigning(row as Asset)}>
-                    Assign
-                  </button>
-                ) : null
-              }
+              action={(row) => {
+                const a = row as Asset;
+                if (a.status === "AVAILABLE") return (
+                  <button className="btn btn-sm btn-primary" onClick={() => setAssigning(a)}>Assign</button>
+                );
+                if (a.status === "ASSIGNED") return (
+                  <button className="btn btn-sm btn-secondary" onClick={() => setReturning(a)}>Return</button>
+                );
+                return null;
+              }}
             />
           )}
         </div>
@@ -222,6 +267,40 @@ export default function AssetsPage() {
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAddForm(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
                   {saving ? "Saving…" : "Add asset"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {returning && (
+        <div className="modal-backdrop">
+          <div className="modal">
+            <div className="modal-header">
+              <h2>Return {returning.asset_code}</h2>
+              <button className="btn btn-ghost btn-sm" onClick={() => setReturning(null)}>✕</button>
+            </div>
+            <form onSubmit={handleReturn}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label>Condition at return</label>
+                  <select name="condition" defaultValue="GOOD">
+                    <option value="GOOD">Good</option>
+                    <option value="FAIR">Fair</option>
+                    <option value="POOR">Poor</option>
+                    <option value="DAMAGED">Damaged</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Remarks</label>
+                  <textarea name="remarks" rows={2} placeholder="Optional notes…" />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setReturning(null)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? "Processing…" : "Confirm return"}
                 </button>
               </div>
             </form>

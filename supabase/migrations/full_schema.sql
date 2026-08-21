@@ -195,7 +195,7 @@ begin
   if new.employee_code is null or new.employee_code = '' then
     new.employee_code := 'EMP-' || lpad(nextval('public.employee_code_seq')::text, 6, '0');
   end if;
-  new.display_name := trim(new.first_name || ' ' || coalesce(new.middle_name || ' ', '') || new.last_name);
+  new.display_name := trim(new.first_name || ' ' || coalesce(new.middle_name || ' ', '') || coalesce(new.last_name, ''));
   return new;
 end; $$;
 
@@ -210,7 +210,7 @@ create table public.employees (
   gender               varchar(20),
   date_of_birth        date,
   profile_photo_url    text,
-  joining_date         date         not null,
+  joining_date         date,
   confirmation_date    date,
   employment_type_id   uuid references public.employment_types on delete set null,
   department_id        uuid references public.departments       on delete set null,
@@ -422,6 +422,35 @@ create table public.salary_structures (
   created_at     timestamptz  not null default now(),
   updated_at     timestamptz  not null default now()
 );
+
+-- Components that belong to a salary structure (e.g. Basic 40%, HRA 20%, PF fixed)
+create table public.salary_structure_components (
+  id                  uuid primary key default gen_random_uuid(),
+  salary_structure_id uuid not null references public.salary_structures  on delete cascade,
+  salary_component_id uuid not null references public.salary_components   on delete restrict,
+  calculation_type    varchar(20)   not null default 'FIXED',  -- FIXED | PERCENTAGE_OF_BASIC | PERCENTAGE_OF_GROSS
+  value               numeric(10,4) not null,                  -- amount or percentage
+  sequence            smallint      not null default 1,
+  is_active           boolean       not null default true,
+  created_at          timestamptz   not null default now(),
+  unique (salary_structure_id, salary_component_id)
+);
+
+-- Which structure is assigned to an employee, with their CTC and effective dates
+create table public.employee_salary_assignments (
+  id                  uuid primary key default gen_random_uuid(),
+  employee_id         uuid not null references public.employees        on delete cascade,
+  salary_structure_id uuid not null references public.salary_structures on delete restrict,
+  annual_ctc          numeric(14,2) not null,
+  effective_from      date          not null,
+  effective_to        date,
+  is_current          boolean       not null default true,
+  revised_by          uuid references public.employees on delete set null,
+  revision_reason     text,
+  created_at          timestamptz   not null default now(),
+  updated_at          timestamptz   not null default now()
+);
+create unique index uq_salary_assignment_current on public.employee_salary_assignments (employee_id) where is_current = true;
 
 create table public.payroll_runs (
   id               uuid primary key default gen_random_uuid(),
@@ -731,7 +760,8 @@ begin new.updated_at = now(); return new; end; $$;
 do $$ declare t text; begin
   foreach t in array array['companies','locations','departments','teams','designations','shifts',
     'profiles','employees','attendance','leave_types','leave_balances','leave_requests',
-    'salary_structures','payroll_runs','payroll_items','asset_categories','assets',
+    'salary_structures','salary_structure_components','employee_salary_assignments',
+    'payroll_runs','payroll_items','asset_categories','assets',
     'asset_assignments','document_types','employee_documents','system_settings']
   loop
     execute format('create trigger trg_%s_updated_at before update on public.%s for each row execute function public.set_updated_at()', t, t);
@@ -910,8 +940,8 @@ begin
   raise notice 'Auth user created: %', v_uid;
 end $$;
 
-insert into public.employees (company_id, first_name, last_name, official_email, joining_date, employment_status)
-select '00000000-0000-0000-0000-000000000001','Super','Admin','admin@loanontip.com',current_date,'ACTIVE'
+insert into public.employees (company_id, first_name, last_name, official_email, employment_status)
+select '00000000-0000-0000-0000-000000000001','Super','Admin','admin@loanontip.com','ACTIVE'
 where not exists (select 1 from public.employees where official_email = 'admin@loanontip.com');
 
 insert into public.profiles (auth_user_id, company_id, email, employee_id, is_active)

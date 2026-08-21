@@ -23,11 +23,16 @@ export default function LeavePage() {
     setError(null);
     const [pendingRes, allRes] = await Promise.all([
       supabase.from("v_pending_leave_approvals").select("*").order("submitted_at", { ascending: false }).limit(100),
-      supabase.from("v_pending_leave_approvals").select("*").order("submitted_at", { ascending: false }).limit(200),
+      supabase.from("leave_requests").select("id,from_date,to_date,total_days,status,submitted_at,employees(display_name),leave_types(name)").order("submitted_at", { ascending: false }).limit(200),
     ]);
     if (pendingRes.error) setError(pendingRes.error.message);
     setPending((pendingRes.data as Row[]) ?? []);
-    setAll((allRes.data as Row[]) ?? []);
+    const allMapped = ((allRes.data ?? []) as Record<string, unknown>[]).map((r) => ({
+      ...r,
+      display_name: (r.employees as Record<string, unknown> | null)?.display_name ?? "—",
+      leave_type: (r.leave_types as Record<string, unknown> | null)?.name ?? "—",
+    }));
+    setAll(allMapped as Row[]);
     setLoading(false);
   }, []);
 
@@ -35,11 +40,27 @@ export default function LeavePage() {
 
   async function handleAction(row: Row, action: "APPROVED" | "REJECTED") {
     setActionMsg(null);
+    const { data: { session } } = await supabase.auth.getSession();
+    const { data: prof } = session
+      ? await supabase.from("profiles").select("employee_id").eq("auth_user_id", session.user.id).single()
+      : { data: null };
+
+    const leaveId = String(row.leave_request_id ?? row.id);
     const { error } = await supabase
       .from("leave_requests")
       .update({ status: action })
-      .eq("id", row.leave_request_id ?? row.id);
+      .eq("id", leaveId);
     if (error) { setActionMsg(`Error: ${error.message}`); return; }
+
+    if (prof?.employee_id) {
+      await supabase.from("leave_approvals").insert({
+        leave_request_id: leaveId,
+        approver_id: prof.employee_id,
+        action: action === "APPROVED" ? "APPROVED" : "REJECTED",
+        approval_level: 1,
+      });
+    }
+
     setActionMsg(`Leave request ${action.toLowerCase()} successfully.`);
     void load();
   }

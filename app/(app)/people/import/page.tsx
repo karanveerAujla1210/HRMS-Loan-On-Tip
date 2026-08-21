@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
-
-const COMPANY_ID = "00000000-0000-0000-0000-000000000001";
 type CsvRow = Record<string, string>;
 type LookupMap = Record<string, string>;
 
@@ -99,6 +98,7 @@ const VALID_STATUSES = ["ACTIVE", "ON_NOTICE", "SUSPENDED", "RESIGNED", "TERMINA
 
 export default function ImportPage() {
   const router = useRouter();
+  const { companyId } = useProfile();
   const [rows, setRows] = useState<CsvRow[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
@@ -112,12 +112,13 @@ export default function ImportPage() {
 
   useEffect(() => {
     async function loadLookups() {
+      if (!companyId) return;
       const [d, dg, l, et, emps] = await Promise.all([
-        supabase.from("departments").select("id,name").eq("company_id", COMPANY_ID),
-        supabase.from("designations").select("id,name").eq("company_id", COMPANY_ID),
-        supabase.from("locations").select("id,name").eq("company_id", COMPANY_ID),
-        supabase.from("employment_types").select("id,name").eq("company_id", COMPANY_ID),
-        supabase.from("employees").select("id,official_email").eq("company_id", COMPANY_ID),
+        supabase.from("departments").select("id,name").eq("company_id", companyId),
+        supabase.from("designations").select("id,name").eq("company_id", companyId),
+        supabase.from("locations").select("id,name").eq("company_id", companyId),
+        supabase.from("employment_types").select("id,name").eq("company_id", companyId),
+        supabase.from("employees").select("id,official_email").eq("company_id", companyId),
       ]);
       const toMap = (data: { id: string; name: string }[] | null) =>
         Object.fromEntries((data ?? []).map((r) => [r.name.toLowerCase().trim(), r.id]));
@@ -135,7 +136,7 @@ export default function ImportPage() {
       setLookupReady(true);
     }
     void loadLookups();
-  }, []);
+  }, [companyId]);
 
   function validate(parsed: CsvRow[]): string[] {
     const errs: string[] = [];
@@ -186,7 +187,7 @@ export default function ImportPage() {
     for (const row of rows) {
       // Insert employee
       const empPayload: Record<string, unknown> = {
-        company_id: COMPANY_ID,
+        company_id: companyId,
         first_name: row.first_name,
         last_name: row.last_name,
         middle_name: row.middle_name || null,

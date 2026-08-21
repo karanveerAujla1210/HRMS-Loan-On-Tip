@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
-
-const COMPANY_ID = "00000000-0000-0000-0000-000000000001";
 
 type Metrics = {
   active_employees?: number;
@@ -17,6 +16,7 @@ type Metrics = {
 type Row = Record<string, unknown>;
 
 export default function DashboardPage() {
+  const { companyId } = useProfile();
   const [metrics, setMetrics] = useState<Metrics>({});
   const [attendance, setAttendance] = useState<Row[]>([]);
   const [leaves, setLeaves] = useState<Row[]>([]);
@@ -24,11 +24,12 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (!companyId) return;
     setLoading(true);
     setError(null);
 
     const [metricsRes, attendanceRes, leavesRes] = await Promise.all([
-      supabase.from("v_dashboard_metrics").select("*").eq("company_id", COMPANY_ID).maybeSingle(),
+      supabase.from("v_dashboard_metrics").select("*").eq("company_id", companyId).maybeSingle(),
       supabase.from("v_today_attendance").select("display_name,status,check_in_at,check_out_at,worked_minutes").order("display_name").limit(8),
       supabase.from("v_pending_leave_approvals").select("display_name,leave_type,from_date,to_date,total_days").order("submitted_at", { ascending: false }).limit(8),
     ]);
@@ -38,7 +39,7 @@ export default function DashboardPage() {
     setAttendance((attendanceRes.data as Row[]) ?? []);
     setLeaves((leavesRes.data as Row[]) ?? []);
     setLoading(false);
-  }, []);
+  }, [companyId]);
 
   useEffect(() => { void load(); }, [load]);
 

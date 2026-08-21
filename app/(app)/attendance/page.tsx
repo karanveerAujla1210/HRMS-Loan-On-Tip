@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
@@ -56,7 +57,11 @@ export default function AttendancePage() {
         title="Attendance"
         subtitle="Daily check-in and check-out records"
         actions={
-          <button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻ Refresh</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Link href="/attendance/corrections" className="btn btn-secondary btn-sm">Corrections</Link>
+            <Link href="/attendance/exceptions" className="btn btn-secondary btn-sm">Exceptions</Link>
+            <button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻ Refresh</button>
+          </div>
         }
       />
 
