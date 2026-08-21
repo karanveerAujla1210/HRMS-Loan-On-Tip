@@ -17,7 +17,7 @@ export default function ProfileScreen() {
       const { data } = await supabase
         .from("profiles")
         .select("employee_id, company_id")
-        .eq("id", user.id)
+        .eq("auth_user_id", user.id)
         .single();
       if (!data?.employee_id) { setLoading(false); return; }
       const { data: emp } = await supabase

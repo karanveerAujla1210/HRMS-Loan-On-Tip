@@ -17,7 +17,7 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!companyId) return;
+    if (!companyId) { setLoading(false); return; }
     setLoading(true);
     setError(null);
 

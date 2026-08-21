@@ -52,17 +52,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const rd = roleRow as { roles: { code: string } | null } | null;
         role = rd?.roles?.code ?? null;
 
-        // Auto-grant SUPER_ADMIN to EMP-000001 so the founder/admin can see everything
-        const { data: empData } = await supabase
-          .from("employees")
-          .select("employee_code")
-          .eq("id", prof.employee_id)
-          .single();
-
-        if (empData?.employee_code === "EMP-000001" && !role) {
-          role = "SUPER_ADMIN";
-        }
-
         // Unread notifications count
         const { count } = await supabase
           .from("notifications")

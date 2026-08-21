@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { writeAudit } from "@/lib/audit";
+import { getRole } from "@/lib/api";
 
 export async function POST(req: NextRequest) {
   const cookieStore = await cookies();
@@ -23,6 +24,11 @@ export async function POST(req: NextRequest) {
     .eq("auth_user_id", session.user.id)
     .single();
   if (!profile?.company_id) return NextResponse.json({ error: "Profile not found" }, { status: 404 });
+
+  const role = await getRole(supabase, profile.employee_id ?? "");
+  if (!role || !["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN"].includes(role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient role" }, { status: 403 });
+  }
 
   const { data: run } = await supabase
     .from("payroll_runs")

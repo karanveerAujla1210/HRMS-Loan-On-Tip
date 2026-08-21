@@ -46,19 +46,29 @@ export default function LeavePage() {
       : { data: null };
 
     const leaveId = String(row.leave_request_id ?? row.id);
-    const { error } = await supabase
-      .from("leave_requests")
-      .update({ status: action })
-      .eq("id", leaveId);
-    if (error) { setActionMsg(`Error: ${error.message}`); return; }
 
-    if (prof?.employee_id) {
-      await supabase.from("leave_approvals").insert({
-        leave_request_id: leaveId,
-        approver_id: prof.employee_id,
-        action: action === "APPROVED" ? "APPROVED" : "REJECTED",
-        approval_level: 1,
+    if (action === "APPROVED" && prof?.employee_id) {
+      // Use transactional function that also updates leave_balances and attendance
+      const { error } = await supabase.rpc("approve_leave_request", {
+        p_leave_request_id: leaveId,
+        p_approver_id: prof.employee_id,
       });
+      if (error) { setActionMsg(`Error: ${error.message}`); return; }
+    } else {
+      const { error } = await supabase
+        .from("leave_requests")
+        .update({ status: action, updated_at: new Date().toISOString() })
+        .eq("id", leaveId);
+      if (error) { setActionMsg(`Error: ${error.message}`); return; }
+
+      if (prof?.employee_id) {
+        await supabase.from("leave_approvals").insert({
+          leave_request_id: leaveId,
+          approver_id: prof.employee_id,
+          action: "REJECTED",
+          approval_level: 1,
+        });
+      }
     }
 
     setActionMsg(`Leave request ${action.toLowerCase()} successfully.`);

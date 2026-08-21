@@ -13,7 +13,7 @@ async function post<T>(path: string, body: unknown, token: string): Promise<ApiR
 
 export const attendanceApi = {
   checkIn: (body: CheckInRequest, token: string) =>
-    post("/api/v1/attendance/check-in", body, token),
+    post("/api/attendance/check-in", body, token),
   checkOut: (body: CheckOutRequest, token: string) =>
-    post("/api/v1/attendance/check-out", body, token),
+    post("/api/attendance/check-out", body, token),
 };

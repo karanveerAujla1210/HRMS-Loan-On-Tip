@@ -10,15 +10,13 @@ type ProfileCtx = {
   loading: boolean;
 };
 
-const FALLBACK = "00000000-0000-0000-0000-000000000001";
-
 export function useProfile(): ProfileCtx {
   const [ctx, setCtx] = useState<ProfileCtx>({ companyId: null, employeeId: null, role: null, loading: true });
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!data.session) {
-        setCtx({ companyId: FALLBACK, employeeId: null, role: null, loading: false });
+        setCtx({ companyId: null, employeeId: null, role: null, loading: false });
         return;
       }
 
@@ -42,7 +40,7 @@ export function useProfile(): ProfileCtx {
       }
 
       setCtx({
-        companyId: prof?.company_id ?? FALLBACK,
+        companyId: prof?.company_id ?? null,
         employeeId: prof?.employee_id ?? null,
         role,
         loading: false,

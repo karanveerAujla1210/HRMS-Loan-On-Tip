@@ -31,7 +31,7 @@ export default function HistoryScreen() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data: profile } = await supabase
-      .from("profiles").select("employee_id").eq("id", user.id).single();
+      .from("profiles").select("employee_id").eq("auth_user_id", user.id).single();
     if (!profile?.employee_id) return;
 
     const monthStart = new Date();

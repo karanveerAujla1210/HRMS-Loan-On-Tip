@@ -40,7 +40,7 @@ export default function PeoplePage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!companyId) return;
+    if (!companyId) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     const { data, error } = await supabase

@@ -53,7 +53,7 @@ export default function AssetMaintenancePage() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!companyId) return;
+    if (!companyId) { setLoading(false); return; }
     setLoading(true);
     setError(null);
 

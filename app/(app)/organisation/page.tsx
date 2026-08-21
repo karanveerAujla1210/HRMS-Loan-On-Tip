@@ -7,7 +7,7 @@ import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 
 type Row = Record<string, unknown>;
-type Tab = "departments" | "designations" | "locations" | "shifts" | "leave_types" | "holidays";
+type Tab = "departments" | "designations" | "locations" | "shifts" | "leave_types" | "holidays" | "custom_fields";
 
 export default function OrganisationPage() {
   const { companyId } = useProfile();
@@ -20,7 +20,7 @@ export default function OrganisationPage() {
   const [editing, setEditing] = useState<Row | null>(null);
 
   const load = useCallback(async () => {
-    if (!companyId) return;
+    if (!companyId) { setLoading(false); return; }
     setLoading(true);
     setMsg(null);
 
@@ -30,6 +30,7 @@ export default function OrganisationPage() {
     else if (tab === "locations") q = supabase.from("locations").select("id,location_code,name,city,state,attendance_radius_meters,is_active").eq("company_id", companyId).order("name");
     else if (tab === "shifts") q = supabase.from("shifts").select("id,shift_code,name,start_time,end_time,grace_minutes,is_active").eq("company_id", companyId).order("name");
     else if (tab === "leave_types") q = supabase.from("leave_types").select("id,code,name,is_paid,allows_half_day,requires_document,is_active").eq("company_id", companyId).order("name");
+    else if (tab === "custom_fields") q = supabase.from("custom_fields").select("id,name,field_type,options,is_active").eq("company_id", companyId).order("name");
     else q = supabase.from("holidays").select("id,name,holiday_date,is_optional,description").eq("company_id", companyId).order("holiday_date");
 
     const { data, error } = await q;
@@ -86,6 +87,15 @@ export default function OrganisationPage() {
         requires_document: fd.get("requires_document") === "true",
         is_active: true,
       };
+    } else if (tab === "custom_fields") {
+      table = "custom_fields";
+      payload = {
+        ...payload,
+        name: fd.get("name"),
+        field_type: fd.get("field_type"),
+        options: fd.get("options") ? JSON.parse(fd.get("options") as string) : null,
+        is_active: true,
+      };
     } else {
       table = "holidays";
       payload = {
@@ -122,6 +132,7 @@ export default function OrganisationPage() {
       : tab === "designations" ? "designations"
       : tab === "locations" ? "locations"
       : tab === "shifts" ? "shifts"
+      : tab === "custom_fields" ? "custom_fields"
       : "leave_types";
     await supabase.from(table).update({ is_active: !row.is_active }).eq("id", String(row.id));
     void load();
@@ -134,6 +145,7 @@ export default function OrganisationPage() {
     { key: "shifts",       label: "Shifts" },
     { key: "leave_types",  label: "Leave Types" },
     { key: "holidays",     label: "Holidays" },
+    { key: "custom_fields",label: "Custom Fields" },
   ];
 
   const cols: Record<Tab, string[]> = {
@@ -143,6 +155,7 @@ export default function OrganisationPage() {
     shifts:       ["shift_code", "name", "start_time", "end_time", "grace_minutes", "is_active"],
     leave_types:  ["code", "name", "is_paid", "allows_half_day", "is_active"],
     holidays:     ["name", "holiday_date", "is_optional", "description"],
+    custom_fields:["name", "field_type", "is_active"],
   };
 
   return (
@@ -296,6 +309,33 @@ function FormFields({ tab, editing }: { tab: Tab; editing: Row | null }) {
         <select name="requires_document" defaultValue={v("requires_document") || "false"}>
           <option value="false">No</option><option value="true">Yes</option>
         </select>
+      </div>
+    </>
+  );
+
+  if (tab === "custom_fields") return (
+    <>
+      <div className="form-row">
+        <div className="form-group"><label>Field Name *</label><input name="name" required defaultValue={v("name")} placeholder="e.g. Blood Group" /></div>
+        <div className="form-group">
+          <label>Field Type *</label>
+          <select name="field_type" defaultValue={v("field_type") || "TEXT"}>
+            <option value="TEXT">Text</option>
+            <option value="NUMBER">Number</option>
+            <option value="DATE">Date</option>
+            <option value="DROPDOWN">Dropdown</option>
+            <option value="MULTI_SELECT">Multi Select</option>
+            <option value="BOOLEAN">Boolean</option>
+            <option value="PHONE">Phone</option>
+            <option value="EMAIL">Email</option>
+            <option value="CURRENCY">Currency</option>
+          </select>
+        </div>
+      </div>
+      <div className="form-group">
+        <label>Options (For Dropdown/Multi Select)</label>
+        <input name="options" defaultValue={editing?.options ? JSON.stringify(editing.options) : ""} placeholder='e.g. ["A+", "B+", "O-"]' />
+        <span style={{ fontSize: 11, color: "var(--text-3)" }}>Enter as a valid JSON array</span>
       </div>
     </>
   );

@@ -53,7 +53,7 @@ export default function SelfServicePage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!employeeId || !companyId) return;
+    if (!employeeId || !companyId) { setLoading(false); return; }
     setLoading(true);
     setError(null);
 
@@ -250,8 +250,8 @@ export default function SelfServicePage() {
     setSubmittingTicket(false);
   }
 
-  const hasCheckedIn = !todayAtt?.check_in_at;
-  const hasCheckedOut = !todayAtt?.check_out_at;
+  const hasCheckedIn = !!todayAtt?.check_in_at;
+  const hasCheckedOut = !!todayAtt?.check_out_at;
 
   const TABS: { key: Tab; label: string }[] = [
     { key: "attendance", label: "Attendance" },

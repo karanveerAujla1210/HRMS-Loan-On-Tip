@@ -60,7 +60,7 @@ export default function AssetsPage() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!companyId) return;
+    if (!companyId) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     const [assetsRes, empRes, catRes, locRes] = await Promise.all([
@@ -110,7 +110,12 @@ export default function AssetsPage() {
 
     const cost = fd.get("purchase_cost") ? Number(fd.get("purchase_cost")) : null;
     const prefix = String(category.prefix ?? "AST").toUpperCase();
-    const assetCode = `${prefix}-${Date.now().toString().slice(-8)}`;
+
+    // Generate sequential asset code via DB function
+    const { data: codeData, error: codeErr } = await supabase
+      .rpc("generate_asset_code", { p_prefix: prefix });
+    if (codeErr || !codeData) { setMsg("Failed to generate asset code."); setSaving(false); return; }
+    const assetCode = String(codeData);
 
     const { error } = await supabase.from("assets").insert({
       company_id: companyId,

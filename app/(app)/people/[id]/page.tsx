@@ -20,6 +20,8 @@ export default function EmployeeDetailPage() {
   const [depts, setDepts] = useState<Emp[]>([]);
   const [desigs, setDesigs] = useState<Emp[]>([]);
   const [locs, setLocs] = useState<Emp[]>([]);
+  const [customFields, setCustomFields] = useState<any[]>([]);
+  const [customData, setCustomData] = useState<Record<string, any>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -30,10 +32,23 @@ export default function EmployeeDetailPage() {
       supabase.from("locations").select("id,name"),
     ]);
     if (empRes.error) setError(empRes.error.message);
-    setEmp(empRes.data as Emp);
+    const eData = empRes.data as Emp;
+    setEmp(eData);
     setDepts((deptRes.data as Emp[]) ?? []);
     setDesigs((desigRes.data as Emp[]) ?? []);
     setLocs((locRes.data as Emp[]) ?? []);
+
+    if (eData?.company_id) {
+      const [cfRes, cdRes] = await Promise.all([
+        supabase.from("custom_fields").select("*").eq("company_id", eData.company_id).eq("is_active", true),
+        supabase.from("employee_custom_data").select("custom_field_id, field_value").eq("employee_id", id),
+      ]);
+      setCustomFields(cfRes.data || []);
+      const cdMap: Record<string, any> = {};
+      (cdRes.data || []).forEach((cd: any) => { cdMap[cd.custom_field_id] = cd.field_value; });
+      setCustomData(cdMap);
+    }
+    
     setLoading(false);
   }, [id]);
 
@@ -62,6 +77,20 @@ export default function EmployeeDetailPage() {
       employment_status: fd.get("employment_status"),
       joining_date: fd.get("joining_date"),
     }).eq("id", id);
+    if (error) { setMsg(`Error: ${error.message}`); setSaving(false); return; }
+
+    const customUpserts = customFields.map(cf => {
+      const val = fd.get(`cf_${cf.id}`);
+      return {
+        employee_id: id,
+        custom_field_id: cf.id,
+        field_value: val ? String(val) : null
+      };
+    }).filter(cu => cu.field_value !== null);
+    
+    if (customUpserts.length > 0) {
+      await supabase.from("employee_custom_data").upsert(customUpserts, { onConflict: "employee_id, custom_field_id" });
+    }
     if (error) { setMsg(`Error: ${error.message}`); setSaving(false); return; }
     setMsg("Profile updated.");
     setEditing(false);
@@ -209,6 +238,39 @@ export default function EmployeeDetailPage() {
                     <input name="nationality" defaultValue={String(emp.nationality ?? "Indian")} />
                   </div>
                 </div>
+
+                {customFields.length > 0 && (
+                  <>
+                    <hr style={{ margin: "20px 0", borderTop: "1px solid var(--border)" }} />
+                    <h3 style={{ marginBottom: 12, fontSize: 14 }}>Additional Information</h3>
+                    <div className="form-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                      {customFields.map(cf => (
+                        <div className="form-group" key={cf.id}>
+                          <label>{cf.name}</label>
+                          {cf.field_type === "DROPDOWN" || cf.field_type === "MULTI_SELECT" ? (
+                            <select name={`cf_${cf.id}`} defaultValue={customData[cf.id] || ""}>
+                              <option value="">Select</option>
+                              {Array.isArray(cf.options) && cf.options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                            </select>
+                          ) : cf.field_type === "BOOLEAN" ? (
+                            <select name={`cf_${cf.id}`} defaultValue={customData[cf.id] || ""}>
+                              <option value="">Select</option>
+                              <option value="true">Yes</option>
+                              <option value="false">No</option>
+                            </select>
+                          ) : (
+                            <input
+                              name={`cf_${cf.id}`}
+                              type={cf.field_type === "DATE" ? "date" : cf.field_type === "NUMBER" || cf.field_type === "CURRENCY" ? "number" : cf.field_type === "EMAIL" ? "email" : cf.field_type === "PHONE" ? "tel" : "text"}
+                              step={cf.field_type === "NUMBER" || cf.field_type === "CURRENCY" ? "any" : undefined}
+                              defaultValue={customData[cf.id] || ""}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setEditing(false)}>Cancel</button>
@@ -239,6 +301,26 @@ export default function EmployeeDetailPage() {
                   <div style={{ fontSize: 13, color: "var(--text)", marginTop: 3 }}>{val ? String(val) : <span style={{ color: "var(--text-4)" }}>—</span>}</div>
                 </div>
               ))}
+              
+              {customFields.length > 0 && (
+                <div style={{ gridColumn: "1 / -1" }}>
+                  <hr style={{ margin: "8px 0", borderTop: "1px solid var(--border)" }} />
+                  <h3 style={{ marginBottom: 12, fontSize: 14, color: "var(--text-2)" }}>Additional Information</h3>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 32px" }}>
+                    {customFields.map(cf => (
+                      <div key={cf.id}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".5px" }}>{cf.name}</div>
+                        <div style={{ fontSize: 13, color: "var(--text)", marginTop: 3 }}>
+                          {customData[cf.id] ? (
+                            cf.field_type === "BOOLEAN" ? (customData[cf.id] === "true" ? "Yes" : "No")
+                            : String(customData[cf.id])
+                          ) : <span style={{ color: "var(--text-4)" }}>—</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

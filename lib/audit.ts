@@ -12,7 +12,7 @@ interface AuditParams {
 }
 
 export async function writeAudit(supabase: SupabaseClient, params: AuditParams) {
-  await supabase.from("audit_logs").insert({
+  const { error } = await supabase.from("audit_logs").insert({
     company_id: params.company_id,
     actor_employee_id: params.actor_employee_id ?? null,
     actor_auth_user_id: params.actor_auth_user_id,
@@ -23,4 +23,6 @@ export async function writeAudit(supabase: SupabaseClient, params: AuditParams) 
     new_values: params.new_values ?? null,
     created_at: new Date().toISOString(),
   });
+
+  if (error) throw new Error(`Audit log write failed: ${error.message}`);
 }

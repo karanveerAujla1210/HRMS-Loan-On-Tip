@@ -38,7 +38,7 @@ export default function AttendanceScreen() {
     const { data } = await supabase
       .from("profiles")
       .select("employee_id, company_id")
-      .eq("id", user.id)
+      .eq("auth_user_id", user.id)
       .single();
     if (data) { setEmployeeId(data.employee_id); setCompanyId(data.company_id); }
   }, []);

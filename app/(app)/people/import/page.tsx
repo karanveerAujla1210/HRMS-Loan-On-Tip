@@ -58,41 +58,7 @@ const HEADER_HINTS: Record<string, string> = {
   uan: "101234567890",
 };
 
-// Proper CSV parser — handles quoted fields with commas inside
-function parseCsv(text: string): CsvRow[] {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-
-  function splitLine(line: string): string[] {
-    const result: string[] = [];
-    let cur = "";
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') {
-        if (inQuotes && line[i + 1] === '"') { cur += '"'; i++; }
-        else inQuotes = !inQuotes;
-      } else if (ch === "," && !inQuotes) {
-        result.push(cur.trim()); cur = "";
-      } else {
-        cur += ch;
-      }
-    }
-    result.push(cur.trim());
-    return result;
-  }
-
-  const headers = splitLine(lines[0]).map((h) => h.toLowerCase().replace(/ /g, "_"));
-  return lines.slice(1)
-    .map((line) => {
-      const values = splitLine(line);
-      return headers.reduce<CsvRow>((acc, h, i) => {
-        acc[h] = (values[i] ?? "").trim();
-        return acc;
-      }, {});
-    })
-    .filter((row) => Object.values(row).some((v) => v));
-}
+import { parseCSV } from "@/lib/csv";
 
 const VALID_STATUSES = ["ACTIVE", "ON_NOTICE", "SUSPENDED", "RESIGNED", "TERMINATED", "RETIRED", "INACTIVE"];
 
@@ -112,7 +78,7 @@ export default function ImportPage() {
 
   useEffect(() => {
     async function loadLookups() {
-      if (!companyId) return;
+      if (!companyId) { setLoading(false); return; }
       const [d, dg, l, et, emps] = await Promise.all([
         supabase.from("departments").select("id,name").eq("company_id", companyId),
         supabase.from("designations").select("id,name").eq("company_id", companyId),
@@ -170,7 +136,7 @@ export default function ImportPage() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const parsed = parseCsv(ev.target?.result as string);
+      const parsed = parseCSV(ev.target?.result as string) as CsvRow[];
       setErrors(validate(parsed));
       setRows(parsed);
       setResult(null);
