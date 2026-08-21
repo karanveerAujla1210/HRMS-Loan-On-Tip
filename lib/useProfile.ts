@@ -17,7 +17,10 @@ export function useProfile(): ProfileCtx {
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) { setCtx({ companyId: FALLBACK, employeeId: null, role: null, loading: false }); return; }
+      if (!data.session) {
+        setCtx({ companyId: FALLBACK, employeeId: null, role: null, loading: false });
+        return;
+      }
 
       const { data: prof } = await supabase
         .from("profiles")
@@ -29,11 +32,13 @@ export function useProfile(): ProfileCtx {
       if (prof?.employee_id) {
         const { data: r } = await supabase
           .from("employee_roles")
-          .select("role")
+          .select("roles(code)")
           .eq("employee_id", prof.employee_id)
           .eq("is_active", true)
+          .limit(1)
           .single();
-        role = r?.role ?? null;
+        const rd = r as { roles: { code: string } | null } | null;
+        role = rd?.roles?.code ?? null;
       }
 
       setCtx({

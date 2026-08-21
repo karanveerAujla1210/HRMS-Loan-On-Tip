@@ -27,7 +27,7 @@ export default function AttendancePage() {
     setError(null);
 
     let query = supabase
-      .from("v_today_attendance")
+      .from("v_attendance")
       .select("*")
       .gte("attendance_date", from)
       .lte("attendance_date", to)

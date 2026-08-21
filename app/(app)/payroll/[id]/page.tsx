@@ -26,7 +26,7 @@ export default function PayrollRunDetailPage() {
       supabase.from("payroll_runs").select("*").eq("id", id).single(),
       supabase
         .from("payroll_items")
-        .select("id,employee_id,paid_days,gross_salary,total_deductions,net_salary,status,employees(display_name)")
+        .select("id,employee_id,paid_days,gross_salary,total_deductions,net_salary,status,employees(display_name,employee_code,official_email)")
         .eq("payroll_run_id", id)
         .order("gross_salary", { ascending: false }),
     ]);
@@ -35,6 +35,8 @@ export default function PayrollRunDetailPage() {
     const rows = ((itemsRes.data ?? []) as Record<string, unknown>[]).map((r) => ({
       ...r,
       display_name: (r.employees as Record<string, unknown> | null)?.display_name ?? "—",
+      employee_code: (r.employees as Record<string, unknown> | null)?.employee_code ?? "—",
+      official_email: (r.employees as Record<string, unknown> | null)?.official_email ?? "—",
     }));
     setItems(rows as Row[]);
     setLoading(false);
@@ -43,14 +45,50 @@ export default function PayrollRunDetailPage() {
   useEffect(() => { void load(); }, [load]);
 
   async function exportCsv() {
-    const header = ["Employee", "Paid Days", "Gross", "Deductions", "Net"].join(",");
+    const header = ["Employee Code", "Employee Name", "Paid Days", "Gross Salary", "Total Deductions", "Net Salary", "Status"].join(",");
     const rows = items.map((r) =>
-      [r.display_name, r.paid_days, r.gross_salary, r.total_deductions, r.net_salary].join(",")
+      [
+        `"${String(r.employee_code ?? "")}"`,
+        `"${String(r.display_name ?? "")}"`,
+        r.paid_days,
+        r.gross_salary,
+        r.total_deductions,
+        r.net_salary,
+        r.status,
+      ].join(",")
     );
     const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `payroll-${String(run?.payroll_year)}-${String(run?.payroll_month).padStart(2, "0")}.csv`;
+    a.download = `payroll-register-${String(run?.payroll_year)}-${String(run?.payroll_month).padStart(2, "0")}.csv`;
+    a.click();
+  }
+
+  async function exportBankCms() {
+    if (!items.length) return;
+    const empIds = items.map((i) => i.employee_id);
+    const { data: banks } = await supabase
+      .from("employee_bank_accounts")
+      .select("employee_id,account_holder_name,bank_name,ifsc_code,account_number_encrypted,account_number_last4")
+      .in("employee_id", empIds)
+      .eq("is_primary", true);
+
+    const bankMap = new Map((banks ?? []).map((b) => [b.employee_id, b]));
+
+    const header = ["Beneficiary Name", "Account Number", "IFSC Code", "Amount (INR)", "Payment Mode", "Narration / Reference"].join(",");
+    const rows = items.map((item) => {
+      const b = bankMap.get(item.employee_id as string);
+      const accNo = b?.account_number_encrypted || b?.account_number_last4 || "00000000";
+      const ifsc = b?.ifsc_code || "HDFC0000001";
+      const name = b?.account_holder_name || item.display_name;
+      const ref = `SALARY-${String(run?.payroll_month).padStart(2, "0")}/${String(run?.payroll_year)}`;
+      return [`"${name}"`, `"${accNo}"`, `"${ifsc}"`, item.net_salary, "NEFT", `"${ref}"`].join(",");
+    });
+
+    const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `bank-payout-cms-${String(run?.payroll_year)}-${String(run?.payroll_month).padStart(2, "0")}.csv`;
     a.click();
   }
 
@@ -58,7 +96,7 @@ export default function PayrollRunDetailPage() {
     setMsg(null);
     const { error } = await supabase.from("payroll_runs").update({ status: "APPROVED" }).eq("id", id);
     if (error) { setMsg(`Error: ${error.message}`); return; }
-    setMsg("Payroll run approved.");
+    setMsg("Payroll run approved successfully.");
     void load();
   }
 
@@ -70,11 +108,16 @@ export default function PayrollRunDetailPage() {
         title={`Payroll Run — ${run ? `${run.payroll_year}/${String(run.payroll_month).padStart(2, "0")}` : "…"}`}
         subtitle={status}
         actions={
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button className="btn btn-secondary btn-sm" onClick={() => router.push("/payroll")}>← Back</button>
-            <button className="btn btn-secondary btn-sm" onClick={exportCsv} disabled={!items.length}>⬇ Export CSV</button>
+            <button className="btn btn-secondary btn-sm" onClick={exportCsv} disabled={!items.length}>
+              ⬇ Payroll Register CSV
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={exportBankCms} disabled={!items.length}>
+              🏦 Bank CMS Payout Sheet
+            </button>
             {status === "CALCULATED" && (
-              <button className="btn btn-primary btn-sm" onClick={approveRun}>Approve</button>
+              <button className="btn btn-primary btn-sm" onClick={approveRun}>Approve Payroll</button>
             )}
           </div>
         }
@@ -89,8 +132,8 @@ export default function PayrollRunDetailPage() {
             {[
               { label: "Employees", value: String(run.employee_count ?? 0) },
               { label: "Gross Pay", value: `₹${Number(run.gross_pay ?? 0).toLocaleString("en-IN")}` },
-              { label: "Deductions", value: `₹${Number(run.total_deductions ?? 0).toLocaleString("en-IN")}` },
-              { label: "Net Pay", value: `₹${Number(run.net_pay ?? 0).toLocaleString("en-IN")}` },
+              { label: "Total Deductions", value: `₹${Number(run.total_deductions ?? 0).toLocaleString("en-IN")}` },
+              { label: "Net Payout", value: `₹${Number(run.net_pay ?? 0).toLocaleString("en-IN")}` },
             ].map(({ label, value }) => (
               <div className="stat-card" key={label}>
                 <div className="stat-label">{label}</div>
@@ -102,12 +145,26 @@ export default function PayrollRunDetailPage() {
 
         <div className="card">
           <div className="card-header">
-            <div><h2>Employee payslips</h2><p>{items.length} records</p></div>
+            <div>
+              <h2>Employee Payslip Records</h2>
+              <p>{items.length} employee payroll calculations</p>
+            </div>
           </div>
           {loading ? (
             <div className="loading-spinner"><div className="spinner" /> Loading…</div>
           ) : (
-            <DataTable rows={items} columns={COLS} />
+            <DataTable
+              rows={items}
+              columns={COLS}
+              action={(row) => (
+                <button
+                  className="btn btn-sm btn-primary"
+                  onClick={() => router.push(`/payroll/payslip/${String(row.id)}`)}
+                >
+                  📄 View Payslip
+                </button>
+              )}
+            />
           )}
         </div>
       </div>

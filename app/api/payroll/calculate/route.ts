@@ -110,18 +110,23 @@ export async function POST(req: NextRequest) {
       employee_contribution: pf,
       taxable_income: gross,
       status: "DRAFT",
+      _breakdown: { basic, hra, conveyance, special, pf, pt, gross, deductions, net },
     });
   }
 
   // Delete existing items for this run before recalculating
   await supabase.from("payroll_items").delete().eq("payroll_run_id", run.id);
 
+  const cleanItems = items.map(({ _breakdown, ...item }) => item);
+
   const { data: insertedItems, error: itemsErr } = await supabase
     .from("payroll_items")
-    .insert(items)
+    .insert(cleanItems)
     .select("id,employee_id,gross_salary,total_deductions,net_salary");
 
   if (itemsErr) return NextResponse.json({ error: itemsErr.message }, { status: 500 });
+
+  const breakdownMap = new Map(items.map((i) => [i.employee_id, i._breakdown]));
 
   // Create payslips
   const payslips = (insertedItems ?? []).map((item: {
@@ -133,7 +138,7 @@ export async function POST(req: NextRequest) {
     gross_salary: item.gross_salary,
     deductions: item.total_deductions,
     net_salary: item.net_salary,
-    payslip_json: { gross: item.gross_salary, deductions: item.total_deductions, net: item.net_salary },
+    payslip_json: breakdownMap.get(item.employee_id) ?? { gross: item.gross_salary, deductions: item.total_deductions, net: item.net_salary },
     generated_at: new Date().toISOString(),
   }));
 

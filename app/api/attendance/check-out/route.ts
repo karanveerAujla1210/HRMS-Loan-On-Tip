@@ -1,38 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { z } from "zod";
+import { createApiClient, getSessionAndProfile } from "@/lib/api";
 import { writeAudit } from "@/lib/audit";
 
 const HALF_DAY_THRESHOLD = 240;
 
+const Schema = z.object({
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  accuracy_m: z.number().optional(),
+  device_time: z.string().datetime({ offset: true }),
+});
+
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll() } }
-  );
-
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = await createApiClient();
+  const { session, profile } = await getSessionAndProfile(supabase);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const body = await req.json() as {
-    latitude: number;
-    longitude: number;
-    accuracy_m: number;
-    device_time: string;
-  };
-
-  const { latitude, longitude, accuracy_m, device_time } = body;
-  if (!device_time) return NextResponse.json({ error: "device_time required" }, { status: 400 });
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id,employee_id,company_id")
-    .eq("auth_user_id", session.user.id)
-    .single();
   if (!profile?.employee_id) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
 
+  const parsed = Schema.safeParse(await req.json());
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+
+  const { latitude, longitude, accuracy_m, device_time } = parsed.data;
   const today = new Date(device_time).toISOString().slice(0, 10);
 
   const { data: att } = await supabase
@@ -56,9 +45,9 @@ export async function POST(req: NextRequest) {
     .from("attendance")
     .update({
       check_out_at: device_time,
-      check_out_latitude: latitude,
-      check_out_longitude: longitude,
-      check_out_accuracy: accuracy_m,
+      check_out_latitude: latitude ?? null,
+      check_out_longitude: longitude ?? null,
+      check_out_accuracy: accuracy_m ?? null,
       worked_minutes: workedMinutes,
       status,
     })

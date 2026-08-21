@@ -1,40 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-import { cookies } from "next/headers";
+import { z } from "zod";
+import { createApiClient, getSessionAndProfile, getRole } from "@/lib/api";
 import { writeAudit } from "@/lib/audit";
 
+const APPROVER_ROLES = ["SUPER_ADMIN", "HR_ADMIN", "MANAGER"];
+
+const PostSchema = z.object({
+  attendance_id: z.string().uuid(),
+  new_check_in: z.string().datetime({ offset: true }).optional(),
+  new_check_out: z.string().datetime({ offset: true }).optional(),
+  reason: z.string().min(1),
+});
+
+const PatchSchema = z.object({
+  adjustment_id: z.string().uuid(),
+  action: z.enum(["APPROVED", "REJECTED"]),
+});
+
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll() } }
-  );
-
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = await createApiClient();
+  const { session, profile } = await getSessionAndProfile(supabase);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const body = await req.json() as {
-    attendance_id: string;
-    new_check_in?: string;
-    new_check_out?: string;
-    reason: string;
-  };
-
-  if (!body.attendance_id || !body.reason) {
-    return NextResponse.json({ error: "attendance_id and reason are required" }, { status: 400 });
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id,employee_id,company_id")
-    .eq("auth_user_id", session.user.id)
-    .single();
   if (!profile?.employee_id) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+
+  const parsed = PostSchema.safeParse(await req.json());
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+
+  const body = parsed.data;
 
   const { data: att } = await supabase
     .from("attendance")
-    .select("id,check_in_at,check_out_at,status,worked_minutes")
+    .select("id,check_in_at,check_out_at,status")
     .eq("id", body.attendance_id)
     .single();
   if (!att) return NextResponse.json({ error: "Attendance record not found" }, { status: 404 });
@@ -45,7 +41,10 @@ export async function POST(req: NextRequest) {
       attendance_id: body.attendance_id,
       requested_by: profile.employee_id,
       old_values: { check_in_at: att.check_in_at, check_out_at: att.check_out_at, status: att.status },
-      new_values: { check_in_at: body.new_check_in ?? att.check_in_at, check_out_at: body.new_check_out ?? att.check_out_at },
+      new_values: {
+        check_in_at: body.new_check_in ?? att.check_in_at,
+        check_out_at: body.new_check_out ?? att.check_out_at,
+      },
       reason: body.reason,
       status: "PENDING",
     })
@@ -68,42 +67,35 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll() } }
-  );
-
-  const { data: { session } } = await supabase.auth.getSession();
+  const supabase = await createApiClient();
+  const { session, profile } = await getSessionAndProfile(supabase);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!profile?.employee_id) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
 
-  const body = await req.json() as { adjustment_id: string; action: "APPROVED" | "REJECTED" };
-  if (!body.adjustment_id || !body.action) {
-    return NextResponse.json({ error: "adjustment_id and action required" }, { status: 400 });
+  const role = await getRole(supabase, profile.employee_id);
+  if (!role || !APPROVER_ROLES.includes(role)) {
+    return NextResponse.json({ error: "Forbidden: insufficient role" }, { status: 403 });
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id,employee_id,company_id")
-    .eq("auth_user_id", session.user.id)
-    .single();
-  if (!profile?.employee_id) return NextResponse.json({ error: "Employee not found" }, { status: 404 });
+  const parsed = PatchSchema.safeParse(await req.json());
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+
+  const { adjustment_id, action } = parsed.data;
 
   const { data: adj } = await supabase
     .from("attendance_adjustments")
     .select("id,attendance_id,new_values")
-    .eq("id", body.adjustment_id)
+    .eq("id", adjustment_id)
     .single();
   if (!adj) return NextResponse.json({ error: "Adjustment not found" }, { status: 404 });
 
   await supabase.from("attendance_adjustments").update({
-    status: body.action,
+    status: action,
     approved_by: profile.employee_id,
     approved_at: new Date().toISOString(),
-  }).eq("id", body.adjustment_id);
+  }).eq("id", adjustment_id);
 
-  if (body.action === "APPROVED") {
+  if (action === "APPROVED") {
     const nv = adj.new_values as Record<string, string>;
     const updates: Record<string, unknown> = { is_manual_adjustment: true };
     if (nv.check_in_at) updates.check_in_at = nv.check_in_at;
@@ -122,10 +114,10 @@ export async function PATCH(req: NextRequest) {
     company_id: profile.company_id,
     actor_employee_id: profile.employee_id,
     actor_auth_user_id: session.user.id,
-    action: `CORRECTION_${body.action}`,
+    action: `CORRECTION_${action}`,
     entity_type: "attendance_adjustments",
-    entity_id: body.adjustment_id,
+    entity_id: adjustment_id,
   });
 
-  return NextResponse.json({ data: { action: body.action }, error: null });
+  return NextResponse.json({ data: { action }, error: null });
 }

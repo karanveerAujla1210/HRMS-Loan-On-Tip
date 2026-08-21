@@ -1,3 +1,4 @@
-// Mobile app entry — Expo Router root.
-// Screens live in screens/; services in services/; offline queue in offline/.
-export { default } from "expo-router/entry";
+import { Redirect } from "expo-router";
+export default function Index() {
+  return <Redirect href="/(tabs)" />;
+}

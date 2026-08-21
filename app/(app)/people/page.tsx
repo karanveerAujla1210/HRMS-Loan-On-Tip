@@ -6,9 +6,21 @@ import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
+
 type Row = Record<string, unknown>;
 
-const COLUMNS = ["employee_code", "display_name", "department", "designation", "location", "employment_status", "joining_date", "official_email"];
+const COLUMNS = [
+  "employee_code",
+  "display_name",
+  "department",
+  "designation",
+  "location",
+  "employment_status",
+  "joining_date",
+  "official_email",
+];
+
+const PAGE_SIZE = 15;
 
 export default function PeoplePage() {
   const router = useRouter();
@@ -17,6 +29,10 @@ export default function PeoplePage() {
   const [filtered, setFiltered] = useState<Row[]>([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [deptFilter, setDeptFilter] = useState("ALL");
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -32,9 +48,16 @@ export default function PeoplePage() {
       .select("*")
       .eq("company_id", companyId)
       .order("display_name")
-      .limit(200);
+      .limit(1000);
+
     if (error) setError(error.message);
-    setEmployees((data as Row[]) ?? []);
+    const list = (data as Row[]) ?? [];
+    setEmployees(list);
+
+    // Extract unique department list
+    const depts = Array.from(new Set(list.map((e) => String(e.department ?? "")).filter(Boolean)));
+    setDepartments(depts);
+
     setLoading(false);
   }, [companyId]);
 
@@ -42,17 +65,25 @@ export default function PeoplePage() {
 
   useEffect(() => {
     let list = employees;
-    if (statusFilter !== "ALL") list = list.filter((e) => String(e.employment_status).toUpperCase() === statusFilter);
+    if (statusFilter !== "ALL") {
+      list = list.filter((e) => String(e.employment_status).toUpperCase() === statusFilter);
+    }
+    if (deptFilter !== "ALL") {
+      list = list.filter((e) => String(e.department ?? "") === deptFilter);
+    }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter((e) =>
         String(e.display_name ?? "").toLowerCase().includes(q) ||
         String(e.employee_code ?? "").toLowerCase().includes(q) ||
-        String(e.official_email ?? "").toLowerCase().includes(q)
+        String(e.official_email ?? "").toLowerCase().includes(q) ||
+        String(e.department ?? "").toLowerCase().includes(q) ||
+        String(e.designation ?? "").toLowerCase().includes(q)
       );
     }
     setFiltered(list);
-  }, [employees, search, statusFilter]);
+    setCurrentPage(1);
+  }, [employees, search, statusFilter, deptFilter]);
 
   async function handleAddEmployee(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -76,20 +107,24 @@ export default function PeoplePage() {
     setSaving(false);
   }
 
+  // Pagination calculation
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
+  const paginatedRows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   return (
     <>
       <PageHeader
         title="People"
-        subtitle={`${employees.length} employees`}
+        subtitle={`${employees.length} total staff members registered`}
         actions={
-          <>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button className="btn btn-secondary btn-sm" onClick={() => router.push("/people/import")}>
               ⬆ Import CSV
             </button>
             <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>
-              + Add employee
+              + Add Employee
             </button>
-          </>
+          </div>
         }
       />
 
@@ -97,28 +132,85 @@ export default function PeoplePage() {
         {error && <div className="alert alert-error">{error}</div>}
 
         <div className="card">
-          <div className="card-header">
-            <div style={{ display: "flex", gap: 10, flex: 1, flexWrap: "wrap" }}>
+          <div className="card-header" style={{ flexWrap: "wrap", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10, flex: 1, flexWrap: "wrap", alignItems: "center" }}>
               <input
-                placeholder="Search by name, code or email…"
+                placeholder="Search staff by name, code, email, dept…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{ maxWidth: 280 }}
               />
               <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ width: "auto" }}>
-                <option value="ALL">All statuses</option>
+                <option value="ALL">All Statuses</option>
                 <option value="ACTIVE">Active</option>
+                <option value="ON_NOTICE">On Notice</option>
                 <option value="INACTIVE">Inactive</option>
-                <option value="TERMINATED">Terminated</option>
+                <option value="TERMINATED">Terminated / Exited</option>
+              </select>
+              <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} style={{ width: "auto" }}>
+                <option value="ALL">All Departments</option>
+                {departments.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
               </select>
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻</button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 13, color: "var(--text-3)" }}>
+                Showing {paginatedRows.length} of {filtered.length} staff
+              </span>
+              <button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻</button>
+            </div>
           </div>
 
           {loading ? (
             <div className="loading-spinner"><div className="spinner" /> Loading…</div>
           ) : (
-            <DataTable rows={filtered} columns={COLUMNS} />
+            <>
+              <DataTable
+                rows={paginatedRows}
+                columns={COLUMNS}
+                action={(row) => (
+                  <button
+                    className="btn btn-sm btn-secondary"
+                    onClick={() => router.push(`/people/${String(row.id)}`)}
+                  >
+                    View Profile
+                  </button>
+                )}
+              />
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "12px 20px",
+                  borderTop: "1px solid var(--border)",
+                  fontSize: 13,
+                }}>
+                  <div style={{ color: "var(--text-3)" }}>
+                    Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong> ({filtered.length} staff records)
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    >
+                      ← Previous
+                    </button>
+                    <button
+                      className="btn btn-secondary btn-sm"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -127,7 +219,7 @@ export default function PeoplePage() {
         <div className="modal-backdrop">
           <div className="modal">
             <div className="modal-header">
-              <h2>Add employee</h2>
+              <h2>Add New Employee</h2>
               <button className="btn btn-ghost btn-sm" onClick={() => setShowForm(false)}>✕</button>
             </div>
             <form onSubmit={handleAddEmployee}>
@@ -135,31 +227,31 @@ export default function PeoplePage() {
                 {formError && <div className="alert alert-error" style={{ marginBottom: 16 }}>{formError}</div>}
                 <div className="form-row">
                   <div className="form-group">
-                    <label>First name *</label>
+                    <label>First Name *</label>
                     <input name="first_name" required placeholder="Rahul" />
                   </div>
                   <div className="form-group">
-                    <label>Last name *</label>
+                    <label>Last Name *</label>
                     <input name="last_name" required placeholder="Sharma" />
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Work email</label>
+                  <label>Official Work Email</label>
                   <input name="official_email" type="email" placeholder="rahul@acgleasing.com" />
                 </div>
                 <div className="form-group">
-                  <label>Mobile</label>
+                  <label>Mobile Number</label>
                   <input name="official_mobile" placeholder="+91 98765 43210" />
                 </div>
                 <div className="form-group">
-                  <label>Joining date *</label>
-                  <input name="joining_date" type="date" required />
+                  <label>Joining Date *</label>
+                  <input name="joining_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} />
                 </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Saving…" : "Add employee"}
+                  {saving ? "Saving…" : "Add Employee"}
                 </button>
               </div>
             </form>
