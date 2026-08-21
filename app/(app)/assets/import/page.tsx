@@ -52,7 +52,7 @@ export default function AssetImportPage() {
 
   useEffect(() => {
     async function loadLookups() {
-      if (!companyId) { setLoading(false); return; }
+      if (!companyId) { setLookupReady(true); return; }
       const [catRes, locRes] = await Promise.all([
         supabase.from("asset_categories").select("id,name,prefix").eq("company_id", companyId).eq("is_active", true),
         supabase.from("locations").select("id,name").eq("company_id", companyId).eq("is_active", true),
