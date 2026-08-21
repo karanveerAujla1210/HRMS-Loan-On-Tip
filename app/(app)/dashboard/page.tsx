@@ -30,7 +30,7 @@ export default function DashboardPage() {
     const [metricsRes, attendanceRes, leavesRes] = await Promise.all([
       supabase.from("v_dashboard_metrics").select("*").eq("company_id", COMPANY_ID).maybeSingle(),
       supabase.from("v_today_attendance").select("display_name,status,check_in_at,check_out_at,worked_minutes").order("display_name").limit(8),
-      supabase.from("v_pending_leave_approvals").select("display_name,leave_type,from_date,to_date,total_days,status").order("submitted_at", { ascending: false }).limit(8),
+      supabase.from("v_pending_leave_approvals").select("display_name,leave_type,from_date,to_date,total_days").order("submitted_at", { ascending: false }).limit(8),
     ]);
 
     if (metricsRes.error) setError(metricsRes.error.message);
