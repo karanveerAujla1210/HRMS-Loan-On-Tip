@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
@@ -93,10 +94,14 @@ export default function PayrollPage() {
     <>
       <PageHeader
         title="Payroll"
-        subtitle="Monthly payroll runs"
+        subtitle="Monthly company payroll processing and disbursement runs"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Payroll Runs" },
+        ]}
         actions={
           <>
-            <button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
             <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>+ New run</button>
           </>
         }
@@ -115,7 +120,7 @@ export default function PayrollPage() {
               columns={COLS}
               action={(row) => (
                 <div style={{ display: "flex", gap: 6 }}>
-                  <a href={`/payroll/${String(row.id)}`} className="btn btn-sm btn-secondary">View</a>
+                  <Link href={`/payroll/${String(row.id)}`} className="btn btn-sm btn-secondary">View</Link>
                   {String(row.status) === "DRAFT" && (
                     <button className="btn btn-sm btn-secondary" onClick={() => calculateRun(row)}>Calculate</button>
                   )}

@@ -4,9 +4,16 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
+import SubNav from "@/components/SubNav";
 
 type Row = Record<string, unknown>;
 const COLS = ["display_name", "attendance_date", "old_check_in", "new_check_in", "old_check_out", "new_check_out", "reason", "status", "created_at"];
+
+const ATTENDANCE_NAV = [
+  { href: "/attendance", label: "Daily Attendance", exact: true },
+  { href: "/attendance/corrections", label: "Corrections" },
+  { href: "/attendance/exceptions", label: "Exceptions & Geofence" },
+];
 
 export default function CorrectionsPage() {
   const [rows, setRows] = useState<Row[]>([]);
@@ -73,9 +80,17 @@ export default function CorrectionsPage() {
     <>
       <PageHeader
         title="Attendance Corrections"
-        subtitle="Review and approve correction requests"
-        actions={<button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻ Refresh</button>}
+        subtitle="Review and approve employee check-in / check-out correction requests"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Attendance", href: "/attendance" },
+          { label: "Corrections" },
+        ]}
+        actions={<button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>}
       />
+
+      <SubNav items={ATTENDANCE_NAV} />
+
       <div className="page-body">
         {error && <div className="alert alert-error">{error}</div>}
         {msg && <div className="alert alert-success">{msg}</div>}

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
+import EmployeeSubNav from "@/components/EmployeeSubNav";
 
 type Row = Record<string, unknown>;
 
@@ -85,13 +86,21 @@ export default function EmployeeDocumentsPage() {
       <PageHeader
         title={`${empName} — Documents`}
         subtitle="Employee document records"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "People", href: "/people" },
+          { label: empName, href: `/people/${id}` },
+          { label: "Documents" },
+        ]}
         actions={
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => router.back()}>← Back</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => router.push(`/people/${id}`)}>← Employee Profile</button>
             <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>+ Add document</button>
           </div>
         }
       />
+
+      <EmployeeSubNav employeeId={id} />
 
       <div className="page-body">
         {msg && <div className={`alert ${msg.startsWith("Error") ? "alert-error" : "alert-success"}`}>{msg}</div>}

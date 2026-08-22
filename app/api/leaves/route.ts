@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
   const fromDate = parsed.data.from_date;
   const toDate = parsed.data.to_date;
-  const totalDays = Math.max(1, Math.round((new Date(toDate).getTime() - new Date(fromDate).getTime()) / 86400000) + 1));
+  const totalDays = Math.max(1, Math.round((new Date(toDate).getTime() - new Date(fromDate).getTime()) / 86400000) + 1);
 
   const { data: lr, error } = await supabase
     .from("leave_requests")

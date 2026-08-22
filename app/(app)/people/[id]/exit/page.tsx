@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
+import EmployeeSubNav from "@/components/EmployeeSubNav";
 
 type Row = Record<string, unknown>;
 
@@ -114,12 +115,20 @@ export default function EmployeeExitPage() {
       <PageHeader
         title={`${name} — Exit & Clearance (FnF)`}
         subtitle={`${code} · Status: ${String(emp?.employment_status ?? "ACTIVE")}`}
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "People", href: "/people" },
+          { label: name, href: `/people/${id}` },
+          { label: "Exit & FnF" },
+        ]}
         actions={
           <button className="btn btn-secondary btn-sm" onClick={() => router.push(`/people/${id}`)}>
-            ← Back to Profile
+            ← Employee Profile
           </button>
         }
       />
+
+      <EmployeeSubNav employeeId={id} />
 
       <div className="page-body">
         {msg && <div className={`alert ${msg.startsWith("Error") ? "alert-error" : "alert-success"}`}>{msg}</div>}

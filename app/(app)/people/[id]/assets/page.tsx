@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
+import EmployeeSubNav from "@/components/EmployeeSubNav";
 
 type Row = Record<string, unknown>;
 
@@ -50,11 +51,22 @@ export default function EmployeeAssetsPage() {
     <>
       <PageHeader
         title={`${empName} — Assets`}
-        subtitle="Assigned and returned assets"
+        subtitle="Assigned and returned company assets"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "People", href: "/people" },
+          { label: empName, href: `/people/${id}` },
+          { label: "Assets" },
+        ]}
         actions={
-          <button className="btn btn-secondary btn-sm" onClick={() => router.back()}>← Back</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => router.push(`/people/${id}`)}>
+            ← Employee Profile
+          </button>
         }
       />
+
+      <EmployeeSubNav employeeId={id} />
+
       <div className="page-body">
         <div className="card">
           {loading ? (

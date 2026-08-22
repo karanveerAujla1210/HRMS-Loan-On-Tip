@@ -6,6 +6,13 @@ import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
 import { parseCSV } from "@/lib/csv";
+import SubNav from "@/components/SubNav";
+
+const ASSETS_NAV = [
+  { href: "/assets", label: "Asset Inventory", exact: true },
+  { href: "/assets/maintenance", label: "Maintenance & Repairs" },
+  { href: "/assets/import", label: "Bulk CSV Import" },
+];
 
 type CsvRow = Record<string, string>;
 type LookupMap = Record<string, string>;
@@ -139,11 +146,18 @@ export default function AssetImportPage() {
     <>
       <PageHeader
         title="Import Assets"
-        subtitle="Bulk upload assets via CSV"
+        subtitle="Bulk upload hardware and IT assets via CSV spreadsheet"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Assets", href: "/assets" },
+          { label: "Bulk CSV Import" },
+        ]}
         actions={
-          <button className="btn btn-secondary btn-sm" onClick={() => router.push("/assets")}>← Back</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => router.push("/assets")}>← Asset Inventory</button>
         }
       />
+
+      <SubNav items={ASSETS_NAV} />
 
       <div className="page-body">
         <div className="card" style={{ marginBottom: 20 }}>

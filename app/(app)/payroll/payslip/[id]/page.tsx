@@ -150,11 +150,18 @@ export default function PayslipViewPage() {
   const pt = Number(pj.pt ?? (deductions >= 200 ? 200 : 0));
   const otherDed = Number(pj.other_deductions ?? (deductions - pf - pt > 0 ? deductions - pf - pt : 0));
 
+  const empDisplayName = String(emp?.display_name ?? "Employee");
+
   return (
     <>
       <PageHeader
         title={`Payslip — ${periodTitle}`}
-        subtitle={String(emp?.display_name ?? "")}
+        subtitle={`${empDisplayName} · ${String(emp?.employee_code ?? "")}`}
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Payroll", href: "/payroll" },
+          { label: `Payslip (${periodTitle})` },
+        ]}
         actions={
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn btn-secondary btn-sm" onClick={() => router.back()}>← Back</button>

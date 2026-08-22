@@ -77,7 +77,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     action: "SALARY_ASSIGNED",
     entity_type: "employee_salary_assignments",
     entity_id: newAssignment.id,
-    old_values: current ? { annual_ctc: current.annual_ctc } : null,
+    old_values: current ? { annual_ctc: current.annual_ctc } : undefined,
     new_values: { annual_ctc: parsed.data.annual_ctc, effective_from: parsed.data.effective_from },
   });
 

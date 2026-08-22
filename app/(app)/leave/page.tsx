@@ -60,9 +60,13 @@ export default function LeavePage() {
     <>
       <PageHeader
         title="Leave"
-        subtitle="Leave requests and approvals"
+        subtitle="Leave applications, team quotas and approval workflows"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Leave Approvals" },
+        ]}
         actions={
-          <button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻ Refresh</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
         }
       />
 

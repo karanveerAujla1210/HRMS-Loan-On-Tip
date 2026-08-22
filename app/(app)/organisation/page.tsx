@@ -131,6 +131,10 @@ export default function OrganisationPage() {
       <PageHeader
         title="Organisation"
         subtitle="Departments, designations, locations, shifts, leave types and holidays"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Organisation Configuration" },
+        ]}
         actions={
           <button className="btn btn-primary btn-sm" onClick={() => { setEditing(null); setShowForm(true); }}>
             + Add {tab.replace("_", " ").replace(/s$/, "")}

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import PageHeader from "@/components/PageHeader";
+import EmployeeSubNav from "@/components/EmployeeSubNav";
 
 type Emp = Record<string, unknown>;
 
@@ -116,17 +117,21 @@ export default function EmployeeDetailPage() {
       <PageHeader
         title={name}
         subtitle={String(emp.employee_code ?? "")}
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "People", href: "/people" },
+          { label: name, href: `/people/${id}` },
+          { label: "Profile Details" },
+        ]}
         actions={
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => router.push("/people")}>← Back</button>
-            <Link href={`/people/${id}/documents`} className="btn btn-secondary btn-sm">Documents</Link>
-            <Link href={`/people/${id}/salary`} className="btn btn-secondary btn-sm">Salary</Link>
-            <Link href={`/people/${id}/assets`} className="btn btn-secondary btn-sm">Assets</Link>
-            <Link href={`/people/${id}/exit`} className="btn btn-secondary btn-sm">Exit / FnF</Link>
-            <Link href={`/people/${id}/id-card`} className="btn btn-primary btn-sm">ID Card</Link>
+            <button className="btn btn-secondary btn-sm" onClick={() => router.push("/people")}>← People Directory</button>
+            <Link href={`/people/${id}/id-card`} className="btn btn-primary btn-sm">🖨 ID Card</Link>
           </div>
         }
       />
+
+      <EmployeeSubNav employeeId={id} />
 
       <div className="page-body">
         {msg && <div className="alert alert-success">{msg}</div>}

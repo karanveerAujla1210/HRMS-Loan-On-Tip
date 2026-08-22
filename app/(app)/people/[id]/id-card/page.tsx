@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import PageHeader from "@/components/PageHeader";
+import EmployeeSubNav from "@/components/EmployeeSubNav";
 
 type Emp = Record<string, unknown>;
 
@@ -29,18 +30,29 @@ export default function IdCardPage() {
   if (loading) return <div className="loading-spinner" style={{ minHeight: "60vh" }}><div className="spinner" /> Loading…</div>;
   if (!emp) return <div className="page-body"><div className="alert alert-error">Employee not found.</div></div>;
 
+  const empName = String(emp.display_name ?? "Employee");
+
   return (
     <>
       <PageHeader
-        title="ID Card"
-        subtitle={String(emp.display_name ?? "")}
+        title={`${empName} — ID Card`}
+        subtitle={String(emp.employee_code ?? "")}
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "People", href: "/people" },
+          { label: empName, href: `/people/${id}` },
+          { label: "ID Card" },
+        ]}
         actions={
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => router.back()}>← Back</button>
-            <button className="btn btn-primary btn-sm" onClick={() => window.print()}>🖨 Print</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => router.push(`/people/${id}`)}>← Employee Profile</button>
+            <button className="btn btn-primary btn-sm" onClick={() => window.print()}>🖨 Print ID Card</button>
           </div>
         }
       />
+
+      <EmployeeSubNav employeeId={id} />
+
       <div className="page-body" style={{ display: "flex", justifyContent: "center" }}>
         <div style={{
           width: 340, background: "#fff", borderRadius: 16,

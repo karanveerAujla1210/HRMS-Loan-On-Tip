@@ -6,6 +6,13 @@ import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
+import SubNav from "@/components/SubNav";
+
+const ASSETS_NAV = [
+  { href: "/assets", label: "Asset Inventory", exact: true },
+  { href: "/assets/maintenance", label: "Maintenance & Repairs" },
+  { href: "/assets/import", label: "Bulk CSV Import" },
+];
 
 type Row = Record<string, unknown>;
 type Asset = Row & {
@@ -241,19 +248,19 @@ export default function AssetsPage() {
       <PageHeader
         title="Assets"
         subtitle={`${assets.length} items registered across company`}
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Asset Inventory" },
+        ]}
         actions={
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => router.push("/assets/import")}>
-              ⬆ Bulk CSV Import
-            </button>
-            <button className="btn btn-secondary btn-sm" onClick={() => router.push("/assets/maintenance")}>
-              🛠 Maintenance & Repairs
-            </button>
-            <button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
             <button className="btn btn-primary btn-sm" onClick={() => setShowAddForm(true)}>+ Add Asset</button>
           </div>
         }
       />
+
+      <SubNav items={ASSETS_NAV} />
 
       <div className="page-body">
         {error && <div className="alert alert-error">{error}</div>}

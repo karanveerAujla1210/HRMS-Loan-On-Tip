@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
@@ -44,15 +45,20 @@ export default function DashboardPage() {
   const onLeave  = Number(metrics.on_leave_today ?? 0);
   const rate     = active ? Math.round((present / active) * 100) : 0;
 
-  const isAdmin = role && ["SUPER_ADMIN","HR_ADMIN","FINANCE_ADMIN","OPERATIONS_ADMIN","MANAGER"].includes(role);
+  const isAdmin = !role || ["SUPER_ADMIN","HR_ADMIN","FINANCE_ADMIN","OPERATIONS_ADMIN","MANAGER"].includes(role);
 
   return (
     <>
       <PageHeader
         title="Dashboard"
-        subtitle="Live operations overview"
+        subtitle="Live HR and operations overview"
         actions={
-          <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Link href="/self-service" className="btn btn-secondary btn-sm">
+              👤 My Self-Service
+            </Link>
+            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
+          </div>
         }
       />
 
@@ -63,67 +69,142 @@ export default function DashboardPage() {
           <div className="loading-spinner"><div className="spinner" /> Loading…</div>
         ) : (
           <>
-            {/* Primary stats */}
-            <div className="stats-grid" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
-              <div className="stat-card">
-                <div className="stat-label">Active employees</div>
-                <div className="stat-value">{active}</div>
-                <div className="stat-sub">Total headcount</div>
+            {/* Quick Actions Bar */}
+            <div className="quick-actions-bar">
+              <div className="quick-actions-title">Quick Actions:</div>
+              <div className="quick-actions-list">
+                <Link href="/people" className="quick-action-btn">
+                  <span>👥</span> People Directory
+                </Link>
+                <Link href="/attendance" className="quick-action-btn">
+                  <span>⏱️</span> Attendance Logs
+                </Link>
+                <Link href="/attendance/corrections" className="quick-action-btn">
+                  <span>✏️</span> Corrections
+                </Link>
+                <Link href="/leave" className="quick-action-btn">
+                  <span>🏖️</span> Leave Approvals
+                </Link>
+                <Link href="/payroll" className="quick-action-btn">
+                  <span>💵</span> Payroll Runs
+                </Link>
+                <Link href="/assets" className="quick-action-btn">
+                  <span>💻</span> Asset Inventory
+                </Link>
+                <Link href="/organisation" className="quick-action-btn">
+                  <span>🏢</span> Organisation Setup
+                </Link>
+                <Link href="/reports" className="quick-action-btn">
+                  <span>📊</span> Reports
+                </Link>
               </div>
-              <div className="stat-card">
-                <div className="stat-label">Present today</div>
+            </div>
+
+            {/* Primary stats - Clickable Links */}
+            <div className="stats-grid" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
+              <Link href="/people" className="stat-card stat-card-link">
+                <div className="stat-card-header">
+                  <div className="stat-label">Active employees</div>
+                  <span className="stat-arrow">→</span>
+                </div>
+                <div className="stat-value">{active}</div>
+                <div className="stat-sub">Total headcount · View directory</div>
+              </Link>
+
+              <Link href="/attendance" className="stat-card stat-card-link">
+                <div className="stat-card-header">
+                  <div className="stat-label">Present today</div>
+                  <span className="stat-arrow">→</span>
+                </div>
                 <div className="stat-value" style={{ color: "var(--green)" }}>{present}</div>
                 <div className="stat-sub">{rate}% attendance rate</div>
                 <div className="progress-bar"><div className="progress-fill" style={{ width: `${rate}%` }} /></div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Absent today</div>
+              </Link>
+
+              <Link href="/attendance" className="stat-card stat-card-link">
+                <div className="stat-card-header">
+                  <div className="stat-label">Absent today</div>
+                  <span className="stat-arrow">→</span>
+                </div>
                 <div className="stat-value" style={{ color: "var(--red)" }}>{absent}</div>
                 <div className="stat-sub">{late} late · {halfDay} half-day</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">On leave today</div>
+              </Link>
+
+              <Link href="/leave" className="stat-card stat-card-link">
+                <div className="stat-card-header">
+                  <div className="stat-label">On leave today</div>
+                  <span className="stat-arrow">→</span>
+                </div>
                 <div className="stat-value" style={{ color: "var(--purple)" }}>{onLeave}</div>
                 <div className="stat-sub">{Number(metrics.pending_leaves ?? 0)} pending approvals</div>
-              </div>
+              </Link>
             </div>
 
             {/* Secondary stats — admin only */}
             {isAdmin && (
               <div className="stats-grid" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
-                <div className="stat-card">
-                  <div className="stat-label">New joiners (30d)</div>
+                <Link href="/people" className="stat-card stat-card-link">
+                  <div className="stat-card-header">
+                    <div className="stat-label">New joiners (30d)</div>
+                    <span className="stat-arrow">→</span>
+                  </div>
                   <div className="stat-value">{Number(metrics.new_joiners_30d ?? 0)}</div>
                   <div className="stat-sub">{Number(metrics.on_notice ?? 0)} on notice period</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Pending corrections</div>
+                </Link>
+
+                <Link href="/attendance/corrections" className="stat-card stat-card-link">
+                  <div className="stat-card-header">
+                    <div className="stat-label">Pending corrections</div>
+                    <span className="stat-arrow">→</span>
+                  </div>
                   <div className="stat-value" style={{ color: "var(--amber)" }}>{Number(metrics.pending_corrections ?? 0)}</div>
                   <div className="stat-sub">{Number(metrics.open_exceptions ?? 0)} open exceptions</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Assets assigned</div>
+                </Link>
+
+                <Link href="/assets" className="stat-card stat-card-link">
+                  <div className="stat-card-header">
+                    <div className="stat-label">Assets assigned</div>
+                    <span className="stat-arrow">→</span>
+                  </div>
                   <div className="stat-value">{Number(metrics.assigned_assets ?? 0)}</div>
-                  <div className="stat-sub">{Number(metrics.available_assets ?? 0)} available</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-label">Payroll runs</div>
+                  <div className="stat-sub">{Number(metrics.available_assets ?? 0)} available in stock</div>
+                </Link>
+
+                <Link href="/payroll" className="stat-card stat-card-link">
+                  <div className="stat-card-header">
+                    <div className="stat-label">Payroll runs</div>
+                    <span className="stat-arrow">→</span>
+                  </div>
                   <div className="stat-value">{Number(metrics.draft_payroll_runs ?? 0)}</div>
                   <div className="stat-sub">{Number(metrics.pending_payroll_approvals ?? 0)} pending approval</div>
-                </div>
+                </Link>
               </div>
             )}
 
+            {/* Dashboard tables with direct links */}
             <div className="dashboard-grid">
               <div className="card">
                 <div className="card-header">
-                  <div><h2>Today's attendance</h2><p>{attendance.length} records shown</p></div>
+                  <div>
+                    <h2>Today's attendance</h2>
+                    <p>{attendance.length} records shown</p>
+                  </div>
+                  <Link href="/attendance" className="btn btn-secondary btn-sm">
+                    View All Attendance →
+                  </Link>
                 </div>
                 <DataTable rows={attendance} columns={["display_name","department","status","check_in_at","check_out_at","worked_minutes"]} />
               </div>
+
               <div className="card">
                 <div className="card-header">
-                  <div><h2>Pending leave approvals</h2><p>{leaves.length} requests</p></div>
+                  <div>
+                    <h2>Pending leave approvals</h2>
+                    <p>{leaves.length} requests</p>
+                  </div>
+                  <Link href="/leave" className="btn btn-secondary btn-sm">
+                    Manage Leaves →
+                  </Link>
                 </div>
                 <DataTable rows={leaves} columns={["display_name","leave_type","from_date","to_date","total_days"]} />
               </div>

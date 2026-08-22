@@ -118,6 +118,7 @@ export default function PeoplePage() {
       <PageHeader
         title="People"
         subtitle={`${employees.length} total staff members registered`}
+        breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "People Directory" }]}
         actions={
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button className="btn btn-secondary btn-sm" onClick={() => router.push("/people/import")}>

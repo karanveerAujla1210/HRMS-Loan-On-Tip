@@ -145,7 +145,11 @@ export default function ReportsPage() {
     <>
       <PageHeader
         title="Reports"
-        subtitle="HR, payroll, attendance and audit reports"
+        subtitle="HR analytics, payroll ledgers, attendance summaries and compliance audit trails"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Reports & Analytics" },
+        ]}
         actions={
           <button className="btn btn-secondary btn-sm" onClick={exportCSV} disabled={!rows.length}>
             ⬇ Export CSV

@@ -76,6 +76,10 @@ export async function POST(req: NextRequest) {
     else if (s === "ON_LEAVE") attMap[row.employee_id].leave++;
   }
 
+  let totalGross = 0;
+  let totalNet = 0;
+  let totalDeductions = 0;
+  const items: Record<string, unknown>[] = [];
   const breakdownMap = new Map<string, { basic: number; hra: number; conveyance: number; special_allowance: number; pf: number; pt: number; gross: number; deductions: number; net: number }>();
   for (const asgn of assignments) {
     const monthly = Number(asgn.monthly_ctc);

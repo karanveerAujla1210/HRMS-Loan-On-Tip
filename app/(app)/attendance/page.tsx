@@ -5,6 +5,13 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
+import SubNav from "@/components/SubNav";
+
+const ATTENDANCE_NAV = [
+  { href: "/attendance", label: "Daily Attendance", exact: true },
+  { href: "/attendance/corrections", label: "Corrections" },
+  { href: "/attendance/exceptions", label: "Exceptions & Geofence" },
+];
 
 const COLUMNS = ["display_name", "attendance_date", "status", "check_in_at", "check_out_at", "worked_minutes", "late_minutes"];
 
@@ -56,14 +63,18 @@ export default function AttendancePage() {
       <PageHeader
         title="Attendance"
         subtitle="Daily check-in and check-out records"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Attendance Logs" },
+        ]}
         actions={
           <div style={{ display: "flex", gap: 8 }}>
-            <Link href="/attendance/corrections" className="btn btn-secondary btn-sm">Corrections</Link>
-            <Link href="/attendance/exceptions" className="btn btn-secondary btn-sm">Exceptions</Link>
-            <button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻ Refresh</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
           </div>
         }
       />
+
+      <SubNav items={ATTENDANCE_NAV} />
 
       <div className="page-body">
         {error && <div className="alert alert-error">{error}</div>}

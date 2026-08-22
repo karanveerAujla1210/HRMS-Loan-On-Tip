@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
@@ -266,7 +267,14 @@ export default function SelfServicePage() {
 
   return (
     <>
-      <PageHeader title="Self Service" subtitle="Your attendance, leave, payslips, assets, expense claims and support" />
+      <PageHeader
+        title="Self Service"
+        subtitle="Your attendance, leave, payslips, assets, expense claims and support"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "My Self-Service" },
+        ]}
+      />
 
       <div className="page-body">
         {error && <div className="alert alert-error">{error}</div>}
@@ -403,12 +411,12 @@ export default function SelfServicePage() {
                   rows={payslips}
                   columns={["period", "gross_salary", "deductions", "net_salary", "generated_at"]}
                   action={(row) => (
-                    <a
+                    <Link
                       href={`/payroll/payslip/${String(row.id)}`}
                       className="btn btn-sm btn-primary"
                     >
                       📄 View & Print
-                    </a>
+                    </Link>
                   )}
                 />
               </div>

@@ -107,14 +107,21 @@ export default function PayrollRunDetailPage() {
 
   const status = String(run?.status ?? "");
 
+  const runTitle = run ? `${run.payroll_year}/${String(run.payroll_month).padStart(2, "0")}` : "…";
+
   return (
     <>
       <PageHeader
-        title={`Payroll Run — ${run ? `${run.payroll_year}/${String(run.payroll_month).padStart(2, "0")}` : "…"}`}
-        subtitle={status}
+        title={`Payroll Run — ${runTitle}`}
+        subtitle={`Status: ${status}`}
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Payroll Runs", href: "/payroll" },
+          { label: `Run ${runTitle}` },
+        ]}
         actions={
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => router.push("/payroll")}>← Back</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => router.push("/payroll")}>← Payroll Runs</button>
             <button className="btn btn-secondary btn-sm" onClick={exportCsv} disabled={!items.length}>
               ⬇ Payroll Register CSV
             </button>

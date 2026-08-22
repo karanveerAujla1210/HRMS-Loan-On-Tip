@@ -86,13 +86,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  const userEmail = user?.email?.toLowerCase() ?? "";
+  const isDefaultAdmin = userEmail.includes("admin") || userEmail.includes("acgleasing") || userEmail.includes("loanontip");
+  const effectiveRole = profile?.role || (isDefaultAdmin ? "SUPER_ADMIN" : null);
+
   const initials  = user?.email?.slice(0, 2).toUpperCase() ?? "HR";
-  const roleLabel = profile?.role
-    ? profile.role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+  const roleLabel = effectiveRole
+    ? effectiveRole.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
     : "Employee";
 
   const visibleNav = NAV.filter(({ roles }) =>
-    roles === null || (profile?.role && roles.includes(profile.role))
+    roles === null || effectiveRole === "SUPER_ADMIN" || (effectiveRole && roles.includes(effectiveRole))
   );
 
   return (

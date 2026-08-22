@@ -4,9 +4,16 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
+import SubNav from "@/components/SubNav";
 
 type Row = Record<string, unknown>;
 const COLS = ["display_name", "attendance_date", "exception_type", "description", "severity", "status", "raised_at"];
+
+const ATTENDANCE_NAV = [
+  { href: "/attendance", label: "Daily Attendance", exact: true },
+  { href: "/attendance/corrections", label: "Corrections" },
+  { href: "/attendance/exceptions", label: "Exceptions & Geofence" },
+];
 
 export default function ExceptionsPage() {
   const [rows, setRows] = useState<Row[]>([]);
@@ -75,7 +82,12 @@ export default function ExceptionsPage() {
     <>
       <PageHeader
         title="Attendance Exceptions"
-        subtitle="Geo, accuracy and mock-location flags"
+        subtitle="Geo-fence violations, device accuracy flags and mock-location audits"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Attendance", href: "/attendance" },
+          { label: "Exceptions" },
+        ]}
         actions={
           <div style={{ display: "flex", gap: 8 }}>
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ width: "auto" }}>
@@ -83,10 +95,13 @@ export default function ExceptionsPage() {
               <option value="RESOLVED">Resolved</option>
               <option value="ALL">All</option>
             </select>
-            <button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
           </div>
         }
       />
+
+      <SubNav items={ATTENDANCE_NAV} />
+
       <div className="page-body">
         {error && <div className="alert alert-error">{error}</div>}
         {msg && <div className="alert alert-success">{msg}</div>}

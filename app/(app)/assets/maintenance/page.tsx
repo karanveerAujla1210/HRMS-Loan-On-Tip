@@ -6,6 +6,13 @@ import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
+import SubNav from "@/components/SubNav";
+
+const ASSETS_NAV = [
+  { href: "/assets", label: "Asset Inventory", exact: true },
+  { href: "/assets/maintenance", label: "Maintenance & Repairs" },
+  { href: "/assets/import", label: "Bulk CSV Import" },
+];
 
 type Row = Record<string, unknown>;
 type MaintenanceRecord = Row & {
@@ -163,14 +170,20 @@ export default function AssetMaintenancePage() {
       <PageHeader
         title="Asset Maintenance"
         subtitle="Track repairs, servicing, vendor bills and hardware health"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "Assets", href: "/assets" },
+          { label: "Maintenance & Repairs" },
+        ]}
         actions={
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => router.push("/assets")}>← Asset Inventory</button>
-            <button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻ Refresh</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
             <button className="btn btn-primary btn-sm" onClick={() => setShowLogModal(true)}>+ Log Repair / Service</button>
           </div>
         }
       />
+
+      <SubNav items={ASSETS_NAV} />
 
       <div className="page-body">
         {error && <div className="alert alert-error">{error}</div>}

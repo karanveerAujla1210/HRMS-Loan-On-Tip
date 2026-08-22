@@ -179,9 +179,14 @@ export default function ImportPage() {
     <>
       <PageHeader
         title="Import Employees"
-        subtitle="Bulk upload via CSV"
+        subtitle="Bulk employee onboarding via CSV spreadsheet"
+        breadcrumbs={[
+          { label: "Dashboard", href: "/dashboard" },
+          { label: "People", href: "/people" },
+          { label: "Bulk CSV Import" },
+        ]}
         actions={
-          <button className="btn btn-secondary btn-sm" onClick={() => router.push("/people")}>← Back</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => router.push("/people")}>← People Directory</button>
         }
       />
 
