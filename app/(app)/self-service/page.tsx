@@ -184,21 +184,21 @@ export default function SelfServicePage() {
     setSubmittingLeave(true);
     setLeaveMsg(null);
     const fd = new FormData(e.currentTarget);
-    const from = fd.get("from_date") as string;
-    const to = fd.get("to_date") as string;
-    const days = Math.max(1, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 86400000) + 1);
+    const from = String(fd.get("from_date"));
+    const to = String(fd.get("to_date"));
 
-    const { error } = await supabase.from("leave_requests").insert({
-      employee_id: employeeId,
-      leave_type_id: fd.get("leave_type_id"),
-      from_date: from,
-      to_date: to,
-      total_days: days,
-      reason: fd.get("reason") || null,
-      status: "PENDING",
+    const res = await fetch("/api/leaves", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        leave_type_id: fd.get("leave_type_id"),
+        from_date: from,
+        to_date: to,
+        reason: fd.get("reason") || null,
+      }),
     });
-
-    if (error) { setLeaveMsg(`Error: ${error.message}`); }
+    const json = await res.json();
+    if (json.error) { setLeaveMsg(`Error: ${json.error}`); }
     else { setLeaveMsg("Leave request submitted."); setShowLeaveForm(false); void load(); }
     setSubmittingLeave(false);
   }
@@ -211,18 +211,19 @@ export default function SelfServicePage() {
     setExpenseMsg(null);
     const fd = new FormData(e.currentTarget);
 
-    const { error } = await supabase.from("expenses").insert({
-      company_id: companyId,
-      employee_id: employeeId,
-      expense_date: fd.get("expense_date"),
-      category: fd.get("category"),
-      amount: Number(fd.get("amount")),
-      description: fd.get("description"),
-      receipt_path: fd.get("receipt_path") || null,
-      status: "PENDING",
+    const res = await fetch("/api/expenses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        expense_date: fd.get("expense_date"),
+        category: fd.get("category"),
+        amount: Number(fd.get("amount")),
+        description: fd.get("description"),
+        receipt_path: fd.get("receipt_path") || null,
+      }),
     });
-
-    if (error) { setExpenseMsg(`Error: ${error.message}`); }
+    const json = await res.json();
+    if (json.error) { setExpenseMsg(`Error: ${json.error}`); }
     else { setExpenseMsg("Expense claim submitted for approval."); setShowExpenseForm(false); void load(); }
     setSubmittingExpense(false);
   }
@@ -235,17 +236,18 @@ export default function SelfServicePage() {
     setTicketMsg(null);
     const fd = new FormData(e.currentTarget);
 
-    const { error } = await supabase.from("helpdesk_tickets").insert({
-      company_id: companyId,
-      employee_id: employeeId,
-      category: fd.get("category"),
-      subject: fd.get("subject"),
-      description: fd.get("description"),
-      priority: fd.get("priority") || "NORMAL",
-      status: "OPEN",
+    const res = await fetch("/api/helpdesk", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        category: fd.get("category"),
+        subject: fd.get("subject"),
+        description: fd.get("description"),
+        priority: fd.get("priority") || "NORMAL",
+      }),
     });
-
-    if (error) { setTicketMsg(`Error: ${error.message}`); }
+    const json = await res.json();
+    if (json.error) { setTicketMsg(`Error: ${json.error}`); }
     else { setTicketMsg("Support ticket created. HR/IT team will review shortly."); setShowTicketForm(false); void load(); }
     setSubmittingTicket(false);
   }

@@ -107,26 +107,20 @@ export default function AssetMaintenancePage() {
 
     const costVal = fd.get("cost") ? Number(fd.get("cost")) : null;
 
-    // 1. Insert maintenance record
-    const { error: maintErr } = await supabase.from("asset_maintenance").insert({
-      asset_id: assetId,
-      maintenance_type: fd.get("maintenance_type"),
-      vendor: fd.get("vendor") || null,
-      started_at: fd.get("started_at") || new Date().toISOString().slice(0, 10),
-      cost: costVal,
-      description: fd.get("description") || null,
-      status: "IN_PROGRESS",
-      created_by: employeeId,
+    const res = await fetch("/api/assets/maintenance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        asset_id: assetId,
+        maintenance_type: fd.get("maintenance_type"),
+        vendor: fd.get("vendor") || null,
+        started_at: fd.get("started_at") || new Date().toISOString().slice(0, 10),
+        cost: costVal,
+        description: fd.get("description") || null,
+      }),
     });
-
-    if (maintErr) {
-      setMsg(`Error: ${maintErr.message}`);
-      setSaving(false);
-      return;
-    }
-
-    // 2. Set asset status to UNDER_REPAIR
-    await supabase.from("assets").update({ status: "UNDER_REPAIR" }).eq("id", assetId);
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
 
     setShowLogModal(false);
     setMsg("Maintenance ticket logged and asset status marked as UNDER_REPAIR.");
@@ -143,36 +137,20 @@ export default function AssetMaintenancePage() {
     const actualCost = fd.get("actual_cost") ? Number(fd.get("actual_cost")) : completingRecord.cost;
     const completedDate = String(fd.get("completed_at") || new Date().toISOString().slice(0, 10));
     const resolutionNote = String(fd.get("resolution_note") || "");
+    const condition = String(fd.get("condition") || "GOOD");
 
-    const fullDesc = completingRecord.description
-      ? `${completingRecord.description}\n[Resolved]: ${resolutionNote}`
-      : resolutionNote;
-
-    // 1. Update maintenance ticket
-    const { error: updateErr } = await supabase
-      .from("asset_maintenance")
-      .update({
-        status: "COMPLETED",
+    const res = await fetch(`/api/assets/maintenance/${completingRecord.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         cost: actualCost,
         completed_at: completedDate,
-        description: fullDesc,
-      })
-      .eq("id", completingRecord.id);
-
-    if (updateErr) {
-      setMsg(`Error: ${updateErr.message}`);
-      setSaving(false);
-      return;
-    }
-
-    // 2. Restore asset status back to AVAILABLE
-    await supabase
-      .from("assets")
-      .update({
-        status: "AVAILABLE",
-        condition: fd.get("condition") || "GOOD",
-      })
-      .eq("id", completingRecord.asset_id);
+        description: resolutionNote || undefined,
+        condition: condition as "EXCELLENT" | "GOOD" | "FAIR",
+      }),
+    });
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
 
     setCompletingRecord(null);
     setMsg("Maintenance ticket completed. Asset returned to inventory as AVAILABLE.");

@@ -55,11 +55,13 @@ export default function PayrollPage() {
 
   async function approveRun(row: Row) {
     setMsg(null);
-    const { error } = await supabase
-      .from("payroll_runs")
-      .update({ status: "APPROVED" })
-      .eq("id", row.id);
-    if (error) { setMsg(`Error: ${error.message}`); return; }
+    const res = await fetch(`/api/payroll/runs/${String(row.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "APPROVED" }),
+    });
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); return; }
     setMsg("Payroll run approved.");
     void load();
   }
@@ -71,17 +73,14 @@ export default function PayrollPage() {
     const fd = new FormData(e.currentTarget);
     const month = Number(fd.get("month"));
     const year = Number(fd.get("year"));
-    const periodStart = new Date(year, month - 1, 1).toISOString().slice(0, 10);
-    const periodEnd = new Date(year, month, 0).toISOString().slice(0, 10);
-    const { error } = await supabase.from("payroll_runs").insert({
-      company_id: companyId,
-      payroll_month: month,
-      payroll_year: year,
-      period_start: periodStart,
-      period_end: periodEnd,
-      status: "DRAFT",
+
+    const res = await fetch("/api/payroll/runs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ payroll_month: month, payroll_year: year }),
     });
-    if (error) { setMsg(`Error: ${error.message}`); setSaving(false); return; }
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
     setShowForm(false);
     setMsg("Payroll run created as draft.");
     void load();

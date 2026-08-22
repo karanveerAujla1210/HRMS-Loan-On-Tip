@@ -60,18 +60,13 @@ export default function ExceptionsPage() {
 
   async function resolve(row: Row, note: string) {
     setMsg(null);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const { data: prof } = await supabase.from("profiles").select("employee_id").eq("auth_user_id", session.user.id).single();
-
-    const { error } = await supabase.from("attendance_exceptions").update({
-      status: "RESOLVED",
-      resolved_by: prof?.employee_id ?? null,
-      resolved_at: new Date().toISOString(),
-      resolution_note: note,
-    }).eq("id", row.id);
-
-    if (error) { setMsg(`Error: ${error.message}`); return; }
+    const res = await fetch(`/api/attendance/exceptions/${String(row.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "RESOLVED", resolution_note: note }),
+    });
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); return; }
     setMsg("Exception resolved.");
     void load();
   }

@@ -64,44 +64,13 @@ export default function EmployeeSalaryPage() {
     const structureId = fd.get("salary_structure_id") as string;
     const effectiveFrom = fd.get("effective_from") as string;
 
-    const { data: { session } } = await supabase.auth.getSession();
-    let approverId: string | null = null;
-    if (session) {
-      const { data: prof } = await supabase.from("profiles").select("employee_id").eq("auth_user_id", session.user.id).single();
-      approverId = prof?.employee_id ?? null;
-    }
-
-    // Close existing current assignment
-    if (current) {
-      await supabase.from("employee_salary_assignments")
-        .update({ is_current: false, effective_to: effectiveFrom })
-        .eq("id", String(current.id));
-    }
-
-    // Insert new assignment
-    const { error } = await supabase.from("employee_salary_assignments").insert({
-      employee_id: id,
-      salary_structure_id: structureId || null,
-      annual_ctc: annualCtc,
-      effective_from: effectiveFrom,
-      is_current: true,
-      approved_by: approverId,
+    const res = await fetch(`/api/people/${id}/salary`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ salary_structure_id: structureId || null, annual_ctc: annualCtc, effective_from: effectiveFrom, reason: fd.get("reason") || null }),
     });
-
-    if (error) { setMsg(`Error: ${error.message}`); setSaving(false); return; }
-
-    // Write salary history
-    await supabase.from("employee_salary_history").insert({
-      employee_id: id,
-      previous_ctc: current ? Number((current as Record<string, unknown>).annual_ctc) : null,
-      new_ctc: annualCtc,
-      previous_structure_id: current ? (current as Record<string, unknown>).salary_structure_id : null,
-      new_structure_id: structureId || null,
-      effective_date: effectiveFrom,
-      reason: fd.get("reason") || null,
-      approved_by: approverId,
-    });
-
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
     setMsg("Salary assigned successfully.");
     setShowForm(false);
     void load();

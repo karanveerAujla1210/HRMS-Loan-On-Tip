@@ -94,8 +94,13 @@ export default function PayrollRunDetailPage() {
 
   async function approveRun() {
     setMsg(null);
-    const { error } = await supabase.from("payroll_runs").update({ status: "APPROVED" }).eq("id", id);
-    if (error) { setMsg(`Error: ${error.message}`); return; }
+    const res = await fetch(`/api/payroll/runs/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "APPROVED" }),
+    });
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); return; }
     setMsg("Payroll run approved successfully.");
     void load();
   }

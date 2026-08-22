@@ -107,60 +107,16 @@ export default function AssetImportPage() {
   const handleImport = useCallback(async () => {
     if (!rows.length || errors.length || !companyId) return;
     setImporting(true);
-    let success = 0, failed = 0;
-    const failedRows: string[] = [];
 
-    // Load category prefixes for code generation
-    const { data: catData } = await supabase
-      .from("asset_categories")
-      .select("id,prefix")
-      .eq("company_id", companyId);
-    const prefixMap = Object.fromEntries((catData ?? []).map((c: { id: string; prefix: string }) => [c.id, c.prefix]));
-
-    for (const row of rows) {
-      const catId = categories[row.category?.toLowerCase().trim() ?? ""] ?? null;
-      if (!catId) { failedRows.push(`${row.model} — category not found`); failed++; continue; }
-
-      const prefix = prefixMap[catId] ?? "AST";
-
-      // Generate sequential asset code
-      const { data: codeData, error: codeErr } = await supabase
-        .rpc("generate_asset_code", { p_prefix: prefix });
-      if (codeErr || !codeData) { failedRows.push(`${row.model} — code generation failed`); failed++; continue; }
-
-      const { error } = await supabase.from("assets").insert({
-        company_id: companyId,
-        asset_code: String(codeData),
-        asset_category_id: catId,
-        location_id: row.location ? (locations[row.location.toLowerCase().trim()] ?? null) : null,
-        model: row.model || null,
-        serial_number: row.serial_number || null,
-        asset_tag: row.asset_tag || null,
-        imei_1: row.imei_1 || null,
-        imei_2: row.imei_2 || null,
-        mobile_number: row.mobile_number || null,
-        sim_number: row.sim_number || null,
-        purchase_date: row.purchase_date || null,
-        purchase_cost: row.purchase_cost ? Number(row.purchase_cost) : null,
-        warranty_end: row.warranty_end || null,
-        vendor_name: row.vendor_name || null,
-        invoice_number: row.invoice_number || null,
-        condition: row.condition || "GOOD",
-        notes: row.notes || null,
-        status: "AVAILABLE",
-      });
-
-      if (error) {
-        failedRows.push(`${row.model} (${row.serial_number || "no serial"}) — ${error.message}`);
-        failed++;
-      } else {
-        success++;
-      }
-    }
-
-    setResult({ success, failed, failedRows });
+    const res = await fetch("/api/assets/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ assets: rows }),
+    });
+    const json = await res.json();
+    setResult({ success: json.success, failed: json.failed, failedRows: json.failedRows });
     setImporting(false);
-    if (failed === 0) setTimeout(() => router.push("/assets"), 2000);
+    if (json.failed === 0) setTimeout(() => router.push("/assets"), 2000);
   }, [rows, errors, categories, locations, companyId, router]);
 
   function downloadSample() {

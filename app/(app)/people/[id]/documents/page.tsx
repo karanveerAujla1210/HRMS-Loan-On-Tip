@@ -49,26 +49,19 @@ export default function EmployeeDocumentsPage() {
     setMsg(null);
     const fd = new FormData(e.currentTarget);
 
-    // Get current user's employee_id for uploaded_by
-    const { data: { session } } = await supabase.auth.getSession();
-    let uploaderId: string | null = null;
-    if (session) {
-      const { data: prof } = await supabase.from("profiles").select("employee_id").eq("auth_user_id", session.user.id).single();
-      uploaderId = prof?.employee_id ?? null;
-    }
-
-    const { error } = await supabase.from("employee_documents").insert({
-      employee_id: id,
-      document_type_id: fd.get("document_type_id"),
-      storage_path: fd.get("storage_path") || "pending-upload",
-      file_name: fd.get("file_name"),
-      issue_date: fd.get("issue_date") || null,
-      expiry_date: fd.get("expiry_date") || null,
-      status: "ACTIVE",
-      uploaded_by: uploaderId,
+    const res = await fetch(`/api/people/${id}/documents`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        document_type_id: fd.get("document_type_id"),
+        document_name: fd.get("file_name"),
+        file_path: fd.get("storage_path") || "pending-upload",
+        issue_date: fd.get("issue_date") || null,
+        expiry_date: fd.get("expiry_date") || null,
+      }),
     });
-
-    if (error) { setMsg(`Error: ${error.message}`); setSaving(false); return; }
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
     setMsg("Document record added.");
     setShowForm(false);
     void load();
@@ -76,14 +69,14 @@ export default function EmployeeDocumentsPage() {
   }
 
   async function markVerified(row: Row) {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
-    const { data: prof } = await supabase.from("profiles").select("employee_id").eq("auth_user_id", session.user.id).single();
-    await supabase.from("employee_documents").update({
-      verified_by: prof?.employee_id ?? null,
-      verified_at: new Date().toISOString(),
-      status: "VERIFIED",
-    }).eq("id", String(row.id));
+    const res = await fetch(`/api/people/${id}/documents/${String(row.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_verified: true }),
+    });
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); return; }
+    setMsg("Document verified.");
     void load();
   }
 

@@ -59,25 +59,31 @@ export default function EmployeeDetailPage() {
     setSaving(true);
     setMsg(null);
     const fd = new FormData(e.currentTarget);
-    const { error } = await supabase.from("employees").update({
-      first_name: fd.get("first_name"),
-      last_name: fd.get("last_name"),
-      official_email: fd.get("official_email") || null,
-      official_mobile: fd.get("official_mobile") || null,
-      personal_email: fd.get("personal_email") || null,
-      personal_mobile: fd.get("personal_mobile") || null,
-      gender: fd.get("gender") || null,
-      date_of_birth: fd.get("date_of_birth") || null,
-      blood_group: fd.get("blood_group") || null,
-      nationality: fd.get("nationality") || "Indian",
-      marital_status: fd.get("marital_status") || null,
-      department_id: fd.get("department_id") || null,
-      designation_id: fd.get("designation_id") || null,
-      location_id: fd.get("location_id") || null,
-      employment_status: fd.get("employment_status"),
-      joining_date: fd.get("joining_date"),
-    }).eq("id", id);
-    if (error) { setMsg(`Error: ${error.message}`); setSaving(false); return; }
+
+    const res = await fetch(`/api/employees/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        first_name: fd.get("first_name"),
+        last_name: fd.get("last_name"),
+        official_email: fd.get("official_email") || null,
+        official_mobile: fd.get("official_mobile") || null,
+        personal_email: fd.get("personal_email") || null,
+        personal_mobile: fd.get("personal_mobile") || null,
+        gender: fd.get("gender") || null,
+        date_of_birth: fd.get("date_of_birth") || null,
+        blood_group: fd.get("blood_group") || null,
+        nationality: fd.get("nationality") || "Indian",
+        marital_status: fd.get("marital_status") || null,
+        department_id: fd.get("department_id") || null,
+        designation_id: fd.get("designation_id") || null,
+        location_id: fd.get("location_id") || null,
+        employment_status: fd.get("employment_status"),
+        joining_date: fd.get("joining_date"),
+      }),
+    });
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
 
     const customUpserts = customFields.map(cf => {
       const val = fd.get(`cf_${cf.id}`);

@@ -57,8 +57,10 @@ export type SalaryComponents = {
   loan_recovery?: number;
 };
 
-export function calculateNetPay(c: SalaryComponents, payableDays: number, totalDays: number) {
-  const gross = (c.basic + c.hra + c.conveyance + c.special_allowance) * (payableDays / totalDays);
+export function calculateNetPay(c: SalaryComponents, payableDays: number, totalDays: number, prorated: boolean = true) {
+  const gross = prorated
+    ? c.basic + c.hra + c.conveyance + c.special_allowance
+    : (c.basic + c.hra + c.conveyance + c.special_allowance) * (payableDays / totalDays);
   const deductions = c.pf_employee + c.professional_tax + c.tds + (c.loan_recovery ?? 0);
   return { gross: +gross.toFixed(2), deductions: +deductions.toFixed(2), net: +(gross - deductions).toFixed(2) };
 }

@@ -109,38 +109,32 @@ export default function AssetsPage() {
     if (!category) { setMsg("Select a category."); setSaving(false); return; }
 
     const cost = fd.get("purchase_cost") ? Number(fd.get("purchase_cost")) : null;
-    const prefix = String(category.prefix ?? "AST").toUpperCase();
 
-    // Generate sequential asset code via DB function
-    const { data: codeData, error: codeErr } = await supabase
-      .rpc("generate_asset_code", { p_prefix: prefix });
-    if (codeErr || !codeData) { setMsg("Failed to generate asset code."); setSaving(false); return; }
-    const assetCode = String(codeData);
-
-    const { error } = await supabase.from("assets").insert({
-      company_id: companyId,
-      asset_category_id: category.id,
-      location_id: fd.get("location_id") || null,
-      asset_code: assetCode,
-      asset_tag: fd.get("asset_tag") || null,
-      model: fd.get("model") || null,
-      serial_number: fd.get("serial_number") || null,
-      imei_1: fd.get("imei_1") || null,
-      mobile_number: fd.get("mobile_number") || null,
-      sim_number: fd.get("sim_number") || null,
-      condition: fd.get("condition") || "GOOD",
-      vendor_name: fd.get("vendor_name") || null,
-      invoice_number: fd.get("invoice_number") || null,
-      purchase_date: fd.get("purchase_date") || null,
-      purchase_cost: cost,
-      warranty_end: fd.get("warranty_end") || null,
-      notes: fd.get("notes") || null,
-      status: "AVAILABLE",
+    const res = await fetch("/api/assets", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        asset_category_id: category.id,
+        location_id: fd.get("location_id") || null,
+        asset_tag: fd.get("asset_tag") || null,
+        model: fd.get("model") || null,
+        serial_number: fd.get("serial_number") || null,
+        imei_1: fd.get("imei_1") || null,
+        mobile_number: fd.get("mobile_number") || null,
+        sim_number: fd.get("sim_number") || null,
+        condition: fd.get("condition") || "GOOD",
+        vendor_name: fd.get("vendor_name") || null,
+        invoice_number: fd.get("invoice_number") || null,
+        purchase_date: fd.get("purchase_date") || null,
+        purchase_cost: cost,
+        warranty_end: fd.get("warranty_end") || null,
+        notes: fd.get("notes") || null,
+      }),
     });
-
-    if (error) { setMsg(`Error: ${error.message}`); setSaving(false); return; }
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
     setShowAddForm(false);
-    setMsg(`Asset ${assetCode} added to inventory successfully.`);
+    setMsg(`Asset ${json.data?.asset_code} added to inventory successfully.`);
     void load();
     setSaving(false);
   }
@@ -159,49 +153,19 @@ export default function AssetsPage() {
     const handoverCondition = String(fd.get("condition_at_handover") || "GOOD");
     const remarks = String(fd.get("remarks") || "");
 
-    // 1. Insert active assignment
-    const { data: asgn, error: assignErr } = await supabase
-      .from("asset_assignments")
-      .insert({
-        asset_id: assigning.id,
+    const res = await fetch(`/api/assets/${assigning.id}/assign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         employee_id: targetEmployeeId,
-        assigned_by: employeeId,
         expected_return_date: expectedReturn,
-        status: "ACTIVE",
-        remarks: remarks || null,
-      })
-      .select("id")
-      .single();
-
-    if (assignErr) { setMsg(`Error: ${assignErr.message}`); setSaving(false); return; }
-
-    // 2. Insert handover record
-    if (asgn?.id) {
-      await supabase.from("asset_handover").insert({
-        asset_assignment_id: asgn.id,
-        handover_date: new Date().toISOString().slice(0, 10),
-        employee_acknowledged: true,
         condition_at_handover: handoverCondition,
         remarks: remarks || null,
-      });
-    }
-
-    // 3. Update asset state
-    const { error: updateErr } = await supabase
-      .from("assets")
-      .update({
-        current_employee_id: targetEmployeeId,
-        status: "ASSIGNED",
-        condition: handoverCondition,
-      })
-      .eq("id", assigning.id);
-
-    if (updateErr) {
-      setMsg(`Assigned but status update failed: ${updateErr.message}`);
-    } else {
-      setMsg(`Asset ${assigning.asset_code} assigned to employee successfully.`);
-    }
-
+      }),
+    });
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
+    setMsg(`Asset ${assigning.asset_code} assigned to employee successfully.`);
     setAssigning(null);
     void load();
     setSaving(false);
@@ -215,48 +179,26 @@ export default function AssetsPage() {
     setMsg(null);
     const fd = new FormData(e.currentTarget);
 
-    // Find active assignment
-    const { data: asgn } = await supabase
-      .from("asset_assignments")
-      .select("id")
-      .eq("asset_id", returning.id)
-      .eq("status", "ACTIVE")
-      .single();
-
-    if (!asgn) { setMsg("No active assignment found."); setSaving(false); return; }
-
     const condition = String(fd.get("condition") || "GOOD");
     const damageDesc = fd.get("damage_description") ? String(fd.get("damage_description")) : null;
     const missingItems = fd.get("missing_items") ? String(fd.get("missing_items")) : null;
     const recoveryAmount = fd.get("recovery_amount") ? Number(fd.get("recovery_amount")) : null;
     const remarks = fd.get("remarks") ? String(fd.get("remarks")) : null;
 
-    // 1. Create return record
-    await supabase.from("asset_returns").insert({
-      asset_assignment_id: asgn.id,
-      return_date: new Date().toISOString().slice(0, 10),
-      received_by: employeeId,
-      condition_at_return: condition,
-      damage_description: damageDesc,
-      missing_items: missingItems,
-      recovery_amount: recoveryAmount,
-      remarks: remarks,
+    const res = await fetch(`/api/assets/${returning.id}/return`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        condition,
+        damage_description: damageDesc,
+        missing_items: missingItems,
+        recovery_amount: recoveryAmount,
+        remarks,
+      }),
     });
-
-    // 2. Mark assignment returned
-    await supabase.from("asset_assignments").update({
-      status: "RETURNED",
-      returned_at: new Date().toISOString(),
-    }).eq("id", asgn.id);
-
-    // 3. Update asset status
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
     const newStatus = condition === "DAMAGED" ? "DAMAGED" : "AVAILABLE";
-    await supabase.from("assets").update({
-      status: newStatus,
-      condition: condition,
-      current_employee_id: null,
-    }).eq("id", returning.id);
-
     setMsg(`Asset ${returning.asset_code} returned. Status: ${newStatus}.`);
     setReturning(null);
     void load();
@@ -271,21 +213,18 @@ export default function AssetsPage() {
     setMsg(null);
     const fd = new FormData(e.currentTarget);
 
-    const { error: maintErr } = await supabase.from("asset_maintenance").insert({
-      asset_id: repairing.id,
-      maintenance_type: fd.get("maintenance_type") || "Hardware Repair",
-      vendor: fd.get("vendor") || null,
-      started_at: new Date().toISOString().slice(0, 10),
-      cost: fd.get("cost") ? Number(fd.get("cost")) : null,
-      description: fd.get("description") || "Sent for repair",
-      status: "IN_PROGRESS",
-      created_by: employeeId,
+    const res = await fetch(`/api/assets/${repairing.id}/repair`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        maintenance_type: fd.get("maintenance_type") || "Hardware Repair",
+        vendor: fd.get("vendor") || null,
+        cost: fd.get("cost") ? Number(fd.get("cost")) : null,
+        description: fd.get("description") || "Sent for repair",
+      }),
     });
-
-    if (maintErr) { setMsg(`Error: ${maintErr.message}`); setSaving(false); return; }
-
-    await supabase.from("assets").update({ status: "UNDER_REPAIR" }).eq("id", repairing.id);
-
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
     setMsg(`Asset ${repairing.asset_code} sent for repair.`);
     setRepairing(null);
     void load();

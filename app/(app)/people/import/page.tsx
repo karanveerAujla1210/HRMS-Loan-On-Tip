@@ -145,87 +145,19 @@ export default function ImportPage() {
   }
 
   const handleImport = useCallback(async () => {
-    if (!rows.length || errors.length) return;
+    if (!rows.length || errors.length || !companyId) return;
     setImporting(true);
-    let success = 0, failed = 0;
-    const failedRows: string[] = [];
 
-    for (const row of rows) {
-      // Insert employee
-      const empPayload: Record<string, unknown> = {
-        company_id: companyId,
-        first_name: row.first_name,
-        last_name: row.last_name,
-        middle_name: row.middle_name || null,
-        official_email: row.official_email || null,
-        personal_email: row.personal_email || null,
-        official_mobile: row.official_mobile || null,
-        personal_mobile: row.personal_mobile || null,
-        gender: row.gender || null,
-        date_of_birth: row.date_of_birth || null,
-        blood_group: row.blood_group || null,
-        joining_date: row.joining_date,
-        confirmation_date: row.confirmation_date || null,
-        last_working_date: row.last_working_date || null,
-        probation_end_date: row.probation_end_date || null,
-        notice_period_days: row.notice_period_days ? Number(row.notice_period_days) : null,
-        nationality: row.nationality || "Indian",
-        marital_status: row.marital_status || null,
-        employment_status: (row.employment_status || "ACTIVE").toUpperCase() as never,
-        department_id: row.department ? (depts[row.department.toLowerCase().trim()] ?? null) : null,
-        designation_id: row.designation ? (desigs[row.designation.toLowerCase().trim()] ?? null) : null,
-        location_id: row.location ? (locs[row.location.toLowerCase().trim()] ?? null) : null,
-        employment_type_id: row.employment_type ? (empTypes[row.employment_type.toLowerCase().trim()] ?? null) : null,
-        manager_id: row.manager_email ? (empEmails[row.manager_email.toLowerCase().trim()] ?? null) : null,
-        hr_manager_id: row.hr_manager_email ? (empEmails[row.hr_manager_email.toLowerCase().trim()] ?? null) : null,
-      };
-
-      const { data: empData, error: empError } = await supabase
-        .from("employees")
-        .insert(empPayload)
-        .select("id")
-        .single();
-
-      if (empError) {
-        console.error(`Row failed (${row.official_email}):`, empError.message);
-        failedRows.push(`${row.first_name} ${row.last_name} — ${empError.message}`);
-        failed++;
-        continue;
-      }
-
-      const empId = empData.id;
-
-      // Insert bank account if provided
-      if (row.account_number && row.bank_name && row.ifsc_code) {
-        await supabase.from("employee_bank_accounts").insert({
-          employee_id: empId,
-          account_holder_name: `${row.first_name} ${row.last_name}`,
-          bank_name: row.bank_name,
-          account_number_encrypted: row.account_number,
-          account_number_last4: row.account_number.slice(-4),
-          ifsc_code: row.ifsc_code,
-          account_type: "SAVINGS",
-          is_primary: true,
-        });
-      }
-
-      // Insert statutory details if provided
-      if (row.pan_number || row.aadhaar_last4 || row.uan) {
-        await supabase.from("employee_statutory_details").insert({
-          employee_id: empId,
-          pan_last4: row.pan_number ? row.pan_number.slice(-4) : null,
-          uan: row.uan || null,
-          aadhaar_last4: row.aadhaar_last4 || null,
-        });
-      }
-
-      success++;
-    }
-
-    setResult({ success, failed, failedRows });
+    const res = await fetch("/api/people/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ employees: rows }),
+    });
+    const json = await res.json();
+    setResult({ success: json.success, failed: json.failed, failedRows: json.failedRows });
     setImporting(false);
-    if (failed === 0) setTimeout(() => router.push("/people"), 2000);
-  }, [rows, errors, depts, desigs, locs, empTypes, empEmails, router]);
+    if (json.failed === 0) setTimeout(() => router.push("/people"), 2000);
+  }, [rows, errors, companyId, router]);
 
   function downloadSample() {
     const header = HEADERS.join(",");

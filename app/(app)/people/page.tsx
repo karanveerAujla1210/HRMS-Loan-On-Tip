@@ -91,17 +91,19 @@ export default function PeoplePage() {
     setFormError(null);
     const fd = new FormData(e.currentTarget);
 
-    const { error } = await supabase.from("employees").insert({
-      company_id: companyId,
-      first_name: fd.get("first_name"),
-      last_name: fd.get("last_name"),
-      official_email: fd.get("official_email") || null,
-      official_mobile: fd.get("official_mobile") || null,
-      joining_date: fd.get("joining_date"),
-      employment_status: "ACTIVE",
+    const res = await fetch("/api/employees", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        first_name: fd.get("first_name"),
+        last_name: fd.get("last_name"),
+        official_email: fd.get("official_email") || null,
+        official_mobile: fd.get("official_mobile") || null,
+        joining_date: fd.get("joining_date"),
+      }),
     });
-
-    if (error) { setFormError(error.message); setSaving(false); return; }
+    const json = await res.json();
+    if (json.error) { setFormError(json.error); setSaving(false); return; }
     setShowForm(false);
     void load();
     setSaving(false);

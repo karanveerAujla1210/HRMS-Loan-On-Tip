@@ -40,37 +40,15 @@ export default function LeavePage() {
 
   async function handleAction(row: Row, action: "APPROVED" | "REJECTED") {
     setActionMsg(null);
-    const { data: { session } } = await supabase.auth.getSession();
-    const { data: prof } = session
-      ? await supabase.from("profiles").select("employee_id").eq("auth_user_id", session.user.id).single()
-      : { data: null };
-
     const leaveId = String(row.leave_request_id ?? row.id);
 
-    if (action === "APPROVED" && prof?.employee_id) {
-      // Use transactional function that also updates leave_balances and attendance
-      const { error } = await supabase.rpc("approve_leave_request", {
-        p_leave_request_id: leaveId,
-        p_approver_id: prof.employee_id,
-      });
-      if (error) { setActionMsg(`Error: ${error.message}`); return; }
-    } else {
-      const { error } = await supabase
-        .from("leave_requests")
-        .update({ status: action, updated_at: new Date().toISOString() })
-        .eq("id", leaveId);
-      if (error) { setActionMsg(`Error: ${error.message}`); return; }
-
-      if (prof?.employee_id) {
-        await supabase.from("leave_approvals").insert({
-          leave_request_id: leaveId,
-          approver_id: prof.employee_id,
-          action: "REJECTED",
-          approval_level: 1,
-        });
-      }
-    }
-
+    const res = await fetch(`/api/leaves/${leaveId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, note: "" }),
+    });
+    const json = await res.json();
+    if (json.error) { setActionMsg(`Error: ${json.error}`); return; }
     setActionMsg(`Leave request ${action.toLowerCase()} successfully.`);
     void load();
   }

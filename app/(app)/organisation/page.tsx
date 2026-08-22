@@ -48,73 +48,39 @@ export default function OrganisationPage() {
     setMsg(null);
     const fd = new FormData(e.currentTarget);
 
-    let payload: Record<string, unknown> = { company_id: companyId };
-    let table = "";
+    let payload: Record<string, unknown> = {
+      table: tab,
+      code: fd.get("code"),
+      name: String(fd.get("name")),
+      level: fd.get("level") ? Number(fd.get("level")) : null,
+      city: fd.get("city") || null,
+      state: fd.get("state") || null,
+      latitude: fd.get("latitude") ? Number(fd.get("latitude")) : null,
+      longitude: fd.get("longitude") ? Number(fd.get("longitude")) : null,
+      attendance_radius_meters: fd.get("radius") ? Number(fd.get("radius")) : 150,
+      start_time: fd.get("start_time") || null,
+      end_time: fd.get("end_time") || null,
+      grace_minutes: fd.get("grace_minutes") ? Number(fd.get("grace_minutes")) : 15,
+      is_paid: fd.get("is_paid") === "true",
+      allows_half_day: fd.get("allows_half_day") === "true",
+      requires_document: fd.get("requires_document") === "true",
+      field_type: fd.get("field_type") || null,
+      options: fd.get("options") ? JSON.parse(fd.get("options") as string) : null,
+      holiday_date: fd.get("holiday_date") || null,
+      is_optional: fd.get("is_optional") === "true",
+      description: fd.get("description") || null,
+    };
 
-    if (tab === "departments") {
-      table = "departments";
-      payload = { ...payload, department_code: fd.get("code"), name: fd.get("name"), is_active: true };
-    } else if (tab === "designations") {
-      table = "designations";
-      payload = { ...payload, designation_code: fd.get("code"), name: fd.get("name"), level: Number(fd.get("level")) || null, is_active: true };
-    } else if (tab === "locations") {
-      table = "locations";
-      payload = {
-        ...payload,
-        location_code: fd.get("code"), name: fd.get("name"),
-        city: fd.get("city") || null, state: fd.get("state") || null,
-        latitude: fd.get("latitude") ? Number(fd.get("latitude")) : null,
-        longitude: fd.get("longitude") ? Number(fd.get("longitude")) : null,
-        attendance_radius_meters: Number(fd.get("radius")) || 150,
-        is_active: true,
-      };
-    } else if (tab === "shifts") {
-      table = "shifts";
-      payload = {
-        ...payload,
-        shift_code: fd.get("code"), name: fd.get("name"),
-        start_time: fd.get("start_time"), end_time: fd.get("end_time"),
-        grace_minutes: Number(fd.get("grace_minutes")) || 15,
-        is_active: true,
-      };
-    } else if (tab === "leave_types") {
-      table = "leave_types";
-      payload = {
-        ...payload,
-        code: fd.get("code"), name: fd.get("name"),
-        is_paid: fd.get("is_paid") === "true",
-        allows_half_day: fd.get("allows_half_day") === "true",
-        requires_document: fd.get("requires_document") === "true",
-        is_active: true,
-      };
-    } else if (tab === "custom_fields") {
-      table = "custom_fields";
-      payload = {
-        ...payload,
-        name: fd.get("name"),
-        field_type: fd.get("field_type"),
-        options: fd.get("options") ? JSON.parse(fd.get("options") as string) : null,
-        is_active: true,
-      };
-    } else {
-      table = "holidays";
-      payload = {
-        ...payload,
-        name: fd.get("name"),
-        holiday_date: fd.get("holiday_date"),
-        is_optional: fd.get("is_optional") === "true",
-        description: fd.get("description") || null,
-      };
-    }
+    const method = editing ? "PATCH" : "POST";
+    const url = editing ? `/api/organisation/${tab}/${String(editing.id)}` : "/api/organisation";
 
-    let error;
-    if (editing) {
-      ({ error } = await supabase.from(table).update(payload).eq("id", String(editing.id)));
-    } else {
-      ({ error } = await supabase.from(table).insert(payload));
-    }
-
-    if (error) { setMsg(`Error: ${error.message}`); setSaving(false); return; }
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
     setMsg(editing ? "Updated successfully." : "Created successfully.");
     setShowForm(false);
     setEditing(null);
@@ -124,17 +90,19 @@ export default function OrganisationPage() {
 
   async function toggleActive(row: Row) {
     if (tab === "holidays") {
-      await supabase.from("holidays").delete().eq("id", String(row.id));
+      const res = await fetch(`/api/organisation/${tab}/${String(row.id)}`, { method: "DELETE" });
+      const json = await res.json();
+      if (json.error) { setMsg(`Error: ${json.error}`); return; }
       void load();
       return;
     }
-    const table = tab === "departments" ? "departments"
-      : tab === "designations" ? "designations"
-      : tab === "locations" ? "locations"
-      : tab === "shifts" ? "shifts"
-      : tab === "custom_fields" ? "custom_fields"
-      : "leave_types";
-    await supabase.from(table).update({ is_active: !row.is_active }).eq("id", String(row.id));
+    const res = await fetch(`/api/organisation/${tab}/${String(row.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_active: !row.is_active }),
+    });
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); return; }
     void load();
   }
 

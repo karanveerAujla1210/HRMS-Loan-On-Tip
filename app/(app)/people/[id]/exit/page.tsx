@@ -43,22 +43,13 @@ export default function EmployeeExitPage() {
     const resDate = String(fd.get("resignation_date"));
     const lwd = String(fd.get("last_working_date"));
 
-    const { error } = await supabase.from("resignations").insert({
-      employee_id: id,
-      company_id: (emp as { company_id?: string })?.company_id ?? "",
-      resignation_date: resDate,
-      last_working_date: lwd || null,
-      reason: fd.get("reason") || null,
-      status: "SUBMITTED",
+    const res = await fetch(`/api/people/${id}/exit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resignation_date: resDate, last_working_date: lwd || null, reason: fd.get("reason") || null }),
     });
-
-    if (error) { setMsg(`Error: ${error.message}`); setSaving(false); return; }
-
-    await supabase.from("employees").update({
-      employment_status: "ON_NOTICE",
-      last_working_date: lwd || null,
-    }).eq("id", id);
-
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
     setMsg("Resignation submitted and employee moved to ON_NOTICE status.");
     void load();
     setSaving(false);
@@ -69,16 +60,17 @@ export default function EmployeeExitPage() {
     setSaving(true);
     setMsg(null);
 
-    const isCurrentCleared = !!resignation[`${type}_cleared`];
-    const updatePayload: Record<string, unknown> = {
-      [`${type}_cleared`]: !isCurrentCleared,
-      [`${type}_cleared_by`]: !isCurrentCleared ? currentEmpId : null,
-      [`${type}_cleared_at`]: !isCurrentCleared ? new Date().toISOString() : null,
-    };
+    const currentVal = type === "it" ? resignation.it_cleared : type === "finance" ? resignation.finance_cleared : type === "hr" ? resignation.hr_cleared : false;
+    const patch: Record<string, unknown> = {};
+    patch[`${type}_cleared`] = !currentVal;
 
-    const { error } = await supabase.from("resignations").update(updatePayload).eq("id", resignation.id);
-
-    if (error) { setMsg(`Error: ${error.message}`); setSaving(false); return; }
+    const res = await fetch(`/api/people/${id}/exit`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
     setMsg(`${type.toUpperCase()} clearance updated.`);
     void load();
     setSaving(false);
@@ -93,20 +85,13 @@ export default function EmployeeExitPage() {
     const amount = Number(fd.get("ff_amount"));
     const notes = String(fd.get("ff_notes") || "");
 
-    const { error } = await supabase.from("resignations").update({
-      ff_amount: amount,
-      ff_notes: notes,
-      status: "COMPLETED",
-      approved_by: currentEmpId,
-      approved_at: new Date().toISOString(),
-    }).eq("id", resignation.id);
-
-    if (error) { setMsg(`Error: ${error.message}`); setSaving(false); return; }
-
-    await supabase.from("employees").update({
-      employment_status: "TERMINATED",
-    }).eq("id", id);
-
+    const res = await fetch(`/api/people/${id}/exit`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ff_amount: amount, ff_notes: notes, status: "COMPLETED" }),
+    });
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
     setMsg("Full & Final (FnF) settlement completed and employee exited successfully.");
     void load();
     setSaving(false);
