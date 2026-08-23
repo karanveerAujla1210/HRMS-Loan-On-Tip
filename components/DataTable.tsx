@@ -1,4 +1,5 @@
 "use client";
+import React from 'react';
 
 const DATE_KEYS = ["_at", "_date", "_on", "date", "joined", "created", "updated"];
 const STATUS_COLORS: Record<string, string> = {
@@ -39,11 +40,17 @@ export default function DataTable({
   rows,
   columns,
   action,
+  selectable,
+  onSelectionChange,
 }: {
   rows: Row[];
   columns: string[];
   action?: (row: Row) => React.ReactNode;
+  selectable?: boolean;
+  onSelectionChange?: (selectedRows: Row[]) => void;
 }) {
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+
   if (!rows.length) {
     return (
       <div className="empty-state">
@@ -52,11 +59,42 @@ export default function DataTable({
     );
   }
 
+  const allSelected = selectedIds.size > 0 && selectedIds.size === rows.length;
+
+  const handleSelectAll = () => {
+    let newSet = new Set<string>();
+    if (!allSelected) {
+      newSet = new Set(rows.map(r => String(r.id)));
+    }
+    setSelectedIds(newSet);
+    if (onSelectionChange) {
+      onSelectionChange(rows.filter(r => newSet.has(String(r.id))));
+    }
+  };
+
+  const handleSelectRow = (id: string, checked: boolean) => {
+    const newSet = new Set(selectedIds);
+    if (checked) {
+      newSet.add(id);
+    } else {
+      newSet.delete(id);
+    }
+    setSelectedIds(newSet);
+    if (onSelectionChange) {
+      onSelectionChange(rows.filter(r => newSet.has(String(r.id))));
+    }
+  };
+
   return (
     <div className="table-wrap">
       <table>
         <thead>
           <tr>
+            {selectable && (
+              <th style={{ width: 40, textAlign: "center" }}>
+                <input type="checkbox" checked={allSelected} onChange={handleSelectAll} />
+              </th>
+            )}
             {columns.map((col) => (
               <th key={col}>{toLabel(col)}</th>
             ))}
@@ -64,14 +102,26 @@ export default function DataTable({
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, i) => (
-            <tr key={String(row.id ?? i)}>
-              {columns.map((col) => (
-                <td key={col}>{formatValue(col, row[col])}</td>
-              ))}
-              {action && <td style={{ width: 1, whiteSpace: "nowrap" }}>{action(row)}</td>}
-            </tr>
-          ))}
+          {rows.map((row, i) => {
+            const id = String(row.id ?? i);
+            return (
+              <tr key={id}>
+                {selectable && (
+                  <td style={{ textAlign: "center" }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedIds.has(id)} 
+                      onChange={(e) => handleSelectRow(id, e.target.checked)} 
+                    />
+                  </td>
+                )}
+                {columns.map((col) => (
+                  <td key={col}>{formatValue(col, row[col])}</td>
+                ))}
+                {action && <td style={{ width: 1, whiteSpace: "nowrap" }}>{action(row)}</td>}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

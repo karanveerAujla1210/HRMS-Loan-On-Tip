@@ -23,6 +23,7 @@ function today() {
 
 export default function AttendancePage() {
   const [rows, setRows] = useState<Row[]>([]);
+  const [selectedRows, setSelectedRows] = useState<Row[]>([]);
   const [from, setFrom] = useState(today());
   const [to, setTo] = useState(today());
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -58,6 +59,24 @@ export default function AttendancePage() {
     return acc;
   }, {});
 
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  const handleBulkMarkPresent = async () => {
+    if (!confirm("Are you sure you want to mark all active employees as present for the current month up to today? This may take a minute.")) return;
+    setBulkLoading(true);
+    try {
+      const res = await fetch("/api/attendance/bulk-mark", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to bulk mark attendance");
+      alert(json.message || "Successfully marked attendance.");
+      void load();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   return (
     <>
       <PageHeader
@@ -69,6 +88,13 @@ export default function AttendancePage() {
         ]}
         actions={
           <div style={{ display: "flex", gap: 8 }}>
+            <button 
+              className="btn btn-primary btn-sm" 
+              onClick={() => void handleBulkMarkPresent()}
+              disabled={bulkLoading}
+            >
+              {bulkLoading ? "Processing..." : "📅 Bulk Mark Present (This Month)"}
+            </button>
             <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
           </div>
         }
@@ -119,7 +145,22 @@ export default function AttendancePage() {
           {loading ? (
             <div className="loading-spinner"><div className="spinner" /> Loading…</div>
           ) : (
-            <DataTable rows={rows} columns={COLUMNS} />
+            <>
+              {selectedRows.length > 0 && (
+                <div style={{ padding: "10px 15px", backgroundColor: "var(--bg-2)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 14, fontWeight: 500 }}>{selectedRows.length} records selected</span>
+                  <button className="btn btn-secondary btn-sm" onClick={() => alert("Bulk actions for specific records can be added here.")}>
+                    Take Action
+                  </button>
+                </div>
+              )}
+              <DataTable 
+                rows={rows} 
+                columns={COLUMNS} 
+                selectable 
+                onSelectionChange={setSelectedRows} 
+              />
+            </>
           )}
         </div>
       </div>

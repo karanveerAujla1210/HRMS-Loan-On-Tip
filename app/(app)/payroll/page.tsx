@@ -67,6 +67,19 @@ export default function PayrollPage() {
     void load();
   }
 
+  async function lockRun(row: Row) {
+    setMsg(null);
+    const res = await fetch(`/api/payroll/runs/${String(row.id)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "LOCKED" }),
+    });
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); return; }
+    setMsg("Payroll run locked.");
+    void load();
+  }
+
   async function createRun(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
@@ -126,6 +139,9 @@ export default function PayrollPage() {
                   )}
                   {String(row.status) === "CALCULATED" && (
                     <button className="btn btn-sm btn-primary" onClick={() => approveRun(row)}>Approve</button>
+                  )}
+                  {String(row.status) === "APPROVED" && (
+                    <button className="btn btn-sm btn-primary" onClick={() => lockRun(row)}>Lock</button>
                   )}
                 </div>
               )}

@@ -97,6 +97,9 @@ export default function DashboardPage() {
                 <Link href="/reports" className="quick-action-btn">
                   <span>📊</span> Reports
                 </Link>
+                <Link href="/download-app" className="quick-action-btn">
+                  <span>📱</span> Get Mobile App
+                </Link>
               </div>
             </div>
 

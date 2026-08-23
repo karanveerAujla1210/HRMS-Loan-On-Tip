@@ -1,7 +1,11 @@
 # HRMS Android APK
 
-Publish the APK produced with `npm run build:android` from `apps/mobile` at this path as:
+Build the Android app with:
+
+`npm run mobile:build:android`
+
+Then publish the generated APK at:
 
 `public/downloads/loan-on-tip-hrms.apk`
 
-The login-page **Download APK** link serves that file directly.
+Both the login page and `/download-app` route serve that file directly.

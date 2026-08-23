@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { MOBILE_APP_DOWNLOAD_PATH, MOBILE_APP_VERSION } from "@/lib/mobile-app";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -120,9 +121,9 @@ export default function LoginPage() {
           </div>
           <div className="mobile-app-copy">
             <strong>Get the HRMS mobile app</strong>
-            <span>Android APK · Version 1.0.0</span>
+            <span>Android APK · Version {MOBILE_APP_VERSION}</span>
           </div>
-          <a className="btn btn-download" href="/downloads/loan-on-tip-hrms.apk" download>
+          <a className="btn btn-download" href={MOBILE_APP_DOWNLOAD_PATH} download>
             Download APK
           </a>
         </div>

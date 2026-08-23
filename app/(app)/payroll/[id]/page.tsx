@@ -105,6 +105,19 @@ export default function PayrollRunDetailPage() {
     void load();
   }
 
+  async function lockRun() {
+    setMsg(null);
+    const res = await fetch(`/api/payroll/runs/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "LOCKED" }),
+    });
+    const json = await res.json();
+    if (json.error) { setMsg(`Error: ${json.error}`); return; }
+    setMsg("Payroll run locked successfully.");
+    void load();
+  }
+
   const status = String(run?.status ?? "");
 
   const runTitle = run ? `${run.payroll_year}/${String(run.payroll_month).padStart(2, "0")}` : "…";
@@ -130,6 +143,9 @@ export default function PayrollRunDetailPage() {
             </button>
             {status === "CALCULATED" && (
               <button className="btn btn-primary btn-sm" onClick={approveRun}>Approve Payroll</button>
+            )}
+            {status === "APPROVED" && (
+              <button className="btn btn-primary btn-sm" onClick={lockRun}>Lock Payroll</button>
             )}
           </div>
         }
