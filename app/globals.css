@@ -578,6 +578,44 @@ input::placeholder, textarea::placeholder { color: var(--text-4); }
 
 .login-card p { font-size: 13px; color: var(--text-3); margin-bottom: 24px; }
 
+.mobile-app-download {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px 12px;
+  align-items: center;
+  margin-top: 24px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: #fafbfd;
+}
+
+.mobile-app-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: var(--brand);
+  background: var(--brand-light);
+  border-radius: 8px;
+}
+
+.mobile-app-icon svg { width: 18px; height: 18px; }
+
+.mobile-app-copy { min-width: 0; }
+.mobile-app-copy strong { display: block; font-size: 12px; color: var(--text); }
+.mobile-app-copy span { display: block; margin-top: 1px; font-size: 11px; color: var(--text-3); }
+
+.btn-download {
+  grid-column: 1 / -1;
+  justify-content: center;
+  padding: 7px 10px;
+  color: var(--brand);
+  background: var(--surface);
+  border-color: #f2c5b9;
+}
+.btn-download:hover { color: #fff; background: var(--brand); border-color: var(--brand); }
+
 /* ── Dashboard grid ── */
 .dashboard-grid {
   display: grid;
@@ -766,4 +804,3 @@ input::placeholder, textarea::placeholder { color: var(--text-4); }
   color: var(--brand);
   transform: translateX(3px);
 }
-

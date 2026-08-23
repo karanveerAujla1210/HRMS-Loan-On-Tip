@@ -109,6 +109,23 @@ export default function LoginPage() {
         <button className="btn btn-secondary" style={{ width: "100%" }} onClick={handleMagicLink} disabled={loading}>
           Send magic link
         </button>
+
+        <div className="mobile-app-download">
+          <div className="mobile-app-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3v12" />
+              <path d="m7 10 5 5 5-5" />
+              <path d="M5 21h14" />
+            </svg>
+          </div>
+          <div className="mobile-app-copy">
+            <strong>Get the HRMS mobile app</strong>
+            <span>Android APK · Version 1.0.0</span>
+          </div>
+          <a className="btn btn-download" href="/downloads/loan-on-tip-hrms.apk" download>
+            Download APK
+          </a>
+        </div>
       </div>
     </div>
   );

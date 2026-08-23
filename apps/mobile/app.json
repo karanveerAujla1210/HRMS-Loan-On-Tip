@@ -5,7 +5,6 @@
     "version": "1.0.0",
     "scheme": "hrms",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "splash": { "resizeMode": "contain", "backgroundColor": "#1a56db" },
     "android": {
       "adaptiveIcon": { "backgroundColor": "#1a56db" },
