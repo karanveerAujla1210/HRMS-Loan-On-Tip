@@ -24,9 +24,12 @@ export async function middleware(request: NextRequest) {
 
   const isAuthRoute = pathname.startsWith("/login");
   const isApiRoute = pathname.startsWith("/api/");
-  const isCallbackRoute = pathname.startsWith("/api/auth/callback");
+  // The v1 API gateway and the auth callback authenticate themselves; the
+  // session redirect must never intercept them.
+  const isSelfAuthenticatingApi =
+    pathname.startsWith("/api/v1") || pathname.startsWith("/api/auth/callback");
 
-  if (!session && !isAuthRoute && !isApiRoute) {
+  if (!session && !isAuthRoute && !isApiRoute && !isSelfAuthenticatingApi) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

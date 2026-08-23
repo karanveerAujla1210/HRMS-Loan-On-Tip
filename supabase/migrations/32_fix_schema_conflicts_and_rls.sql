@@ -36,13 +36,11 @@ create trigger trg_notification_read
   before update of is_read on public.notifications
   for each row execute function public.update_notification_read();
 
--- ── 5. FIX ATTENDANCE STATUS ENUM CONFLICT ─────────────────────────────────────
--- full_schema.sql uses 'LEAVE', numbered migrations use 'ON_LEAVE'.
--- Ensure both exist to support legacy and current code.
-do $$ begin
-  alter type public.attendance_status_enum add value if not exists 'ON_LEAVE';
-exception when others then null;
-end $$;
+-- ── 5. ATTENDANCE STATUS CODES ────────────────────────────────────────────────
+-- Both 'LEAVE' (legacy) and 'ON_LEAVE' (current) are accepted by the
+-- varchar + CHECK constraint added in migration 33, so no enum extension is
+-- required here. The generated v_attendance/v_dashboard_metrics views already
+-- reference 'ON_LEAVE'.
 
 -- ── 6. FIX STORAGE RLS POLICIES — Restrict to owner/HR only ───────────────────
 -- Migration 28 created overly permissive policies. Replace with proper ones.

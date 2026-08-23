@@ -20,23 +20,10 @@ left join public.departments d on d.id = e.department_id;
 create or replace view public.v_today_attendance as
 select * from public.v_attendance where attendance_date = current_date;
 
--- ── Add ON_LEAVE to attendance_status_enum if missing ────────────────────────
-do $$ begin
-  alter type public.attendance_status_enum add value if not exists 'ON_LEAVE';
-exception when others then null;
-end $$;
-
--- ── Add NOTICE_PERIOD to employment_status_enum if missing ───────────────────
-do $$ begin
-  alter type public.employment_status_enum add value if not exists 'NOTICE_PERIOD';
-exception when others then null;
-end $$;
-
--- ── Add EXITED to employment_status_enum if missing ──────────────────────────
-do $$ begin
-  alter type public.employment_status_enum add value if not exists 'EXITED';
-exception when others then null;
-end $$;
+-- NOTE: attendance_status_enum / employment_status_enum extensions were removed.
+-- Migration 33 converts these native enums to varchar + CHECK constraints, so
+-- ALTER TYPE ... ADD VALUE (which is forbidden inside a migration transaction)
+-- is no longer used anywhere.
 
 -- ── Expenses table ────────────────────────────────────────────────────────────
 create table if not exists public.expenses (

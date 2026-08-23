@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
-import { parseCSV } from "@/lib/csv";
+import { parseCsv } from "@/lib/csv";
 import SubNav from "@/components/SubNav";
 
 const ASSETS_NAV = [
@@ -103,7 +103,7 @@ export default function AssetImportPage() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const parsed = parseCSV(ev.target?.result as string) as CsvRow[];
+      const parsed = parseCsv(ev.target?.result as string) as CsvRow[];
       setErrors(validate(parsed));
       setRows(parsed);
       setResult(null);

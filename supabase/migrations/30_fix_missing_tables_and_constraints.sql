@@ -89,20 +89,19 @@ begin
   insert into public.leave_approvals (leave_request_id, approver_id, action, approval_level)
   values (p_leave_request_id, p_approver_id, 'APPROVED', 1);
 
-  -- Deduct from leave balance (upsert)
-  insert into public.leave_balances (employee_id, leave_type_id, year, opening_balance, used, closing_balance)
+  -- Deduct from leave balance (upsert). closing_balance is GENERATED ALWAYS,
+  -- so we never write it directly — the trigger maintains it.
+  insert into public.leave_balances (employee_id, leave_type_id, year, opening_balance, used)
   values (
     v_lr.employee_id,
     v_lr.leave_type_id,
     extract(year from v_lr.from_date)::smallint,
     0,
-    v_lr.total_days,
-    -v_lr.total_days
+    v_lr.total_days
   )
   on conflict (employee_id, leave_type_id, year) do update
   set
     used            = public.leave_balances.used + v_lr.total_days,
-    closing_balance = public.leave_balances.closing_balance - v_lr.total_days,
     updated_at      = now();
 
   -- Mark attendance days as ON_LEAVE

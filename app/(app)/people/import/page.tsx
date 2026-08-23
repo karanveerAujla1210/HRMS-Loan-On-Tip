@@ -58,7 +58,7 @@ const HEADER_HINTS: Record<string, string> = {
   uan: "101234567890",
 };
 
-import { parseCSV } from "@/lib/csv";
+import { parseCsv } from "@/lib/csv";
 
 const VALID_STATUSES = ["ACTIVE", "ON_NOTICE", "SUSPENDED", "RESIGNED", "TERMINATED", "RETIRED", "INACTIVE"];
 
@@ -136,7 +136,7 @@ export default function ImportPage() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const parsed = parseCSV(ev.target?.result as string) as CsvRow[];
+      const parsed = parseCsv(ev.target?.result as string) as CsvRow[];
       setErrors(validate(parsed));
       setRows(parsed);
       setResult(null);

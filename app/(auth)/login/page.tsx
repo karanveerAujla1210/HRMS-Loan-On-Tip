@@ -42,7 +42,7 @@ export default function LoginPage() {
       <div className="login-page">
         <div className="login-card">
           <div className="login-brand">
-            <div className="brand-mark">L</div>
+            <img src="/logo.png" alt="Loan On Tip Logo" className="brand-logo" />
             <div>
               <strong>Loan On Tip</strong>
               <span>ACG Leasing Limited</span>

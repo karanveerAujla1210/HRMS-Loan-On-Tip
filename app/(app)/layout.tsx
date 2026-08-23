@@ -103,7 +103,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="app-shell">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <div className="brand-mark">L</div>
+          <img src="/logo.png" alt="Loan On Tip Logo" className="brand-logo" />
           <div className="brand-text">
             <strong>Loan On Tip</strong>
             <span>ACG Leasing Limited</span>

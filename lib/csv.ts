@@ -1,65 +1,107 @@
-export function parseCSV(csvText: string): Record<string, string>[] {
-  const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== "");
-  if (lines.length < 2) return [];
+/**
+ * CSV helpers shared by import and export paths.
+ *
+ * `toCsv` neutralises spreadsheet formula injection (a cell beginning with
+ * `= + - @` is prefixed with a single quote) because exports are opened in
+ * Excel by finance and HR users.
+ */
 
-  const headers = parseCSVLine(lines[0]);
-  const data: Record<string, string>[] = [];
+export function parseCsv(csvText: string): Record<string, string>[] {
+  const rows = parseCsvRows(csvText);
+  if (rows.length < 2) return [];
 
-  for (let i = 1; i < lines.length; i++) {
-    const values = parseCSVLine(lines[i]);
+  const headers = (rows[0] ?? []).map((h) => h.trim());
+  const out: Record<string, string>[] = [];
+
+  for (let i = 1; i < rows.length; i += 1) {
+    const values = rows[i] ?? [];
+    if (values.every((v) => v.trim() === "")) continue;
     const row: Record<string, string> = {};
     headers.forEach((header, index) => {
-      row[header.trim()] = values[index] ? values[index].trim() : "";
+      row[header] = (values[index] ?? "").trim();
     });
-    data.push(row);
+    out.push(row);
   }
 
-  return data;
+  return out;
 }
 
-function parseCSVLine(text: string): string[] {
-  const result: string[] = [];
+/** Full RFC 4180 style tokenizer: handles quoted newlines and escaped quotes. */
+export function parseCsvRows(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
   let cell = "";
   let inQuotes = false;
-  
-  for (let i = 0; i < text.length; i++) {
+
+  for (let i = 0; i < text.length; i += 1) {
     const char = text[i];
-    
-    if (char === '"' && text[i+1] === '"') {
-      // Escaped quote
-      cell += '"';
-      i++;
-    } else if (char === '"') {
-      // Toggle quotes
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      // End of cell
-      result.push(cell);
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cell += char;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      row.push(cell);
       cell = "";
-    } else {
+    } else if (char === "\n") {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else if (char !== "\r") {
       cell += char;
     }
   }
-  
-  // Push the last cell
-  result.push(cell);
-  return result;
+
+  row.push(cell);
+  rows.push(row);
+  return rows.filter((r) => r.length > 1 || (r[0] ?? "").trim() !== "");
 }
 
-export function generateCSV(headers: string[], data: Record<string, any>[]): string {
-  const rows = [headers.map(escapeCSV)];
-  
-  data.forEach(item => {
-    const row = headers.map(header => escapeCSV(String(item[header] ?? "")));
-    rows.push(row);
-  });
-  
-  return rows.map(r => r.join(",")).join("\n");
+const FORMULA_PREFIXES = ["=", "+", "-", "@", "\t", "\r"];
+
+function escapeCell(value: unknown): string {
+  const raw =
+    value === null || value === undefined
+      ? ""
+      : value instanceof Date
+        ? value.toISOString()
+        : String(value);
+  const guarded = FORMULA_PREFIXES.some((p) => raw.startsWith(p)) ? `'${raw}` : raw;
+  return /[",\n\r]/.test(guarded) ? `"${guarded.replace(/"/g, '""')}"` : guarded;
 }
 
-function escapeCSV(text: string): string {
-  if (text.includes(",") || text.includes('"') || text.includes("\n")) {
-    return `"${text.replace(/"/g, '""')}"`;
+export function toCsv(
+  headers: readonly string[],
+  rows: readonly Record<string, unknown>[]
+): string {
+  const lines = [headers.map(escapeCell).join(",")];
+  for (const row of rows) {
+    lines.push(headers.map((header) => escapeCell(row[header])).join(","));
   }
-  return text;
+  return lines.join("\r\n");
+}
+
+/** Builds a CSV from explicit column definitions with display labels. */
+export function toCsvWithColumns<T extends Record<string, unknown>>(
+  columns: readonly { key: keyof T & string; label: string }[],
+  rows: readonly T[]
+): string {
+  const lines = [columns.map((c) => escapeCell(c.label)).join(",")];
+  for (const row of rows) {
+    lines.push(columns.map((c) => escapeCell(row[c.key])).join(","));
+  }
+  return lines.join("\r\n");
 }

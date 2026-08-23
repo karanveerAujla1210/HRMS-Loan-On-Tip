@@ -28,37 +28,55 @@ returns uuid language sql stable security definer as $$
 $$;
 
 -- ── 3. ADD MISSING CHECK CONSTRAINTS ─────────────────────────────────────────
-alter table public.resignations
-  add constraint if not exists chk_resignations_status
-  check (status in ('SUBMITTED','UNDER_REVIEW','APPROVED','REJECTED','WITHDRAWN','COMPLETED'));
+-- Postgres has no ADD CONSTRAINT IF NOT EXISTS, so each is wrapped in a
+-- do-block that swallows a duplicate_object error if the constraint exists.
+do $$ begin
+  alter table public.resignations
+    add constraint chk_resignations_status
+    check (status in ('SUBMITTED','UNDER_REVIEW','APPROVED','REJECTED','WITHDRAWN','COMPLETED'));
+exception when duplicate_object then null; end $$;
 
-alter table public.expenses
-  add constraint if not exists chk_expenses_status
-  check (status in ('PENDING','APPROVED','REJECTED','PAID','CANCELLED'));
+do $$ begin
+  alter table public.expenses
+    add constraint chk_expenses_status
+    check (status in ('PENDING','APPROVED','REJECTED','PAID','CANCELLED'));
+exception when duplicate_object then null; end $$;
 
-alter table public.attendance_adjustments
-  add constraint if not exists chk_attendance_adjustments_status
-  check (status in ('PENDING','APPROVED','REJECTED'));
+do $$ begin
+  alter table public.attendance_adjustments
+    add constraint chk_attendance_adjustments_status
+    check (status in ('PENDING','APPROVED','REJECTED'));
+exception when duplicate_object then null; end $$;
 
-alter table public.asset_assignments
-  add constraint if not exists chk_asset_assignments_status
-  check (status in ('ACTIVE','RETURNED','OVERDUE','CANCELLED'));
+do $$ begin
+  alter table public.asset_assignments
+    add constraint chk_asset_assignments_status
+    check (status in ('ACTIVE','RETURNED','OVERDUE','CANCELLED'));
+exception when duplicate_object then null; end $$;
 
-alter table public.asset_returns
-  add constraint if not exists chk_asset_returns_condition
-  check (condition_at_return in ('GOOD','DAMAGED','LOST','FAIR'));
+do $$ begin
+  alter table public.asset_returns
+    add constraint chk_asset_returns_condition
+    check (condition_at_return in ('GOOD','DAMAGED','LOST','FAIR'));
+exception when duplicate_object then null; end $$;
 
-alter table public.helpdesk_tickets
-  add constraint if not exists chk_helpdesk_status
-  check (status in ('OPEN','IN_PROGRESS','RESOLVED','CLOSED'));
+do $$ begin
+  alter table public.helpdesk_tickets
+    add constraint chk_helpdesk_status
+    check (status in ('OPEN','IN_PROGRESS','RESOLVED','CLOSED'));
+exception when duplicate_object then null; end $$;
 
-alter table public.payroll_runs
-  add constraint if not exists chk_payroll_year
-  check (payroll_year >= 2000 and payroll_year <= 2100);
+do $$ begin
+  alter table public.payroll_runs
+    add constraint chk_payroll_year
+    check (payroll_year >= 2000 and payroll_year <= 2100);
+exception when duplicate_object then null; end $$;
 
-alter table public.payroll_items
-  add constraint if not exists chk_payroll_item_status
-  check (status in ('DRAFT','CALCULATED','APPROVED','PAID','CANCELLED'));
+do $$ begin
+  alter table public.payroll_items
+    add constraint chk_payroll_item_status
+    check (status in ('DRAFT','CALCULATED','APPROVED','PAID','CANCELLED'));
+exception when duplicate_object then null; end $$;
 
 -- ── 4. ADD MISSING COLUMNS ────────────────────────────────────────────────────
 alter table public.asset_returns add column if not exists status varchar(20) not null default 'PENDING';

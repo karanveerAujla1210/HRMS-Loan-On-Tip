@@ -37,10 +37,17 @@ export const fontSize = {
   "2xl": 30,
 } as const;
 
+/** Keyed by the canonical UPPER_SNAKE_CASE attendance status from the database. */
 export const statusColors: Record<string, string> = {
-  present: colors.mint,
-  late: colors.amber,
-  absent: colors.rose,
-  half_day: colors.blue,
-  on_leave: colors.muted,
+  PRESENT: colors.mint,
+  LATE: colors.amber,
+  ABSENT: colors.rose,
+  HALF_DAY: colors.blue,
+  ON_LEAVE: colors.muted,
+  LEAVE: colors.muted,
+  HOLIDAY: colors.navy,
+  WEEKLY_OFF: colors.muted,
+  WORK_FROM_HOME: colors.blue,
+  ON_DUTY: colors.blue,
+  MISSING_PUNCH: colors.amber,
 };

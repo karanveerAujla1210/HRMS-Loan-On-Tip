@@ -6,15 +6,19 @@
     "node": ">=20.9.0"
   },
   "workspaces": [
-    "apps/web",
     "packages/*"
   ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "mobile:build:android": "npm --prefix apps/mobile run build:android"
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:lint": "vitest run tests/db",
+    "mobile:sync": "cap sync android",
+    "mobile:build:android": "cap sync android && cd android && gradlew.bat assembleDebug"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",
@@ -28,9 +32,15 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.0",
+    "@eslint/eslintrc": "^3.2.0",
     "@types/node": "^22.13.9",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.2.4",
-    "typescript": "^5.8.2"
+    "eslint": "^9.18.0",
+    "eslint-config-next": "15.3.9",
+    "pg": "^8.13.1",
+    "typescript": "^5.8.2",
+    "vitest": "^2.1.9"
   }
 }
