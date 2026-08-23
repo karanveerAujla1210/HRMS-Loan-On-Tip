@@ -23,6 +23,8 @@ export default function SelfServicePage() {
   const [checkingIn, setCheckingIn] = useState(false);
   const [checkingOut, setCheckingOut] = useState(false);
   const [attMsg, setAttMsg] = useState<string | null>(null);
+  const [correctionRow, setCorrectionRow] = useState<Row | null>(null);
+  const [submittingCorrection, setSubmittingCorrection] = useState(false);
 
   // Leave
   const [leaveTypes, setLeaveTypes] = useState<Row[]>([]);
@@ -63,7 +65,7 @@ export default function SelfServicePage() {
       payslipsRes, assetsRes, expensesRes, ticketsRes
     ] = await Promise.all([
       supabase.from("attendance").select("*").eq("employee_id", employeeId).eq("attendance_date", today()).maybeSingle(),
-      supabase.from("attendance").select("attendance_date,status,check_in_at,check_out_at,worked_minutes").eq("employee_id", employeeId).gte("attendance_date", monthStart()).order("attendance_date", { ascending: false }),
+      supabase.from("attendance").select("id,attendance_date,status,check_in_at,check_out_at,worked_minutes").eq("employee_id", employeeId).gte("attendance_date", monthStart()).order("attendance_date", { ascending: false }),
       supabase.from("leave_types").select("id,name,code").eq("company_id", companyId).eq("is_active", true),
       supabase.from("leave_requests").select("id,from_date,to_date,total_days,status,submitted_at,leave_types(name)").eq("employee_id", employeeId).order("submitted_at", { ascending: false }).limit(50),
       supabase.from("leave_balances").select("closing_balance,leave_types(name)").eq("employee_id", employeeId).eq("year", new Date().getFullYear()),
@@ -176,6 +178,38 @@ export default function SelfServicePage() {
       (err) => { setAttMsg(`Location error: ${err.message}`); setCheckingOut(false); },
       { enableHighAccuracy: true, timeout: 10000 }
     );
+  }
+
+  // Submit Attendance Correction
+  async function submitCorrection(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!correctionRow) return;
+    setSubmittingCorrection(true);
+    setAttMsg(null);
+    const fd = new FormData(e.currentTarget);
+    const date = String(correctionRow.attendance_date);
+    
+    // Construct ISO datetime from time inputs (or keep null if empty)
+    const ciTime = fd.get("new_check_in") ? String(fd.get("new_check_in")) : null;
+    const coTime = fd.get("new_check_out") ? String(fd.get("new_check_out")) : null;
+    
+    const ciIso = ciTime ? new Date(`${date}T${ciTime}:00`).toISOString() : undefined;
+    const coIso = coTime ? new Date(`${date}T${coTime}:00`).toISOString() : undefined;
+
+    const res = await fetch("/api/attendance/correction", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        attendance_id: correctionRow.id,
+        new_check_in: ciIso,
+        new_check_out: coIso,
+        reason: fd.get("reason"),
+      }),
+    });
+    const json = await res.json();
+    if (json.error) { setAttMsg(`Error: ${json.error}`); }
+    else { setAttMsg("Regularization request submitted for approval."); setCorrectionRow(null); void load(); }
+    setSubmittingCorrection(false);
   }
 
   // Submit Leave
@@ -326,10 +360,58 @@ export default function SelfServicePage() {
           <>
             {/* Attendance Tab */}
             {tab === "attendance" && (
-              <div className="card">
-                <div className="card-header"><div><h2>This Month's Attendance</h2><p>{attRows.length} records</p></div></div>
-                <DataTable rows={attRows} columns={["attendance_date", "status", "check_in_at", "check_out_at", "worked_minutes"]} />
-              </div>
+              <>
+                <div className="card">
+                  <div className="card-header"><div><h2>This Month's Attendance</h2><p>{attRows.length} records</p></div></div>
+                  <DataTable 
+                    rows={attRows} 
+                    columns={["attendance_date", "status", "check_in_at", "check_out_at", "worked_minutes"]} 
+                    action={(row) => (
+                      <button className="btn btn-sm btn-secondary" onClick={() => setCorrectionRow(row)}>
+                        📝 Regularize
+                      </button>
+                    )}
+                  />
+                </div>
+                
+                {correctionRow && (
+                  <div className="modal-backdrop">
+                    <div className="modal">
+                      <div className="modal-header">
+                        <h2>Request Regularization</h2>
+                        <button className="btn btn-ghost btn-sm" onClick={() => setCorrectionRow(null)}>✕</button>
+                      </div>
+                      <form onSubmit={submitCorrection}>
+                        <div className="modal-body">
+                          <p style={{ marginBottom: 15, fontSize: 14 }}>
+                            Date: <strong>{String(correctionRow.attendance_date)}</strong>
+                          </p>
+                          <div className="form-row">
+                            <div className="form-group">
+                              <label>Correct Check-In Time</label>
+                              <input name="new_check_in" type="time" />
+                            </div>
+                            <div className="form-group">
+                              <label>Correct Check-Out Time</label>
+                              <input name="new_check_out" type="time" />
+                            </div>
+                          </div>
+                          <div className="form-group">
+                            <label>Reason / Remarks *</label>
+                            <textarea name="reason" rows={3} required placeholder="Why are you requesting this correction?" />
+                          </div>
+                        </div>
+                        <div className="modal-footer">
+                          <button type="button" className="btn btn-secondary" onClick={() => setCorrectionRow(null)}>Cancel</button>
+                          <button type="submit" className="btn btn-primary" disabled={submittingCorrection}>
+                            {submittingCorrection ? "Submitting…" : "Submit Request"}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Leave Tab */}
