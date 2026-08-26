@@ -86,7 +86,7 @@ export async function resolveActor(): Promise<Actor> {
 
   if (profileError || !profile) throw forbidden("No profile is linked to this account");
 
-  let employeeId = profile.employee_id as string | null;
+  const employeeId = profile.employee_id as string | null;
   let role: string | null = null;
   const permissions = new Set<string>();
 
@@ -157,7 +157,7 @@ export function fail(err: unknown) {
       { status: err.status }
     );
   }
-  const message = err instanceof Error ? err.message : "Unexpected error";
+  const _message = err instanceof Error ? err.message : "Unexpected error";
   return NextResponse.json(
     {
       data: null,
