@@ -8,6 +8,7 @@ import {
   formatInr,
   type StatutoryConfig,
   type StructureComponent,
+  type ShiftConfig,
 } from "@hrms/domain";
 import { PAYROLL_DEFAULTS } from "@hrms/config";
 
@@ -28,9 +29,19 @@ const basicStructure: StructureComponent[] = [
   { code: "HRA", name: "HRA", type: "EARNING", method: "PERCENT_OF", percentage: 50, baseCode: "BASIC", prorate: true, taxable: true },
   { code: "CONVEYANCE", name: "Conveyance", type: "EARNING", method: "FIXED", value: 1600, prorate: true, taxable: false },
   { code: "SPECIAL", name: "Special Allowance", type: "EARNING", method: "PERCENT_OF_CTC", percentage: 40, prorate: true, taxable: true },
-  { code: "PF", name: "Provident Fund", type: "STATUTORY", method: "PERCENT_OF", percentage: 12, baseCode: "BASIC", prorate: true },
-  { code: "PT", name: "Professional Tax", type: "STATUTORY", method: "FIXED", value: 200, prorate: false },
+  { code: "PF_EMPLOYEE", name: "Provident Fund", type: "STATUTORY", method: "PERCENT_OF", percentage: 12, baseCode: "BASIC", prorate: true },
+  { code: "PROFESSIONAL_TAX", name: "Professional Tax", type: "STATUTORY", method: "FIXED", value: 200, prorate: false },
 ];
+
+const shift: ShiftConfig = {
+  startTime: "09:30",
+  endTime: "18:30",
+  graceMinutes: 15,
+  breakMinutes: 0,
+  halfDayAfterMinutes: 240,
+  fullDayAfterMinutes: 360,
+  isOvernight: false,
+};
 
 describe("computePayroll", () => {
   it("is structure-driven, not a hardcoded split", () => {
@@ -60,7 +71,7 @@ describe("computePayroll", () => {
 
   it("caps PF at the statutory wage ceiling", () => {
     const result = computePayroll({ monthlyCtc: 100000, workingDays: 30, paidDays: 30, lopDays: 0, components: basicStructure, statutory, engineVersion: "t" });
-    const pf = result.deductions.find((d) => d.code === "PF");
+    const pf = result.deductions.find((d) => d.code === "PF_EMPLOYEE");
     // BASIC=40000 but ceiling is 15000 -> 12% of 15000 = 1800.
     expect(pf?.amount).toBeCloseTo(1800, 0);
   });
@@ -78,65 +89,62 @@ describe("computePayroll", () => {
 
 describe("deriveAttendanceStatus", () => {
   it("treats an approved leave day as ON_LEAVE, never ABSENT", () => {
-    const status = deriveAttendanceStatus({
-      punchIn: null,
-      punchOut: null,
-      hasLeave: true,
-      isHoliday: false,
-      isWeeklyOff: false,
-      shiftStartMinutes: 570,
-      graceMinutes: 15,
-      halfDayAfterMinutes: 240,
-      fullDayAfterMinutes: 360,
-      date: "2026-08-01",
-      timeZone: "Asia/Kolkata",
+    const { status } = deriveAttendanceStatus({
+      punch: { checkInAt: null, checkOutAt: null, timeZone: "Asia/Kolkata", shift },
+      day: { isHoliday: false, isWeeklyOff: false, onApprovedLeave: true },
     });
     expect(status).toBe("ON_LEAVE");
   });
 
   it("marks ABSENT with no punches and no leave", () => {
-    const status = deriveAttendanceStatus({
-      punchIn: null,
-      punchOut: null,
-      hasLeave: false,
-      isHoliday: false,
-      isWeeklyOff: false,
-      shiftStartMinutes: 570,
-      graceMinutes: 15,
-      halfDayAfterMinutes: 240,
-      fullDayAfterMinutes: 360,
-      date: "2026-08-01",
-      timeZone: "Asia/Kolkata",
+    const { status } = deriveAttendanceStatus({
+      punch: { checkInAt: null, checkOutAt: null, timeZone: "Asia/Kolkata", shift },
+      day: { isHoliday: false, isWeeklyOff: false, onApprovedLeave: false },
     });
     expect(status).toBe("ABSENT");
   });
 
   it("marks PRESENT when worked minutes reach a full day", () => {
-    const status = deriveAttendanceStatus({
-      punchIn: new Date("2026-08-01T04:00:00Z"), // 09:30 IST
-      punchOut: new Date("2026-08-01T13:00:00Z"), // 18:30 IST
-      hasLeave: false,
-      isHoliday: false,
-      isWeeklyOff: false,
-      shiftStartMinutes: 570,
-      graceMinutes: 15,
-      halfDayAfterMinutes: 240,
-      fullDayAfterMinutes: 360,
-      date: "2026-08-01",
-      timeZone: "Asia/Kolkata",
+    const { status } = deriveAttendanceStatus({
+      punch: {
+        checkInAt: new Date("2026-08-01T04:00:00Z"), // 09:30 IST
+        checkOutAt: new Date("2026-08-01T13:00:00Z"), // 18:30 IST
+        timeZone: "Asia/Kolkata",
+        shift,
+      },
+      day: { isHoliday: false, isWeeklyOff: false, onApprovedLeave: false },
     });
     expect(status).toBe("PRESENT");
   });
 });
 
 describe("leave calculations", () => {
-  it("counts inclusive day ranges and halves", () => {
-    expect(calculateLeaveDays({ fromDate: "2026-08-01", toDate: "2026-08-05", halfDayStart: false, halfDayEnd: false })).toBe(5);
-    expect(calculateLeaveDays({ fromDate: "2026-08-01", toDate: "2026-08-05", halfDayStart: true, halfDayEnd: false })).toBe(4.5);
+  it("counts inclusive day ranges", () => {
+    expect(
+      calculateLeaveDays({
+        range: { from: "2026-08-01", to: "2026-08-05" },
+        halfDay: false,
+        holidays: [],
+        weeklyOffDates: [],
+        excludeNonWorkingDays: false,
+      })
+    ).toBe(5);
+  });
+
+  it("counts a single half-day as 0.5", () => {
+    expect(
+      calculateLeaveDays({
+        range: { from: "2026-08-01", to: "2026-08-01" },
+        halfDay: true,
+        holidays: [],
+        weeklyOffDates: [],
+        excludeNonWorkingDays: false,
+      })
+    ).toBe(0.5);
   });
 
   it("computes closing balance from opening/accrued/used", () => {
-    expect(closingLeaveBalance({ opening: 10, accrued: 2, used: 3, adjusted: 0, encashed: 0 })).toBe(9);
+    expect(closingLeaveBalance({ opening_balance: 10, accrued: 2, adjusted: 0, used: 3, encashed: 0 })).toBe(9);
   });
 });
 

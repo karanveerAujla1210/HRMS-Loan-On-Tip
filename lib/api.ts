@@ -6,21 +6,28 @@ export async function createApiClient() {
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll() } }
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: (cookiesToSet: { name: string; value: string; options: import("@supabase/ssr").CookieOptions }[]) => {
+          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+        },
+      },
+    }
   );
 }
 
 export async function getSessionAndProfile(supabase: Awaited<ReturnType<typeof createApiClient>>) {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) return { session: null, profile: null };
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { user: null, profile: null };
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("id,employee_id,company_id")
-    .eq("auth_user_id", session.user.id)
-    .single();
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
 
-  return { session, profile };
+  return { user, profile };
 }
 
 export async function getRole(

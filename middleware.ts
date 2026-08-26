@@ -2,6 +2,19 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Next.js route handlers and the Next.js image optimizer are not behind the
+  // app shell. Static assets are served directly.
+  if (
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/api/v1") ||
+    pathname.startsWith("/api/auth/callback") ||
+    pathname.startsWith("/auth/callback")
+  ) {
+    return NextResponse.next();
+  }
+
   const response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -20,26 +33,20 @@ export async function middleware(request: NextRequest) {
   );
 
   const { data: { session } } = await supabase.auth.getSession();
-  const { pathname } = request.nextUrl;
 
   const isAuthRoute = pathname.startsWith("/login");
-  const isApiRoute = pathname.startsWith("/api/");
-  // The v1 API gateway and the auth callback authenticate themselves; the
-  // session redirect must never intercept them.
-  const isSelfAuthenticatingApi =
-    pathname.startsWith("/api/v1") || pathname.startsWith("/api/auth/callback");
 
-  if (!session && !isAuthRoute && !isApiRoute && !isSelfAuthenticatingApi) {
+  if (!session && !isAuthRoute) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
   if (session && isAuthRoute) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   return response;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|downloads).*)"],
 };
