@@ -240,7 +240,7 @@ export default function PeoplePage() {
                 </div>
                 <div className="form-group">
                   <label>Official Work Email</label>
-                  <input name="official_email" type="email" placeholder="rahul@acgleasing.com" />
+                  <input name="official_email" type="email" placeholder="rahul@company.com" />
                 </div>
                 <div className="form-group">
                   <label>Mobile Number</label>

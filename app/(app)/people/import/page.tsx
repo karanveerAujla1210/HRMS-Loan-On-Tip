@@ -24,39 +24,39 @@ const HEADERS = [
   "pan_number", "aadhaar_last4", "uan",
 ];
 
-const HEADER_HINTS: Record<string, string> = {
-  first_name: "Rahul",
-  last_name: "Sharma",
-  middle_name: "(optional)",
-  official_email: "rahul@company.com",
-  personal_email: "(optional)",
-  official_mobile: "9876543210",
-  personal_mobile: "(optional)",
-  gender: "Male / Female",
-  date_of_birth: "YYYY-MM-DD",
-  blood_group: "A+ / B+ / O+ / AB+",
-  joining_date: "YYYY-MM-DD",
-  confirmation_date: "YYYY-MM-DD",
-  last_working_date: "(if resigned)",
-  employment_type: "Full Time / Contract / Intern",
-  department: "Sales / HR / Finance / Operations / Technology / Credit",
-  designation: "Executive / Assistant Manager / Manager / VP",
-  location: "Delhi Head Office / Mumbai Branch / Noida Branch / Gurugram Branch",
-  manager_email: "manager@company.com",
-  hr_manager_email: "hr@company.com",
-  employment_status: "ACTIVE / INACTIVE / TERMINATED",
-  nationality: "Indian",
-  marital_status: "Single / Married",
-  probation_end_date: "YYYY-MM-DD",
-  notice_period_days: "30 / 60 / 90",
-  annual_ctc: "480000",
-  bank_name: "HDFC Bank",
-  account_number: "50100123456789",
-  ifsc_code: "HDFC0001234",
-  pan_number: "ABCDE1234F",
-  aadhaar_last4: "1234",
-  uan: "101234567890",
-};
+  const HEADER_HINTS: Record<string, string> = {
+    first_name: "Rahul",
+    last_name: "Sharma",
+    middle_name: "(optional)",
+    official_email: "rahul@company.com",
+    personal_email: "(optional)",
+    official_mobile: "9876543210",
+    personal_mobile: "(optional)",
+    gender: "Male / Female",
+    date_of_birth: "YYYY-MM-DD",
+    blood_group: "A+ / B+ / O+ / AB+",
+    joining_date: "YYYY-MM-DD",
+    confirmation_date: "YYYY-MM-DD",
+    last_working_date: "(if resigned)",
+    employment_type: "Full Time / Contract / Intern",
+    department: "Sales / HR / Finance / Operations / Technology / Credit",
+    designation: "Executive / Assistant Manager / Manager / VP",
+    location: "Head Office / Branch 1 / Branch 2",
+    manager_email: "manager@company.com",
+    hr_manager_email: "hr@company.com",
+    employment_status: "ACTIVE / INACTIVE / TERMINATED",
+    nationality: "Indian",
+    marital_status: "Single / Married",
+    probation_end_date: "YYYY-MM-DD",
+    notice_period_days: "30 / 60 / 90",
+    annual_ctc: "480000",
+    bank_name: "HDFC Bank",
+    account_number: "50100123456789",
+    ifsc_code: "HDFC0001234",
+    pan_number: "ABCDE1234F",
+    aadhaar_last4: "1234",
+    uan: "101234567890",
+  };
 
 import { parseCsv } from "@/lib/csv";
 
@@ -162,9 +162,8 @@ export default function ImportPage() {
   function downloadSample() {
     const header = HEADERS.join(",");
     const rows = [
-      "Rahul,Sharma,,rahul.sharma@acgleasing.com,rahul.personal@gmail.com,9876543210,,Male,1995-06-15,B+,2023-01-10,2023-04-10,,Full Time,Sales,Executive,Delhi Head Office,,admin@loanontip.com,ACTIVE,Indian,Single,2023-04-10,30,480000,HDFC Bank,50100123456789,HDFC0001234,ABCDE1234F,1234,101234567890",
-      "Priya,Verma,,priya.verma@acgleasing.com,,9876543211,,Female,1997-03-22,O+,2023-02-01,2023-05-01,,Full Time,Human Resources,Assistant Manager,Delhi Head Office,rahul.sharma@acgleasing.com,admin@loanontip.com,ACTIVE,Indian,Married,,60,720000,ICICI Bank,123456789012,ICIC0001234,FGHIJ5678K,5678,101234567891",
-      "Amit,Kumar,Singh,amit.kumar@acgleasing.com,,9876543212,,Male,1990-11-05,A+,2022-06-15,2022-09-15,,Full Time,Finance,Manager,Mumbai Branch,,admin@loanontip.com,ACTIVE,Indian,Married,2022-09-15,90,1200000,SBI,32123456789,SBIN0001234,KLMNO9012L,9012,101234567892",
+      "John,Doe,,john.doe@company.com,,9876543210,,Male,1990-01-01,A+,2023-01-10,2023-04-10,,Full Time,Sales,Executive,Head Office,,hr@company.com,ACTIVE,Indian,Single,2023-04-10,30,480000,Example Bank,50100123456789,EXPL0001234,ABCDE1234F,1234,101234567890",
+      "Jane,Smith,,jane.smith@company.com,,9876543211,,Female,1992-02-02,B+,2023-02-01,2023-05-01,,Full Time,HR,Manager,Head Office,,hr@company.com,ACTIVE,Indian,Married,,60,720000,Example Bank,123456789012,EXIC0001234,FGHIJ5678K,5678,101234567891",
     ].join("\n");
     const blob = new Blob([header + "\n" + rows], { type: "text/csv" });
     const a = document.createElement("a");
