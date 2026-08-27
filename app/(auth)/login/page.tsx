@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { MOBILE_APP_DOWNLOAD_PATH, MOBILE_APP_VERSION } from "@/lib/mobile-app";
 
@@ -42,7 +43,7 @@ export default function LoginPage() {
       <div className="login-page">
         <div className="login-card">
           <div className="login-brand">
-            <img src="/logo.png" alt="Loan On Tip Logo" className="brand-logo" />
+            <Image src="/logo.png" alt="Loan On Tip Logo" width={48} height={48} className="brand-logo" />
             <div>
               <strong>Loan On Tip</strong>
               <span>ACG Leasing Limited</span>

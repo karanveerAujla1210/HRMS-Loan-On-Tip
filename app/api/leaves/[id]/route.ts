@@ -25,50 +25,23 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
     throw badRequest("FORBIDDEN", "Leave request belongs to another company");
   }
   if ((leave as { status: string }).status !== "PENDING") {
-    throw badRequest("ALREADY_PROCESSED", "This leave request has already been processed");
+    throw badRequest("LEAVE_ALREADY_DECIDED", "This leave request has already been processed");
   }
 
-  const { error: apprErr } = await db.from("leave_approvals").insert({
-    leave_request_id: id,
-    approver_id: actor.employeeId,
-    action,
-    comments: body.comments ?? null,
+  // Atomic, idempotent approval that also updates the leave balance inside a
+  // single transaction (see migration 38).
+  const { data: resultId, error: rpcErr } = await db.rpc("apply_leave_approval", {
+    p_leave_request_id: id,
+    p_actor_id: actor.employeeId,
+    p_action: action,
+    p_comments: body.comments ?? null,
   });
-  if (apprErr) throw dbError(apprErr);
-
-  if (action === "APPROVED") {
-    const leaveRow = leave as { employee_id: string; leave_type_id: string; from_date: string; total_days: number };
-    const year = new Date(leaveRow.from_date).getFullYear();
-    const { data: bal } = await db
-      .from("leave_balances")
-      .select("id, used")
-      .eq("employee_id", leaveRow.employee_id)
-      .eq("leave_type_id", leaveRow.leave_type_id)
-      .eq("year", year)
-      .maybeSingle();
-    if (bal) {
-      await db
-        .from("leave_balances")
-        .update({ used: Number((bal as { used: number }).used) + leaveRow.total_days, updated_at: new Date().toISOString() })
-        .eq("id", (bal as { id: string }).id);
-    }
-    await db.from("leave_transactions").insert({
-      employee_id: leaveRow.employee_id,
-      leave_type_id: leaveRow.leave_type_id,
-      transaction_type: "CONSUMPTION",
-      quantity: leaveRow.total_days,
-      reference_id: id,
-      reason: "Leave approved",
-      transaction_date: leaveRow.from_date,
-      created_by: actor.employeeId,
-    }).then(() => {});
-  }
+  if (rpcErr) throw dbError(rpcErr);
 
   const { data, error: updErr } = await db
     .from("leave_requests")
-    .update({ status: action, updated_at: new Date().toISOString() })
-    .eq("id", id)
     .select("id, status")
+    .eq("id", resultId ?? id)
     .single();
   if (updErr) throw dbError(updErr);
 

@@ -1,7 +1,25 @@
-// Scheduled via pg_cron or Supabase Dashboard / Vercel Cron: runs at 11:00 AM daily.
-// Automatically marks active employees without check-in or approved leave as ABSENT for the prior workday.
+// Scheduled via pg_cron or Supabase Dashboard / Vercel Cron: runs each morning.
+// For every company it computes the company-local "yesterday" business date and
+// invokes the server-side attendance-close engine (run_daily_attendance_close),
+// which honours weekly-off rules, company/location holidays and marks
+// missing-punch exceptions. The engine is the single source of truth — this
+// function only orchestrates per company.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+function businessYesterday(timeZone: string): string {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(new Date());
+  const pick = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  const today = new Date(`${pick("year")}-${pick("month")}-${pick("day")}T00:00:00`);
+  today.setDate(today.getDate() - 1);
+  return today.toISOString().slice(0, 10);
+}
 
 Deno.serve(async (req) => {
   const authHeader = req.headers.get("Authorization");
@@ -15,104 +33,37 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  const target = new Date();
-  target.setDate(target.getDate() - 1);
-  const targetDate = target.toISOString().slice(0, 10);
-  const dayOfWeek = target.getDay(); // 0 = Sunday, 6 = Saturday
+  const { data: companies, error: compErr } = await supabase
+    .from("companies")
+    .select("id, timezone")
+    .eq("is_active", true);
 
-  // Skip Sunday if general weekly off
-  if (dayOfWeek === 0) {
-    return new Response(`Skipped: ${targetDate} is Sunday (Weekly off).`);
+  if (compErr || !companies?.length) {
+    return new Response(
+      JSON.stringify({ error: compErr?.message ?? "No active companies found" }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
   }
 
-  // 1. Fetch all active employees
-  const { data: employees, error: empErr } = await supabase
-    .from("employees")
-    .select("id, company_id, location_id")
-    .eq("employment_status", "ACTIVE");
+  const results: Array<{ company_id: string; business_date: string; run_id: string | null; error?: string }> = [];
 
-  if (empErr || !employees?.length) {
-    return new Response(`No active employees found or error: ${empErr?.message}`);
-  }
-
-  // 2. Fetch existing attendance records for targetDate
-  const { data: existingAttendance } = await supabase
-    .from("attendance")
-    .select("employee_id")
-    .eq("attendance_date", targetDate);
-
-  const existingSet = new Set((existingAttendance ?? []).map((r) => r.employee_id));
-
-  // 3. Fetch approved leaves covering targetDate
-  const { data: activeLeaves } = await supabase
-    .from("leave_requests")
-    .select("employee_id")
-    .eq("status", "APPROVED")
-    .lte("from_date", targetDate)
-    .gte("to_date", targetDate);
-
-  const leaveSet = new Set((activeLeaves ?? []).map((r) => r.employee_id));
-
-  // 4. Fetch holidays on targetDate
-  const { data: holidays } = await supabase
-    .from("holidays")
-    .select("company_id, location_id")
-    .eq("holiday_date", targetDate);
-
-  const isGlobalHoliday = holidays?.some((h) => !h.location_id);
-  const holidayLocationSet = new Set(holidays?.filter((h) => h.location_id).map((h) => h.location_id));
-
-  const absentRows = [];
-  const leaveRows = [];
-
-  for (const emp of employees) {
-    if (existingSet.has(emp.id)) continue;
-
-    // Check holiday
-    if (isGlobalHoliday || (emp.location_id && holidayLocationSet.has(emp.location_id))) {
-      continue;
-    }
-
-    // Check approved leave
-    if (leaveSet.has(emp.id)) {
-      leaveRows.push({
-        employee_id: emp.id,
-        company_id: emp.company_id,
-        location_id: emp.location_id || null,
-        attendance_date: targetDate,
-        status: "ON_LEAVE",
-        source: "SYSTEM",
-      });
+  for (const company of companies as Array<{ id: string; timezone: string | null }>) {
+    const tz = company.timezone || "Asia/Kolkata";
+    const businessDate = businessYesterday(tz);
+    const { data: runId, error } = await supabase.rpc("run_daily_attendance_close", {
+      p_company_id: company.id,
+      p_business_date: businessDate,
+    });
+    if (error) {
+      results.push({ company_id: company.id, business_date: businessDate, run_id: null, error: error.message });
     } else {
-      absentRows.push({
-        employee_id: emp.id,
-        company_id: emp.company_id,
-        location_id: emp.location_id || null,
-        attendance_date: targetDate,
-        status: "ABSENT",
-        source: "SYSTEM",
-      });
+      results.push({ company_id: company.id, business_date: businessDate, run_id: runId as string });
     }
   }
 
-  const inserts = [...absentRows, ...leaveRows];
-  if (inserts.length) {
-    const { error: insertErr } = await supabase
-      .from("attendance")
-      .upsert(inserts, { onConflict: "employee_id,attendance_date" });
-
-    if (insertErr) {
-      return new Response(`Insert error: ${insertErr.message}`, { status: 500 });
-    }
-  }
-
-  return new Response(
-    JSON.stringify({
-      target_date: targetDate,
-      marked_absent: absentRows.length,
-      marked_leave: leaveRows.length,
-      total_active_employees: employees.length,
-    }),
-    { headers: { "Content-Type": "application/json" } }
-  );
+  const failed = results.filter((r) => r.error);
+  return new Response(JSON.stringify({ processed: results.length, failed: failed.length, results }), {
+    status: failed.length ? 207 : 200,
+    headers: { "Content-Type": "application/json" },
+  });
 });

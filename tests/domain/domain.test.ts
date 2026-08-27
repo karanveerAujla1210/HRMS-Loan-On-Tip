@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { PAYROLL_DEFAULTS } from "@hrms/config";
 import {
   computePayroll,
   deriveAttendanceStatus,
@@ -10,7 +11,6 @@ import {
   type StructureComponent,
   type ShiftConfig,
 } from "@hrms/domain";
-import { PAYROLL_DEFAULTS } from "@hrms/config";
 
 const statutory: StatutoryConfig = {
   pfEmployeeRate: PAYROLL_DEFAULTS.pfEmployeeRate,
@@ -70,7 +70,7 @@ describe("computePayroll", () => {
   });
 
   it("caps PF at the statutory wage ceiling", () => {
-    const result = computePayroll({ monthlyCtc: 100000, workingDays: 30, paidDays: 30, lopDays: 0, components: basicStructure, statutory, engineVersion: "t" });
+    const result = computePayroll({ monthlyCtc: 100000, workingDays: 30, paidDays: 30, lopDays: 0, components: basicStructure, statutory, engineVersion: "test" });
     const pf = result.deductions.find((d) => d.code === "PF_EMPLOYEE");
     // BASIC=40000 but ceiling is 15000 -> 12% of 15000 = 1800.
     expect(pf?.amount).toBeCloseTo(1800, 0);

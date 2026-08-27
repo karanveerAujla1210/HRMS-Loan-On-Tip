@@ -457,6 +457,10 @@ export function computePayroll(
   let fullMonthBasic = 0;
 
   for (const component of input.components) {
+    // Statutory deductions (PF/ESI/PT) are derived from the company's statutory
+    // config below, never from structure rows, to avoid double counting.
+    if (component.type === "STATUTORY") continue;
+
     const full = fullMonthAmounts.get(component.code) ?? 0;
     const prorate = component.prorate ?? component.type === "EARNING";
     const amount = round2(prorate ? full * proration : full);
@@ -491,7 +495,6 @@ export function computePayroll(
   grossEarnings = round2(grossEarnings);
   taxableIncome = round2(taxableIncome);
 
-  // ── Statutory: provident fund ────────────────────────────────────────────
   const s = input.statutory;
   const pfBaseFull = fullMonthBasic > 0 ? fullMonthBasic : fullMonthGross;
   const pfWageFull = s.pfApplyCeiling ? Math.min(pfBaseFull, s.pfWageCeiling) : pfBaseFull;
