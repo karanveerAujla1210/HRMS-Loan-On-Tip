@@ -65,10 +65,17 @@ export default function AttendancePage() {
     if (!confirm("Are you sure you want to mark all active employees as present for the current month up to today? This may take a minute.")) return;
     setBulkLoading(true);
     try {
-      const res = await fetch("/api/attendance/bulk-mark", { method: "POST" });
+      const now = new Date();
+      const from_date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+      const to_date = now.toISOString().slice(0, 10);
+      const res = await fetch("/api/attendance/bulk-mark", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ from_date, to_date, status: "PRESENT" }),
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to bulk mark attendance");
-      alert(json.message || "Successfully marked attendance.");
+      alert(json.message || `Successfully marked ${json.marked ?? 0} attendance records.`);
       void load();
     } catch (err: any) {
       alert(err.message);
