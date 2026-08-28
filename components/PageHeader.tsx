@@ -1,19 +1,26 @@
+"use client";
+
 import React from "react";
-import Breadcrumbs, { type BreadcrumbItem } from "./Breadcrumbs";
+import Link from "next/link";
+import { Breadcrumbs, type BreadcrumbItem } from "./Breadcrumbs";
+
+interface PageHeaderProps {
+  title: string;
+  subtitle?: string;
+  actions?: React.ReactNode;
+  breadcrumbs?: BreadcrumbItem[];
+  className?: string;
+}
 
 export default function PageHeader({
   title,
   subtitle,
   actions,
   breadcrumbs,
-}: {
-  title: string;
-  subtitle?: string;
-  actions?: React.ReactNode;
-  breadcrumbs?: BreadcrumbItem[];
-}) {
+  className = "",
+}: PageHeaderProps) {
   return (
-    <div className="page-header">
+    <div className={`page-header ${className}`}>
       <div className="page-title">
         {breadcrumbs && <Breadcrumbs items={breadcrumbs} />}
         <h1>{title}</h1>

@@ -5,29 +5,97 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
+import { SidebarProvider, useSidebar } from "@/components/SidebarContext";
 
 type Profile = { employee_id: string | null; company_id: string | null; role: string | null };
 
-// Nav items with minimum role required (null = all authenticated)
-const NAV: { href: string; label: string; roles: string[] | null; Icon: () => React.JSX.Element }[] = [
-  { href: "/dashboard",    label: "Dashboard",    roles: null,                                                          Icon: IconGrid },
-  { href: "/people",       label: "People",       roles: ["SUPER_ADMIN","HR_ADMIN","OPERATIONS_ADMIN","MANAGER"],       Icon: IconUsers },
-  { href: "/attendance",   label: "Attendance",   roles: ["SUPER_ADMIN","HR_ADMIN","OPERATIONS_ADMIN","MANAGER"],       Icon: IconClock },
-  { href: "/leave",        label: "Leave",        roles: ["SUPER_ADMIN","HR_ADMIN","OPERATIONS_ADMIN","MANAGER"],       Icon: IconCalendar },
-  { href: "/payroll",      label: "Payroll",      roles: ["SUPER_ADMIN","HR_ADMIN","FINANCE_ADMIN"],                    Icon: IconCash },
-  { href: "/assets",       label: "Assets",       roles: ["SUPER_ADMIN","HR_ADMIN","OPERATIONS_ADMIN"],                 Icon: IconBox },
-  { href: "/organisation", label: "Organisation", roles: ["SUPER_ADMIN","HR_ADMIN"],                                    Icon: IconBuilding },
-  { href: "/reports",      label: "Reports",      roles: ["SUPER_ADMIN","HR_ADMIN","FINANCE_ADMIN","OPERATIONS_ADMIN"], Icon: IconChart },
-  { href: "/self-service", label: "Self Service", roles: null,                                                          Icon: IconPerson },
+interface NavItem {
+  href: string;
+  label: string;
+  roles: string[] | null;
+  Icon: () => React.JSX.Element;
+  section?: string;
+}
+
+interface NavSection {
+  label: string;
+  items: NavItem[];
+}
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    label: "Core",
+    items: [
+      { href: "/dashboard", label: "Dashboard", roles: null, Icon: IconGrid },
+      { href: "/self-service", label: "Self Service", roles: null, Icon: IconPerson },
+    ],
+  },
+  {
+    label: "People Operations",
+    items: [
+      { href: "/people", label: "People", roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "MANAGER"], Icon: IconUsers },
+      { href: "/attendance", label: "Attendance", roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "MANAGER"], Icon: IconClock },
+      { href: "/leave", label: "Leave", roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "MANAGER"], Icon: IconCalendar },
+    ],
+  },
+  {
+    label: "Finance & Assets",
+    items: [
+      { href: "/payroll", label: "Payroll", roles: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN"], Icon: IconCash },
+      { href: "/assets", label: "Assets", roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN"], Icon: IconBox },
+    ],
+  },
+  {
+    label: "Administration",
+    items: [
+      { href: "/organisation", label: "Organisation", roles: ["SUPER_ADMIN", "HR_ADMIN"], Icon: IconBuilding },
+      { href: "/reports", label: "Reports", roles: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN", "OPERATIONS_ADMIN"], Icon: IconChart },
+    ],
+  },
 ];
 
+const ALL_NAV_ITEMS = NAV_SECTIONS.flatMap(s => s.items);
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const router   = useRouter();
+  const router = useRouter();
   const pathname = usePathname();
-  const [user,     setUser]     = useState<User | null>(null);
-  const [profile,  setProfile]  = useState<Profile | null>(null);
+  const { isOpen: sidebarOpen, close: closeSidebar } = useSidebar();
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [checking, setChecking] = useState(true);
-  const [unread,   setUnread]   = useState(0);
+  const [unread, setUnread] = useState(0);
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + B to toggle sidebar
+      if ((e.ctrlKey || e.metaKey) && e.key === "b") {
+        e.preventDefault();
+        // Toggle via context - need to access the context value
+      }
+      // Escape to close sidebar on mobile
+      if (e.key === "Escape" && sidebarOpen) {
+        closeSidebar();
+      }
+      // Ctrl/Cmd + K for search (placeholder)
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        // Focus search if available
+        const searchInput = document.querySelector('input[placeholder*="Search" i]') as HTMLInputElement;
+        searchInput?.focus();
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [sidebarOpen, closeSidebar]);
+
+  // Close sidebar on route change (mobile)
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+      closeSidebar();
+    }
+  }, [pathname, closeSidebar]);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data }) => {
@@ -52,7 +120,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const rd = roleRow as { roles: { code: string } | null } | null;
         role = rd?.roles?.code ?? null;
 
-        // Unread notifications count
         const { count } = await supabase
           .from("notifications")
           .select("id", { count: "exact", head: true })
@@ -90,18 +157,88 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isDefaultAdmin = userEmail.includes("admin") || userEmail.includes("acgleasing") || userEmail.includes("loanontip");
   const effectiveRole = profile?.role || (isDefaultAdmin ? "SUPER_ADMIN" : null);
 
-  const initials  = user?.email?.slice(0, 2).toUpperCase() ?? "HR";
+  const initials = user?.email?.slice(0, 2).toUpperCase() ?? "HR";
   const roleLabel = effectiveRole
     ? effectiveRole.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
     : "Employee";
 
-  const visibleNav = NAV.filter(({ roles }) =>
-    roles === null || effectiveRole === "SUPER_ADMIN" || (effectiveRole && roles.includes(effectiveRole))
-  );
+  const toggleSection = (sectionLabel: string) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(sectionLabel)) next.delete(sectionLabel);
+      else next.add(sectionLabel);
+      return next;
+    });
+  };
+
+  const renderNav = () => {
+    return NAV_SECTIONS.map((section) => {
+      const visibleItems = section.items.filter(({ roles }) =>
+        roles === null || effectiveRole === "SUPER_ADMIN" || (effectiveRole && roles.includes(effectiveRole))
+      );
+      if (visibleItems.length === 0) return null;
+
+      const isCollapsed = collapsedSections.has(section.label);
+
+      return (
+        <div key={section.label} className="nav-section">
+          <button
+            className="nav-section-header"
+            onClick={() => toggleSection(section.label)}
+            aria-expanded={!isCollapsed}
+            aria-controls={`nav-section-${section.label}`}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 8px 6px",
+              fontSize: 10,
+              fontWeight: 700,
+              color: "var(--text-4)",
+              letterSpacing: "1px",
+              textTransform: "uppercase",
+              border: "none",
+              background: "transparent",
+              cursor: "pointer",
+              width: "100%",
+              textAlign: "left",
+            }}
+          >
+            <span style={{ transition: "transform 0.2s", transform: isCollapsed ? "rotate(-90deg)" : "rotate(0)" }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="6 9 12 15 18 9"/></svg>
+            </span>
+            {section.label}
+            <span style={{ marginLeft: "auto", fontSize: 11, opacity: 0.6 }}>{visibleItems.length}</span>
+          </button>
+          <div id={`nav-section-${section.label}`} style={{ overflow: "hidden", transition: "max-height 0.25s ease-out", maxHeight: isCollapsed ? 0 : "500px" }}>
+            {visibleItems.map(({ href, label, Icon }) => (
+              <Link
+                key={href}
+                href={href}
+                className={`nav-item${pathname === href || pathname.startsWith(href + "/") ? " active" : ""}`}
+                onClick={() => closeSidebar()}
+              >
+                <Icon />
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      );
+    });
+  };
 
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
+    <>
+      {sidebarOpen && window.innerWidth < 768 && (
+        <div
+          className="sidebar-overlay"
+          onClick={closeSidebar}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-brand">
           <img src="/logo.png" alt="Loan On Tip Logo" className="brand-logo" />
           <div className="brand-text">
@@ -110,18 +247,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <nav className="sidebar-nav">
-          <div className="nav-section-label">Main menu</div>
-          {visibleNav.map(({ href, label, Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`nav-item${pathname === href || pathname.startsWith(href + "/") ? " active" : ""}`}
-            >
-              <Icon />
-              {label}
-            </Link>
-          ))}
+        <nav className="sidebar-nav" style={{ padding: "12px 10px", flex: 1 }}>
+          {renderNav()}
         </nav>
 
         <div className="sidebar-footer">
@@ -151,7 +278,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       <div className="main-content">{children}</div>
-    </div>
+
+      {/* Keyboard shortcuts help tooltip */}
+      <div style={{
+        position: "fixed",
+        bottom: 20,
+        right: 20,
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: 10,
+        padding: 16,
+        boxShadow: "var(--shadow-md)",
+        fontSize: 12,
+        color: "var(--text-2)",
+        zIndex: 50,
+        opacity: 0.8,
+      }}>
+        <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text)" }}>Shortcuts</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <kbd style={{ display: "flex", gap: 8, alignItems: "center" }}><span style={{ background: "var(--bg)", padding: "2px 6px", borderRadius: 4, border: "1px solid var(--border)" }}>⌘/Ctrl + B</span><span>Toggle Sidebar</span></kbd>
+          <kbd style={{ display: "flex", gap: 8, alignItems: "center" }}><span style={{ background: "var(--bg)", padding: "2px 6px", borderRadius: 4, border: "1px solid var(--border)" }}>⌘/Ctrl + K</span><span>Focus Search</span></kbd>
+          <kbd style={{ display: "flex", gap: 8, alignItems: "center" }}><span style={{ background: "var(--bg)", padding: "2px 6px", borderRadius: 4, border: "1px solid var(--border)" }}>Esc</span><span>Close Sidebar</span></kbd>
+        </div>
+      </div>
+    </>
   );
 }
 

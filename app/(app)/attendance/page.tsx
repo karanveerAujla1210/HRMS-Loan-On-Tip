@@ -3,9 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import PageHeader from "@/components/PageHeader";
-import DataTable from "@/components/DataTable";
-import SubNav from "@/components/SubNav";
+import { PageHeader, DataTable, SubNav, Modal, useToast, SkeletonTable, Skeleton, SkeletonText } from "@/components";
 
 const ATTENDANCE_NAV = [
   { href: "/attendance", label: "Daily Attendance", exact: true },
@@ -22,6 +20,7 @@ function today() {
 }
 
 export default function AttendancePage() {
+  const { showToast } = useToast();
   const [rows, setRows] = useState<Row[]>([]);
   const [selectedRows, setSelectedRows] = useState<Row[]>([]);
   const [from, setFrom] = useState(today());
@@ -29,6 +28,13 @@ export default function AttendancePage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkForm, setBulkForm] = useState({
+    from_date: new Date().toISOString().slice(0, 10),
+    to_date: today(),
+    status: "PRESENT" as "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY" | "ON_LEAVE" | "HOLIDAY" | "WEEKLY_OFF",
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,7 +47,7 @@ export default function AttendancePage() {
       .lte("attendance_date", to)
       .order("attendance_date", { ascending: false })
       .order("display_name")
-      .limit(300);
+      .limit(500);
 
     if (statusFilter !== "ALL") query = query.eq("status", statusFilter);
 
@@ -59,30 +65,81 @@ export default function AttendancePage() {
     return acc;
   }, {});
 
-  const [bulkLoading, setBulkLoading] = useState(false);
-
-  const handleBulkMarkPresent = async () => {
-    if (!confirm("Are you sure you want to mark all active employees as present for the current month up to today? This may take a minute.")) return;
+  const handleBulkMark = async () => {
     setBulkLoading(true);
     try {
-      const now = new Date();
-      const from_date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
-      const to_date = now.toISOString().slice(0, 10);
       const res = await fetch("/api/attendance/bulk-mark", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ from_date, to_date, status: "PRESENT" }),
+        body: JSON.stringify(bulkForm),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to bulk mark attendance");
-      alert(json.message || `Successfully marked ${json.marked ?? 0} attendance records.`);
+      
+      showToast({ 
+        type: "success", 
+        title: "Attendance marked", 
+        message: json.message || `Successfully marked ${json.marked ?? 0} attendance records.`,
+      });
+      setShowBulkModal(false);
       void load();
     } catch (err: any) {
-      alert(err.message);
+      showToast({ type: "error", title: "Failed to mark attendance", message: err.message });
     } finally {
       setBulkLoading(false);
     }
   };
+
+  const statusOptions = [
+    { value: "PRESENT", label: "Present", color: "var(--green)" },
+    { value: "ABSENT", label: "Absent", color: "var(--red)" },
+    { value: "LATE", label: "Late", color: "var(--amber)" },
+    { value: "HALF_DAY", label: "Half Day", color: "var(--purple)" },
+    { value: "ON_LEAVE", label: "On Leave", color: "var(--blue)" },
+    { value: "HOLIDAY", label: "Holiday", color: "var(--purple)" },
+    { value: "WEEKLY_OFF", label: "Weekly Off", color: "var(--gray)" },
+  ];
+
+  if (loading) {
+    return (
+      <>
+        <PageHeader
+          title="Attendance"
+          subtitle="Daily check-in and check-out records"
+          breadcrumbs={[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "Attendance Logs" },
+          ]}
+          actions={
+            <div style={{ display: "flex", gap: 8 }}>
+              <Skeleton variant="rectangular" width={180} height={36} />
+              <Skeleton variant="rectangular" width={100} height={36} />
+            </div>
+          }
+        />
+        <SubNav items={ATTENDANCE_NAV} />
+        <div className="page-body">
+          <div className="stats-grid" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: 20 }}>
+            <Skeleton variant="stat" />
+            <Skeleton variant="stat" />
+            <Skeleton variant="stat" />
+            <Skeleton variant="stat" />
+          </div>
+          <div className="card">
+            <div className="card-header" style={{ flexWrap: "wrap", gap: 10 }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <Skeleton variant="text" width="100px" />
+                <Skeleton variant="text" width="100px" />
+                <Skeleton variant="text" width="120px" />
+              </div>
+              <Skeleton variant="text" width="100px" />
+            </div>
+            <SkeletonTable rows={5} columns={7} />
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -97,10 +154,18 @@ export default function AttendancePage() {
           <div style={{ display: "flex", gap: 8 }}>
             <button 
               className="btn btn-primary btn-sm" 
-              onClick={() => void handleBulkMarkPresent()}
+              onClick={() => { 
+                const now = new Date();
+                setBulkForm({
+                  from_date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`,
+                  to_date: today(),
+                  status: "PRESENT",
+                });
+                setShowBulkModal(true);
+              }}
               disabled={bulkLoading}
             >
-              {bulkLoading ? "Processing..." : "📅 Bulk Mark Present (This Month)"}
+              📅 Bulk Mark Attendance
             </button>
             <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
           </div>
@@ -114,14 +179,14 @@ export default function AttendancePage() {
 
         <div className="stats-grid" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: 20 }}>
           {[
-            { label: "Present", key: "PRESENT" },
-            { label: "Late", key: "LATE" },
-            { label: "Absent", key: "ABSENT" },
-            { label: "Half day", key: "HALF_DAY" },
-          ].map(({ label, key }) => (
+            { label: "Present", key: "PRESENT", color: "var(--green)" },
+            { label: "Late", key: "LATE", color: "var(--amber)" },
+            { label: "Absent", key: "ABSENT", color: "var(--red)" },
+            { label: "Half day", key: "HALF_DAY", color: "var(--purple)" },
+          ].map(({ label, key, color }) => (
             <div className="stat-card" key={key}>
               <div className="stat-label">{label}</div>
-              <div className="stat-value">{counts[key] ?? 0}</div>
+              <div className="stat-value" style={{ color }}>{counts[key] ?? 0}</div>
             </div>
           ))}
         </div>
@@ -130,14 +195,14 @@ export default function AttendancePage() {
           <div className="card-header" style={{ flexWrap: "wrap", gap: 10 }}>
             <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <label style={{ margin: 0, whiteSpace: "nowrap" }}>From</label>
-                <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: "auto" }} />
+                <label style={{ margin: 0, whiteSpace: "nowrap", fontSize: 12, fontWeight: 600, color: "var(--text-2)" }}>From</label>
+                <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: "auto", padding: "8px 12px" }} />
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <label style={{ margin: 0, whiteSpace: "nowrap" }}>To</label>
-                <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: "auto" }} />
+                <label style={{ margin: 0, whiteSpace: "nowrap", fontSize: 12, fontWeight: 600, color: "var(--text-2)" }}>To</label>
+                <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: "auto", padding: "8px 12px" }} />
               </div>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ width: "auto" }}>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ width: "auto", padding: "8px 12px" }}>
                 <option value="ALL">All statuses</option>
                 <option value="PRESENT">Present</option>
                 <option value="LATE">Late</option>
@@ -149,28 +214,101 @@ export default function AttendancePage() {
             <span style={{ fontSize: 12, color: "var(--text-3)", marginLeft: "auto" }}>{rows.length} records</span>
           </div>
 
-          {loading ? (
-            <div className="loading-spinner"><div className="spinner" /> Loading…</div>
-          ) : (
-            <>
-              {selectedRows.length > 0 && (
-                <div style={{ padding: "10px 15px", backgroundColor: "var(--bg-2)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 10 }}>
-                  <span style={{ fontSize: 14, fontWeight: 500 }}>{selectedRows.length} records selected</span>
-                  <button className="btn btn-secondary btn-sm" onClick={() => alert("Bulk actions for specific records can be added here.")}>
-                    Take Action
-                  </button>
-                </div>
-              )}
-              <DataTable 
-                rows={rows} 
-                columns={COLUMNS} 
-                selectable 
-                onSelectionChange={setSelectedRows} 
-              />
-            </>
-          )}
+          <>
+            {selectedRows.length > 0 && (
+              <div style={{ 
+                padding: "10px 15px", 
+                background: "var(--brand-light)", 
+                borderBottom: "1px solid var(--border)", 
+                display: "flex", 
+                alignItems: "center", 
+                gap: 10,
+                color: "var(--brand-dark)",
+                fontWeight: 500,
+              }}>
+                <span>{selectedRows.length} record{selectedRows.length > 1 ? "s" : ""} selected</span>
+                <button className="btn btn-secondary btn-sm" onClick={() => setSelectedRows([])}>
+                  Clear Selection
+                </button>
+              </div>
+            )}
+            <DataTable 
+              rows={rows} 
+              columns={COLUMNS} 
+              selectable 
+              onSelectionChange={setSelectedRows}
+              striped
+              hoverable
+            />
+          </>
         </div>
       </div>
+
+      <Modal
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        title="Bulk Mark Attendance"
+        size="md"
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={() => setShowBulkModal(false)} disabled={bulkLoading}>
+              Cancel
+            </button>
+            <button className="btn btn-primary" onClick={handleBulkMark} disabled={bulkLoading}>
+              {bulkLoading ? "Processing..." : "Mark Attendance"}
+            </button>
+          </>
+        }
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="alert alert-info" style={{ fontSize: 13 }}>
+            <strong>Note:</strong> This will mark attendance for all active employees in the selected date range. 
+            Existing records will be overwritten.
+          </div>
+          
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div className="form-group">
+              <label>From Date *</label>
+              <input 
+                type="date" 
+                value={bulkForm.from_date} 
+                onChange={(e) => setBulkForm(prev => ({ ...prev, from_date: e.target.value }))}
+                style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: "6px" }}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>To Date *</label>
+              <input 
+                type="date" 
+                value={bulkForm.to_date} 
+                onChange={(e) => setBulkForm(prev => ({ ...prev, to_date: e.target.value }))}
+                style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: "6px" }}
+                required
+              />
+            </div>
+          </div>
+          
+          <div className="form-group">
+            <label>Status *</label>
+            <select 
+              value={bulkForm.status} 
+              onChange={(e) => setBulkForm(prev => ({ ...prev, status: e.target.value as typeof bulkForm.status }))}
+              style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: "6px" }}
+            >
+              {statusOptions.map(opt => (
+                <option key={opt.value} value={opt.value} style={{ color: opt.color }}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <div style={{ padding: "12px", background: "var(--bg)", borderRadius: "8px", fontSize: 13, color: "var(--text-2)" }}>
+            <strong>Date Range:</strong> {bulkForm.from_date} to {bulkForm.to_date}
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

@@ -1,4 +1,8 @@
-import { route, resolveActor, requirePermission, requireCompany, ok, badRequest, dbError, readJson, serviceClient } from "@/lib/server";
+import "server-only";
+import { withApi, jsonOk } from "@/lib/server/http";
+import { z } from "zod";
+import { LeaveApplyRequestSchema, LeaveListQuerySchema } from "@hrms/api-contract";
+import { adminClient } from "@/lib/server/supabase";
 import { writeAudit } from "@/lib/audit";
 import {
   calculateLeaveDays,
@@ -14,130 +18,177 @@ const ERROR_MESSAGES: Record<LeaveValidationError, string> = {
   LEAVE_DOCUMENT_REQUIRED: "A supporting document is required for this leave type.",
 };
 
-type LeaveTypeRow = {
-  is_paid: boolean;
-  allows_half_day: boolean;
-  requires_document: boolean;
-  max_consecutive_days: number | null;
-};
+export const GET = withApi({
+  permission: "leave.read",
+  query: LeaveListQuerySchema,
+  handler: async ({ req, ctx, query, requestId }) => {
+    const companyId = ctx.companyId!;
+    const db = adminClient();
 
-type DateRange = { from_date: string; to_date: string };
+    const page = query.page ?? 1;
+    const pageSize = Math.min(query.page_size ?? 50, 100);
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
 
-export const POST = route(async (req: Request) => {
-  const actor = await resolveActor();
-  requirePermission(actor, "leave.apply");
-  if (!actor.employeeId) throw badRequest("NO_EMPLOYEE", "No employee record linked to this account");
-  const companyId = requireCompany(actor);
-  const employeeId = actor.employeeId;
+    const scope = query.scope ?? "company";
+    let employeeIdFilter = ctx.employeeId;
 
-  const body = await readJson(req);
-  const leave_type_id = body.leave_type_id ? String(body.leave_type_id) : null;
-  const from_date = body.from_date ? String(body.from_date) : null;
-  const to_date = body.to_date ? String(body.to_date) : null;
-  const half_day_type = body.half_day_type ? String(body.half_day_type) : null;
-  const reason = body.reason ? String(body.reason) : null;
-  const attachment_document_id = body.attachment_document_id ?? null;
+    if (scope === "company") {
+      employeeIdFilter = undefined;
+    } else if (scope === "team" && ctx.employeeId) {
+      const { data: reports } = await db
+        .from("employees")
+        .select("id")
+        .eq("manager_id", ctx.employeeId);
+      employeeIdFilter = reports?.map((r) => r.id) ?? [];
+    } else if (scope === "self") {
+      employeeIdFilter = ctx.employeeId;
+    }
 
-  if (!leave_type_id || !from_date || !to_date) {
-    throw badRequest("INVALID_INPUT", "leave_type_id, from_date and to_date are required");
-  }
-  if (to_date < from_date) {
-    throw badRequest("LEAVE_INVALID_RANGE", "to_date must be on or after from_date");
-  }
+    let q = db
+      .from("leave_requests")
+      .select("*, employees(display_name), leave_types(name)", { count: "exact" })
+      .order("submitted_at", { ascending: false })
+      .range(from, to);
 
-  const db = serviceClient();
+    if (scope === "company") {
+      q = q.eq("company_id", companyId);
+    } else if (Array.isArray(employeeIdFilter)) {
+      q = q.in("employee_id", employeeIdFilter);
+    } else if (employeeIdFilter) {
+      q = q.eq("employee_id", employeeIdFilter);
+    }
 
-  const { data: lt, error: ltErr } = await db
-    .from("leave_types")
-    .select("is_paid, allows_half_day, requires_document, max_consecutive_days")
-    .eq("id", leave_type_id)
-    .eq("company_id", companyId)
-    .maybeSingle();
-  if (ltErr) throw dbError(ltErr);
-  if (!lt) throw badRequest("INVALID_INPUT", "Unknown leave type");
+    if (query.status) q = q.eq("status", query.status);
+    if (query.employeeId && scope === "company") q = q.eq("employee_id", query.employeeId);
+    if (query.from) q = q.gte("from_date", query.from);
+    if (query.to) q = q.lte("to_date", query.to);
 
-  const leaveType = lt as LeaveTypeRow;
-  const halfDay = Boolean(half_day_type);
-  if (halfDay && from_date !== to_date) {
-    throw badRequest("LEAVE_INVALID_RANGE", "Half-day leave must be a single day");
-  }
+    const { data, error, count } = await q;
+    if (error) throw error;
 
-  const total_days = calculateLeaveDays({
-    range: { from: from_date, to: to_date },
-    halfDay,
-    holidays: [],
-    weeklyOffDates: [],
-    excludeNonWorkingDays: false,
-  });
+    return jsonOk(
+      {
+        data: data ?? [],
+        pagination: {
+          page,
+          page_size: pageSize,
+          total: count ?? 0,
+          total_pages: Math.ceil((count ?? 0) / pageSize),
+        },
+      },
+      requestId
+    );
+  },
+});
 
-  // Overlap against the employee's existing pending/approved requests.
-  const { data: existing, error: exErr } = await db
-    .from("leave_requests")
-    .select("from_date, to_date")
-    .eq("employee_id", employeeId)
-    .eq("leave_type_id", leave_type_id)
-    .in("status", ["PENDING", "APPROVED"]);
-  if (exErr) throw dbError(exErr);
+export const POST = withApi({
+  permission: "leave.apply",
+  body: LeaveApplyRequestSchema,
+  idempotencyEndpoint: "leave/apply",
+  idempotencyKey: (body) => body.idempotency_key,
+  rateLimit: { limit: 30, windowMs: 60_000 },
+  handler: async ({ req, ctx, body, audit, requestId }) => {
+    const companyId = ctx.companyId!;
+    const employeeId = ctx.employeeId!;
+    const db = adminClient();
 
-  const existingRanges = ((existing ?? []) as DateRange[]).map((r) => ({
-    from: r.from_date,
-    to: r.to_date,
-  }));
+    const { data: lt, error: ltErr } = await db
+      .from("leave_types")
+      .select("is_paid, allows_half_day, requires_document, max_consecutive_days")
+      .eq("id", body.leave_type_id)
+      .eq("company_id", companyId)
+      .maybeSingle();
+    if (ltErr) throw ltErr;
+    if (!lt) {
+      return jsonOk(
+        { error: "INVALID_INPUT", message: "Unknown leave type" },
+        requestId,
+        400
+      );
+    }
 
-  const year = Number(from_date.slice(0, 4));
-  const { data: balance } = await db
-    .from("leave_balances")
-    .select("closing_balance")
-    .eq("employee_id", employeeId)
-    .eq("leave_type_id", leave_type_id)
-    .eq("year", year)
-    .maybeSingle();
-  const available = balance ? Number((balance as { closing_balance: number }).closing_balance) : 0;
+    const leaveType = lt as { is_paid: boolean; allows_half_day: boolean; requires_document: boolean; max_consecutive_days: number | null };
+    const halfDay = Boolean(body.half_day_type);
 
-  const validationErrors = validateLeaveRequest({
-    range: { from: from_date, to: to_date },
-    requestedDays: total_days,
-    availableBalance: available,
-    isPaid: leaveType.is_paid,
-    allowsHalfDay: leaveType.allows_half_day,
-    halfDay,
-    requiresDocument: leaveType.requires_document,
-    hasDocument: Boolean(attachment_document_id),
-    existingRanges,
-    maxConsecutiveDays: leaveType.max_consecutive_days,
-  });
+    const total_days = calculateLeaveDays({
+      range: { from: body.from_date, to: body.to_date },
+      halfDay,
+      holidays: [],
+      weeklyOffDates: [],
+      excludeNonWorkingDays: false,
+    });
 
-  if (validationErrors.length > 0) {
-    const code = validationErrors[0];
-    throw badRequest(code, ERROR_MESSAGES[code]);
-  }
+    // Overlap against the employee's existing pending/approved requests.
+    const { data: existing, error: exErr } = await db
+      .from("leave_requests")
+      .select("from_date, to_date")
+      .eq("employee_id", employeeId)
+      .eq("leave_type_id", body.leave_type_id)
+      .in("status", ["PENDING", "APPROVED"]);
+    if (exErr) throw exErr;
 
-  const { data, error } = await db
-    .from("leave_requests")
-    .insert({
-      employee_id: employeeId,
-      leave_type_id,
-      from_date,
-      to_date,
-      total_days,
-      half_day_type,
-      reason,
-      attachment_document_id,
-      status: "PENDING",
-    })
-    .select("id, status, total_days")
-    .single();
-  if (error) throw dbError(error);
+    const existingRanges = ((existing ?? []) as { from_date: string; to_date: string }[]).map((r) => ({
+      from: r.from_date,
+      to: r.to_date,
+    }));
 
-  await writeAudit(db, {
-    company_id: companyId,
-    actor_employee_id: employeeId,
-    actor_auth_user_id: actor.authUserId,
-    action: "LEAVE_REQUEST",
-    entity_type: "leave_requests",
-    entity_id: (data as { id: string }).id,
-    new_values: { leave_type_id, from_date, to_date, total_days, half_day_type },
-  }).catch(() => {});
+    const year = Number(body.from_date.slice(0, 4));
+    const { data: balance } = await db
+      .from("leave_balances")
+      .select("closing_balance")
+      .eq("employee_id", employeeId)
+      .eq("leave_type_id", body.leave_type_id)
+      .eq("year", year)
+      .maybeSingle();
+    const available = balance ? Number((balance as { closing_balance: number }).closing_balance) : 0;
 
-  return ok(data, { status: 201 });
+    const validationErrors = validateLeaveRequest({
+      range: { from: body.from_date, to: body.to_date },
+      requestedDays: total_days,
+      availableBalance: available,
+      isPaid: leaveType.is_paid,
+      allowsHalfDay: leaveType.allows_half_day,
+      halfDay,
+      requiresDocument: leaveType.requires_document,
+      hasDocument: Boolean(body.attachment_document_id),
+      existingRanges,
+      maxConsecutiveDays: leaveType.max_consecutive_days,
+    });
+
+    if (validationErrors.length > 0) {
+      const code = validationErrors[0];
+      return jsonOk(
+        { error: code, message: ERROR_MESSAGES[code] },
+        requestId,
+        400
+      );
+    }
+
+    const { data, error } = await db
+      .from("leave_requests")
+      .insert({
+        employee_id: employeeId,
+        leave_type_id: body.leave_type_id,
+        from_date: body.from_date,
+        to_date: body.to_date,
+        total_days,
+        half_day_type: body.half_day_type ?? null,
+        reason: body.reason,
+        attachment_document_id: body.attachment_document_id ?? null,
+        status: "PENDING",
+      })
+      .select("id, status, total_days")
+      .single();
+    if (error) throw error;
+
+    await audit({
+      action: "LEAVE_REQUEST",
+      entity_type: "leave_requests",
+      entity_id: data.id,
+      new_values: { leave_type_id: body.leave_type_id, from_date: body.from_date, to_date: body.to_date, total_days, half_day_type: body.half_day_type },
+    });
+
+    return jsonOk(data, requestId, 201);
+  },
 });
