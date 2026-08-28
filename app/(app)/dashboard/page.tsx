@@ -71,7 +71,7 @@ export default function DashboardPage() {
       />
 
       <div className="page-body">
-        {error && <div className="alert alert-error">{error}</div>>
+        {error && <div className="alert alert-error">{error}</div>}
 
         {/* Quick Actions Bar */}
         <div className="quick-actions-bar">
