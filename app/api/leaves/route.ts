@@ -2,6 +2,7 @@ import "server-only";
 import { withApi, jsonOk } from "@/lib/server/http";
 import { z } from "zod";
 import { LeaveApplyRequestSchema, LeaveListQuerySchema } from "@hrms/api-contract";
+import { mapDatabaseError } from "@/lib/server/errors";
 import { adminClient } from "@/lib/server/supabase";
 import { writeAudit } from "@/lib/audit";
 import {
@@ -19,22 +20,22 @@ const ERROR_MESSAGES: Record<LeaveValidationError, string> = {
 };
 
 export const GET = withApi({
-  permission: "leave.read",
+  permission: "leave.view",
   query: LeaveListQuerySchema,
   handler: async ({ req, ctx, query, requestId }) => {
     const companyId = ctx.companyId!;
     const db = adminClient();
 
     const page = query.page ?? 1;
-    const pageSize = Math.min(query.page_size ?? 50, 100);
+    const pageSize = Math.min(query.pageSize ?? 50, 100);
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
     const scope = query.scope ?? "company";
-    let employeeIdFilter = ctx.employeeId;
+    let employeeIdFilter: string | null | string[] = ctx.employeeId;
 
     if (scope === "company") {
-      employeeIdFilter = undefined;
+      employeeIdFilter = null;
     } else if (scope === "team" && ctx.employeeId) {
       const { data: reports } = await db
         .from("employees")
@@ -65,7 +66,7 @@ export const GET = withApi({
     if (query.to) q = q.lte("to_date", query.to);
 
     const { data, error, count } = await q;
-    if (error) throw error;
+    if (error) throw mapDatabaseError(error);
 
     return jsonOk(
       {
@@ -99,7 +100,7 @@ export const POST = withApi({
       .eq("id", body.leave_type_id)
       .eq("company_id", companyId)
       .maybeSingle();
-    if (ltErr) throw ltErr;
+    if (ltErr) throw mapDatabaseError(ltErr);
     if (!lt) {
       return jsonOk(
         { error: "INVALID_INPUT", message: "Unknown leave type" },
@@ -126,7 +127,7 @@ export const POST = withApi({
       .eq("employee_id", employeeId)
       .eq("leave_type_id", body.leave_type_id)
       .in("status", ["PENDING", "APPROVED"]);
-    if (exErr) throw exErr;
+    if (exErr) throw mapDatabaseError(exErr);
 
     const existingRanges = ((existing ?? []) as { from_date: string; to_date: string }[]).map((r) => ({
       from: r.from_date,
@@ -158,11 +159,13 @@ export const POST = withApi({
 
     if (validationErrors.length > 0) {
       const code = validationErrors[0];
-      return jsonOk(
-        { error: code, message: ERROR_MESSAGES[code] },
-        requestId,
-        400
-      );
+      if (code && code in ERROR_MESSAGES) {
+        return jsonOk(
+          { error: code, message: ERROR_MESSAGES[code as keyof typeof ERROR_MESSAGES] },
+          requestId,
+          400
+        );
+      }
     }
 
     const { data, error } = await db
@@ -180,13 +183,13 @@ export const POST = withApi({
       })
       .select("id, status, total_days")
       .single();
-    if (error) throw error;
+    if (error) throw mapDatabaseError(error);
 
     await audit({
       action: "LEAVE_REQUEST",
-      entity_type: "leave_requests",
-      entity_id: data.id,
-      new_values: { leave_type_id: body.leave_type_id, from_date: body.from_date, to_date: body.to_date, total_days, half_day_type: body.half_day_type },
+      entityType: "leave_requests",
+      entityId: data.id,
+      newValues: { leave_type_id: body.leave_type_id, from_date: body.from_date, to_date: body.to_date, total_days, half_day_type: body.half_day_type },
     });
 
     return jsonOk(data, requestId, 201);

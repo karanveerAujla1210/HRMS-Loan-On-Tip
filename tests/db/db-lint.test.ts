@@ -56,8 +56,9 @@ describe("migration static lint", () => {
       const sql = readFileSync(join(MIGRATIONS_DIR, file), "utf8");
       if (/closing_balance/i.test(sql) && /insert\s+into\s+public\.leave_balances/i.test(sql)) {
         // allow inserts that omit the generated column
-        const insertBlock = sql.split(/insert\s+into\s+public\.leave_balances/i)[1] ?? "";
-        if (/closing_balance\s*[,)]/i.test(insertBlock.split(";")[0])) {
+        const insertBlock = sql.split(/insert\s+into\s+public\.leave_balances/i)[1];
+        const sqlBlock = insertBlock?.split(";")[0];
+        if (sqlBlock && /closing_balance\s*[,)]/i.test(sqlBlock)) {
           offenders.push(file);
         }
       }

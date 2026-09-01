@@ -18,10 +18,6 @@ const eslintConfig = [
       "scripts/**",
       "next-env.d.ts",
       "**/.kilo/worktrees/**",
-      // Legacy web app and mobile app: being replaced by /api/v1 + a thin client
-      // in Phase 5. New server, package and lib code is linted strictly.
-      "app/(app)/**",
-      "app/api/**",
       "apps/**",
     ],
   },

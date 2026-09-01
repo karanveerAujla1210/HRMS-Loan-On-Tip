@@ -28,7 +28,13 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
 export function useSidebar() {
   const context = useContext(SidebarContext);
   if (!context) {
-    throw new Error("useSidebar must be used within a SidebarProvider");
+    // Return a no-op context during SSR/prerendering
+    return {
+      isOpen: false,
+      open: () => {},
+      close: () => {},
+      toggle: () => {},
+    };
   }
   return context;
 }

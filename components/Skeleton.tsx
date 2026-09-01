@@ -7,6 +7,7 @@ interface SkeletonProps {
   width?: string | number;
   height?: string | number;
   className?: string;
+  style?: React.CSSProperties;
   animation?: "pulse" | "wave" | "none";
 }
 
@@ -15,6 +16,7 @@ export function Skeleton({
   width = "100%",
   height,
   className = "",
+  style,
   animation = "wave",
 }: SkeletonProps) {
   const baseStyles: React.CSSProperties = {
@@ -38,7 +40,7 @@ export function Skeleton({
   return (
     <div
       className={`skeleton ${className}`}
-      style={{ ...baseStyles, ...variantStyles[variant] }}
+      style={{ ...baseStyles, ...variantStyles[variant], ...style }}
       aria-hidden="true"
     />
   );

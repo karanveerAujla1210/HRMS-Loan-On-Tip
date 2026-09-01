@@ -74,19 +74,6 @@ export default function DataTable({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
 
-  if (!rows.length) {
-    return (
-      <div className="empty-state">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-          <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          <line x1="7" y1="7" x2="7.01" y2="7.01" />
-        </svg>
-        <h3>No data available</h3>
-        <p>{emptyMessage}</p>
-      </div>
-    );
-  }
-
   const sortedRows = useMemo(() => {
     if (!sortConfig) return rows;
     return [...rows].sort((a, b) => {
@@ -134,6 +121,19 @@ export default function DataTable({
 
   const cellPadding = dense ? "8px 12px" : "12px 16px";
   const headerPadding = dense ? "8px 12px" : "10px 16px";
+
+  if (!sortedRows.length) {
+    return (
+      <div className="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+          <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          <line x1="7" y1="7" x2="7.01" y2="7.01" />
+        </svg>
+        <h3>No data available</h3>
+        <p>{emptyMessage}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="table-wrap">

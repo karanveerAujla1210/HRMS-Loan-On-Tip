@@ -3,6 +3,7 @@ import { withApi, jsonOk } from "@/lib/server/http";
 import { z } from "zod";
 import { adminClient } from "@/lib/server/supabase";
 import { writeAudit } from "@/lib/audit";
+import { mapDatabaseError } from "@/lib/server/errors";
 
 const BulkMarkSchema = z.object({
   from_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -39,7 +40,7 @@ export const POST = withApi({
         .select("id")
         .eq("company_id", companyId)
         .eq("employment_status", "ACTIVE");
-      if (empErr) throw empErr;
+      if (empErr) throw mapDatabaseError(empErr);
       targetEmployees = ((emps ?? []) as { id: string }[]).map((e) => e.id);
     }
 
@@ -80,18 +81,15 @@ export const POST = withApi({
       .from("attendance")
       .upsert(rowsToUpsert, { onConflict: "employee_id,attendance_date" });
 
-    if (error) throw error;
+    if (error) throw mapDatabaseError(error);
 
     const marked = rowsToUpsert.length;
 
     await audit({
-      company_id: companyId,
-      actor_employee_id: ctx.employeeId,
-      actor_auth_user_id: ctx.authUserId,
       action: "ATTENDANCE_BULK_MARK",
-      entity_type: "attendance",
-      entity_id: null,
-      new_values: { from_date: body.from_date, to_date: body.to_date, status: body.status, employee_count: targetEmployees.length, marked },
+      entityType: "attendance",
+      entityId: null,
+      newValues: { from_date: body.from_date, to_date: body.to_date, status: body.status, employee_count: targetEmployees.length, marked },
     });
 
     return jsonOk({ marked, from_date: body.from_date, to_date: body.to_date, status: body.status }, requestId);

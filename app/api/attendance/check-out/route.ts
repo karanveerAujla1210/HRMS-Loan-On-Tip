@@ -2,6 +2,7 @@ import "server-only";
 import { withApi, jsonOk } from "@/lib/server/http";
 import { z } from "zod";
 import { CheckOutRequestSchema } from "@hrms/api-contract";
+import { mapDatabaseError } from "@/lib/server/errors";
 import { adminClient } from "@/lib/server/supabase";
 
 export const POST = withApi({
@@ -23,7 +24,7 @@ export const POST = withApi({
       .eq("employee_id", employeeId)
       .eq("attendance_date", date)
       .maybeSingle();
-    if (findErr) throw findErr;
+    if (findErr) throw mapDatabaseError(findErr);
     if (!existing) {
       return jsonOk(
         { error: "NO_CHECK_IN", message: "No check-in found for this date" },
@@ -74,7 +75,7 @@ export const POST = withApi({
       .eq("id", existingRec.id)
       .select("id, attendance_date, check_in_at, check_out_at, worked_minutes, status, late_minutes")
       .single();
-    if (error) throw error;
+    if (error) throw mapDatabaseError(error);
 
     await db.from("attendance_events").insert({
       attendance_id: existingRec.id,
@@ -91,9 +92,9 @@ export const POST = withApi({
 
     await audit({
       action: "ATTENDANCE_CHECK_OUT",
-      entity_type: "attendance",
-      entity_id: existingRec.id,
-      new_values: { attendance_date: date, status, worked_minutes: netMinutes, break_minutes: breakMinutes },
+      entityType: "attendance",
+      entityId: existingRec.id,
+      newValues: { attendance_date: date, status, worked_minutes: netMinutes, break_minutes: breakMinutes },
     });
 
     return jsonOk(data, requestId);

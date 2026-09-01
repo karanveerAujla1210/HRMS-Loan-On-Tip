@@ -113,7 +113,9 @@ export default function ReportsPage() {
 
   function exportCSV() {
     if (!rows.length) return;
-    const keys = Object.keys(rows[0]);
+    const firstRow = rows[0];
+    if (!firstRow) return;
+    const keys = Object.keys(firstRow);
     const csv = [keys.join(","), ...rows.map(r => keys.map(k => `"${String(r[k] ?? "").replace(/"/g, '""')}"`).join(","))].join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));

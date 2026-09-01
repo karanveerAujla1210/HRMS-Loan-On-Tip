@@ -85,10 +85,13 @@ function ToastContainer({ toasts, onClose }: { toasts: Toast[]; onClose: (id: st
 
 function ToastItem({ toast, onClose }: { toast: Toast; onClose: (id: string) => void }) {
   useEffect(() => {
-    const timer = toast.duration !== 0 
-      ? setTimeout(() => onClose(toast.id), toast.duration ?? (toast.type === "error" ? 6000 : 4000))
-      : null;
-    return () => timer && clearTimeout(timer);
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    if (toast.duration !== 0) {
+      timer = setTimeout(() => onClose(toast.id), toast.duration ?? (toast.type === "error" ? 6000 : 4000));
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [toast, onClose]);
 
   const icons: Record<ToastType, ReactNode> = {

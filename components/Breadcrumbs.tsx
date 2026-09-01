@@ -14,7 +14,7 @@ interface BreadcrumbsProps {
   separator?: React.ReactNode;
 }
 
-export default function Breadcrumbs({ items, separator = "/" }: BreadcrumbsProps) {
+export function Breadcrumbs({ items, separator = "/" }: BreadcrumbsProps) {
   return (
     <nav className="breadcrumbs" aria-label="Breadcrumb" style={{ marginBottom: 8 }}>
       <ol className="breadcrumb-list" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", listStyle: "none", gap: 6, fontSize: 12 }}>

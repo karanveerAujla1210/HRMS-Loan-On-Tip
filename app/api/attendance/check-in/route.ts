@@ -2,6 +2,7 @@ import "server-only";
 import { withApi, jsonOk } from "@/lib/server/http";
 import { z } from "zod";
 import { CheckInRequestSchema } from "@hrms/api-contract";
+import { mapDatabaseError } from "@/lib/server/errors";
 import { writeAudit } from "@/lib/audit";
 import { DEFAULT_TIMEZONE } from "@hrms/config";
 import {
@@ -47,9 +48,9 @@ export const POST = withApi({
     if (body.is_mock_location) {
       await audit({
         action: "ATTENDANCE_CHECK_IN_REJECTED",
-        entity_type: "attendance",
-        entity_id: null,
-        new_values: { reason: "MOCK_LOCATION", attendance_date: date },
+        entityType: "attendance",
+        entityId: null,
+        newValues: { reason: "MOCK_LOCATION", attendance_date: date },
       });
       return jsonOk(
         { error: "MOCK_LOCATION", message: "Mock location detected. Attendance was not recorded." },
@@ -67,7 +68,7 @@ export const POST = withApi({
       .select("location_id, shift_id")
       .eq("id", employeeId)
       .maybeSingle();
-    if (empErr) throw empErr;
+    if (empErr) throw mapDatabaseError(empErr);
 
     let location: LocationRow | null = null;
     let timezone = ctx.timezone;
@@ -116,9 +117,9 @@ export const POST = withApi({
         if (policy.rejectOutsideRadius) {
           await audit({
             action: "ATTENDANCE_CHECK_IN_REJECTED",
-            entity_type: "attendance",
-            entity_id: null,
-            new_values: { reason: "OUTSIDE_RADIUS", attendance_date: date, distance_m },
+            entityType: "attendance",
+            entityId: null,
+            newValues: { reason: "OUTSIDE_RADIUS", attendance_date: date, distance_m },
           });
           return jsonOk(
             { error: "OUTSIDE_RADIUS", message: "You are outside the permitted office radius." },
@@ -135,9 +136,9 @@ export const POST = withApi({
       if (policy.maxAccuracyMeters > 0) {
         await audit({
           action: "ATTENDANCE_CHECK_IN_REJECTED",
-          entity_type: "attendance",
-          entity_id: null,
-          new_values: { reason: "LOW_ACCURACY", attendance_date: date, accuracy },
+          entityType: "attendance",
+          entityId: null,
+          newValues: { reason: "LOW_ACCURACY", attendance_date: date, accuracy },
         });
         return jsonOk(
           { error: "LOW_ACCURACY", message: "Location accuracy is too low to record attendance." },
@@ -165,7 +166,7 @@ export const POST = withApi({
       .eq("employee_id", employeeId)
       .eq("attendance_date", date)
       .maybeSingle();
-    if (findErr) throw findErr;
+    if (findErr) throw mapDatabaseError(findErr);
 
     let attendanceId: string;
     let saved: { id: string; attendance_date: string; check_in_at: string; status: string };
@@ -173,9 +174,9 @@ export const POST = withApi({
     if (existing && (existing as { check_in_at: string | null }).check_in_at) {
       await audit({
         action: "ATTENDANCE_CHECK_IN_REJECTED",
-        entity_type: "attendance",
-        entity_id: (existing as { id: string }).id,
-        new_values: { reason: "ALREADY_CHECKED_IN", attendance_date: date },
+        entityType: "attendance",
+        entityId: (existing as { id: string }).id,
+        newValues: { reason: "ALREADY_CHECKED_IN", attendance_date: date },
       });
       return jsonOk(
         { error: "ALREADY_CHECKED_IN", message: "You have already checked in for this date." },
@@ -203,7 +204,7 @@ export const POST = withApi({
         .eq("id", attendanceId)
         .select("id, attendance_date, check_in_at, status")
         .single();
-      if (error) throw error;
+      if (error) throw mapDatabaseError(error);
       saved = data as { id: string; attendance_date: string; check_in_at: string; status: string };
     } else {
       const { data, error } = await db
@@ -224,7 +225,7 @@ export const POST = withApi({
         })
         .select("id, attendance_date, check_in_at, status")
         .single();
-      if (error) throw error;
+      if (error) throw mapDatabaseError(error);
       saved = data as { id: string; attendance_date: string; check_in_at: string; status: string };
       attendanceId = saved.id;
     }
@@ -247,9 +248,9 @@ export const POST = withApi({
 
     await audit({
       action: "ATTENDANCE_CHECK_IN",
-      entity_type: "attendance",
-      entity_id: attendanceId,
-      new_values: { attendance_date: date, status, late_minutes, distance_m, exceptions, source: body.source },
+      entityType: "attendance",
+      entityId: attendanceId,
+      newValues: { attendance_date: date, status, late_minutes, distance_m, exceptions, source: body.source },
     });
 
     return jsonOk(

@@ -77,6 +77,7 @@ export const CheckInRequestSchema = z.object({
   is_mock_location: z.boolean().optional().default(false),
   device_id: OptionalTrimmedString(255),
   source: AttendanceSourceSchema.optional().default("MOBILE"),
+  shift_id: UuidSchema.optional(),
 });
 export type CheckInRequest = z.infer<typeof CheckInRequestSchema>;
 
@@ -89,6 +90,7 @@ export const CheckOutRequestSchema = z.object({
   is_mock_location: z.boolean().optional().default(false),
   device_id: OptionalTrimmedString(255),
   source: AttendanceSourceSchema.optional().default("MOBILE"),
+  break_minutes: z.number().int().min(0).optional(),
 });
 export type CheckOutRequest = z.infer<typeof CheckOutRequestSchema>;
 

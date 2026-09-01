@@ -13,15 +13,14 @@ interface ModalProps {
   closeOnOverlayClick?: boolean;
   closeOnEscape?: boolean;
   footer?: React.ReactNode;
-  className?: string;
 }
 
-const sizeStyles: Record<string, string> = {
-  sm: "max-width: 400px",
-  md: "max-width: 560px",
-  lg: "max-width: 800px",
-  xl: "max-width: 1000px",
-  full: "max-width: 95vw; width: 95vw",
+const sizeMaxWidth: Record<string, string> = {
+  sm: "400px",
+  md: "560px",
+  lg: "800px",
+  xl: "1000px",
+  full: "95vw",
 };
 
 export function Modal({
@@ -34,7 +33,6 @@ export function Modal({
   closeOnOverlayClick = true,
   closeOnEscape = true,
   footer,
-  className = "",
 }: ModalProps) {
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape" && closeOnEscape) {
@@ -71,10 +69,9 @@ export function Modal({
           background: "var(--surface)", 
           borderRadius: "12px", 
           width: "100%", 
-          maxWidth: size === "full" ? "95vw" : undefined,
+          maxWidth: sizeMaxWidth[size] ?? "560px",
           boxShadow: "0 20px 60px rgba(0,0,0,.2)", 
           overflow: "hidden",
-          ...(sizeStyles[size] ? { style: sizeStyles[size] } : {}),
         }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
@@ -181,3 +178,5 @@ export function ConfirmModal({
     </Modal>
   );
 }
+
+export default Modal;

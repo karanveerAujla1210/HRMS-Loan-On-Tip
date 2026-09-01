@@ -2,18 +2,19 @@ import "server-only";
 import { withApi, jsonOk } from "@/lib/server/http";
 import { z } from "zod";
 import { EmployeeCreateSchema, EmployeeListQuerySchema } from "@hrms/api-contract";
+import { mapDatabaseError } from "@/lib/server/errors";
 import { adminClient } from "@/lib/server/supabase";
 import { writeAudit } from "@/lib/audit";
 
 export const GET = withApi({
-  permission: "employee.read",
+  permission: "employee.view",
   query: EmployeeListQuerySchema,
   handler: async ({ req, ctx, query, requestId }) => {
     const companyId = ctx.companyId!;
     const db = adminClient();
 
     const page = query.page ?? 1;
-    const pageSize = Math.min(query.page_size ?? 50, 100);
+    const pageSize = Math.min(query.pageSize ?? 50, 100);
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
@@ -34,7 +35,7 @@ export const GET = withApi({
     if (query.status) q = q.eq("employment_status", query.status);
 
     const { data, error, count } = await q;
-    if (error) throw error;
+    if (error) throw mapDatabaseError(error);
 
     return jsonOk(
       {
@@ -105,13 +106,13 @@ export const POST = withApi({
       .select("id, employee_code, display_name")
       .single();
 
-    if (error) throw error;
+    if (error) throw mapDatabaseError(error);
 
     await audit({
       action: "EMPLOYEE_CREATE",
-      entity_type: "employees",
-      entity_id: data.id,
-      new_values: { 
+      entityType: "employees",
+      entityId: data.id,
+      newValues: { 
         first_name: body.first_name, 
         last_name: body.last_name, 
         official_email: body.official_email,

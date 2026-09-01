@@ -285,13 +285,10 @@ export default function PeoplePage() {
             <button className="btn btn-secondary" onClick={() => { form.resetForm(); setShowForm(false); }}>
               Cancel
             </button>
-            <button className="btn btn-primary" onClick={() => form.handleSubmit(handleFormSubmit)({ preventDefault: () => {} } as any)} disabled={form.isSubmitting}>
-              {form.isSubmitting ? "Saving…" : "Add Employee"}
-            </button>
           </>
         }
       >
-        <form onSubmit={form.handleSubmit(handleFormSubmit)}>
+        <form onSubmit={handleFormSubmit}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <Input
               label="First Name *"
@@ -368,6 +365,11 @@ export default function PeoplePage() {
               options={LOCATIONS.map(l => ({ value: l, label: l }))}
               placeholder="Select location"
             />
+          </div>
+          <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <button type="submit" className="btn btn-primary" disabled={form.isSubmitting}>
+              {form.isSubmitting ? "Saving…" : "Add Employee"}
+            </button>
           </div>
         </form>
       </Modal>

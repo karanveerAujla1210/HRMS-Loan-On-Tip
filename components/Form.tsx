@@ -79,16 +79,16 @@ export function useField<T>(initialValue: T, validate?: (value: T) => string | n
   };
 }
 
-export interface UseFormReturn<T extends Record<string, any>> {
+export interface UseFormReturn<T extends Record<string, unknown>> {
   values: T;
   errors: Record<keyof T, FieldError | null>;
   meta: Record<keyof T, FieldMeta>;
   isSubmitting: boolean;
   isValid: boolean;
   isDirty: boolean;
-  handleChange: (name: keyof T) => (value: any) => void;
+  handleChange: (name: keyof T) => (value: T[keyof T] | ((prev: T[keyof T]) => T[keyof T])) => void;
   handleBlur: (name: keyof T) => () => void;
-  setFieldValue: (name: keyof T, value: any) => void;
+  setFieldValue: (name: keyof T, value: T[keyof T]) => void;
   setFieldError: (name: keyof T, error: string | null) => void;
   setValues: (values: Partial<T>) => void;
   validateForm: () => boolean;
@@ -96,21 +96,21 @@ export interface UseFormReturn<T extends Record<string, any>> {
   resetForm: () => void;
 }
 
-export function useForm<T extends Record<string, any>>(
+export function useForm<T extends Record<string, unknown>>(
   initialValues: T,
   validate?: (values: T) => Partial<Record<keyof T, string>>
 ): UseFormReturn<T> {
   const [values, setValuesState] = useState<T>(initialValues);
-  const [errors, setErrorsState] = useState<Record<keyof T, FieldError | null>>({} as any);
-  const [touched, setTouchedState] = useState<Record<keyof T, boolean>>({} as any);
-  const [dirty, setDirtyState] = useState<Record<keyof T, boolean>>({} as any);
+  const [errors, setErrorsState] = useState<Record<keyof T, FieldError | null>>({} as Record<keyof T, FieldError | null>);
+  const [touched, setTouchedState] = useState<Record<keyof T, boolean>>({} as Record<keyof T, boolean>);
+  const [dirty, setDirtyState] = useState<Record<keyof T, boolean>>({} as Record<keyof T, boolean>);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const initialRef = useRef(initialValues);
 
   const validateForm = useCallback(() => {
     if (!validate) return true;
     const validationErrors = validate(values);
-    const newErrors: Record<keyof T, FieldError | null> = {} as any;
+    const newErrors: Record<keyof T, FieldError | null> = {} as Record<keyof T, FieldError | null>;
     let isValid = true;
     (Object.keys(validationErrors) as (keyof T)[]).forEach(key => {
       const msg = validationErrors[key];
@@ -125,9 +125,9 @@ export function useForm<T extends Record<string, any>>(
     return isValid;
   }, [values, validate]);
 
-  const handleChange = useCallback((name: keyof T) => (newValue: any) => {
+  const handleChange = useCallback((name: keyof T) => (newValue: T[keyof T] | ((prev: T[keyof T]) => T[keyof T])) => {
+    const resolved = typeof newValue === "function" ? (newValue as (prev: T[keyof T]) => T[keyof T])(values[name]) : newValue;
     setValuesState(prev => {
-      const resolved = typeof newValue === "function" ? newValue(prev[name]) : newValue;
       if (!dirty[name] && resolved !== initialRef.current[name]) {
         setDirtyState(prev => ({ ...prev, [name]: true }));
       }
@@ -156,7 +156,7 @@ export function useForm<T extends Record<string, any>>(
     }
   }, [values, validate]);
 
-  const setFieldValue = useCallback((name: keyof T, value: any) => {
+  const setFieldValue = useCallback((name: keyof T, value: T[keyof T]) => {
     setValuesState(prev => ({ ...prev, [name]: value }));
   }, []);
 
@@ -172,7 +172,7 @@ export function useForm<T extends Record<string, any>>(
     e.preventDefault();
     if (validate) {
       const validationErrors = validate(values);
-      const newErrors: Record<keyof T, FieldError | null> = {} as any;
+      const newErrors: Record<keyof T, FieldError | null> = {} as Record<keyof T, FieldError | null>;
       let isValid = true;
       (Object.keys(validationErrors) as (keyof T)[]).forEach(key => {
         const msg = validationErrors[key];
@@ -197,15 +197,15 @@ export function useForm<T extends Record<string, any>>(
 
   const resetForm = useCallback(() => {
     setValuesState(initialRef.current);
-    setErrorsState({} as any);
-    setTouchedState({} as any);
-    setDirtyState({} as any);
+    setErrorsState({} as Record<keyof T, FieldError | null>);
+    setTouchedState({} as Record<keyof T, boolean>);
+    setDirtyState({} as Record<keyof T, boolean>);
   }, []);
 
   const isValid = Object.values(errors).every(e => !e);
   const isDirty = Object.values(dirty).some(d => d);
 
-  const meta: Record<keyof T, FieldMeta> = {} as any;
+  const meta: Record<keyof T, FieldMeta> = {} as Record<keyof T, FieldMeta>;
   (Object.keys(values) as (keyof T)[]).forEach(key => {
     meta[key] = {
       touched: touched[key] ?? false,
@@ -233,16 +233,22 @@ export function useForm<T extends Record<string, any>>(
 }
 
 // Input Component
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
   label?: string;
   error?: string | null;
   hint?: string;
   icon?: React.ReactNode;
   fullWidth?: boolean;
+  onChange?: (value: string) => void;
 }
 
-export function Input({ label, error, hint, icon, fullWidth = true, className = "", ...props }: InputProps) {
+export function Input({ label, error, hint, icon, fullWidth = true, onChange, ...props }: InputProps) {
   const id = props.id || props.name;
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (onChange) {
+      onChange(e.target.value);
+    }
+  };
   return (
     <div className="form-group" style={fullWidth ? {} : { width: "100%" }}>
       {label && <label htmlFor={id}>{label}</label>}
@@ -253,6 +259,7 @@ export function Input({ label, error, hint, icon, fullWidth = true, className = 
           className={error ? "input-error" : ""}
           aria-invalid={error ? "true" : "false"}
           aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
+          onChange={handleInputChange}
           {...props}
         />
       </div>
@@ -266,17 +273,23 @@ export function Input({ label, error, hint, icon, fullWidth = true, className = 
 }
 
 // Select Component
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+interface SelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, "onChange"> {
   label?: string;
   error?: string | null;
   hint?: string;
   options: { value: string; label: string }[];
   placeholder?: string;
   fullWidth?: boolean;
+  onChange?: (value: string) => void;
 }
 
-export function Select({ label, error, hint, options, placeholder, fullWidth = true, ...props }: SelectProps) {
+export function Select({ label, error, hint, options, placeholder, fullWidth = true, onChange, ...props }: SelectProps) {
   const id = props.id || props.name;
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (onChange) {
+      onChange(e.target.value);
+    }
+  };
   return (
     <div className="form-group" style={fullWidth ? {} : { width: "100%" }}>
       {label && <label htmlFor={id}>{label}</label>}
@@ -285,6 +298,7 @@ export function Select({ label, error, hint, options, placeholder, fullWidth = t
         className={error ? "input-error" : ""}
         aria-invalid={error ? "true" : "false"}
         aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
+        onChange={handleSelectChange}
         {...props}
       >
         {placeholder && <option value="" disabled>{placeholder}</option>}
@@ -300,15 +314,21 @@ export function Select({ label, error, hint, options, placeholder, fullWidth = t
 }
 
 // Textarea Component
-interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+interface TextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, "onChange"> {
   label?: string;
   error?: string | null;
   hint?: string;
   fullWidth?: boolean;
+  onChange?: (value: string) => void;
 }
 
-export function Textarea({ label, error, hint, fullWidth = true, ...props }: TextareaProps) {
+export function Textarea({ label, error, hint, fullWidth = true, onChange, ...props }: TextareaProps) {
   const id = props.id || props.name;
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    if (onChange) {
+      onChange(e.target.value);
+    }
+  };
   return (
     <div className="form-group" style={fullWidth ? {} : { width: "100%" }}>
       {label && <label htmlFor={id}>{label}</label>}
@@ -317,6 +337,7 @@ export function Textarea({ label, error, hint, fullWidth = true, ...props }: Tex
         className={error ? "input-error" : ""}
         aria-invalid={error ? "true" : "false"}
         aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
+        onChange={handleTextareaChange}
         {...props}
       />
       {error && <p id={`${id}-error`} style={{ color: "var(--red)", fontSize: 12, marginTop: 6, display: "flex", alignItems: "center", gap: 4 }}>

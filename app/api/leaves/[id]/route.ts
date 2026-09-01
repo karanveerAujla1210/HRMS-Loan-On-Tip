@@ -62,9 +62,9 @@ export const PATCH = withApi({
 
     await audit({
       action: body.action === "APPROVED" ? "LEAVE_APPROVE" : "LEAVE_REJECT",
-      entity_type: "leave_requests",
-      entity_id: leaveId,
-      new_values: { action: body.action, comments: body.comments ?? null },
+      entityType: "leave_requests",
+      entityId: leaveId,
+      newValues: { action: body.action, comments: body.comments ?? null },
     });
 
     return jsonOk(data, requestId);
