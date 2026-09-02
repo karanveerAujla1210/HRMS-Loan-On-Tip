@@ -22,9 +22,7 @@ const COLUMNS = [
 
 const PAGE_SIZE = 15;
 
-const DEPARTMENTS = ["Engineering", "Sales", "Marketing", "HR", "Finance", "Operations", "IT", "Admin"];
-const DESIGNATIONS = ["Software Engineer", "Senior Engineer", "Lead Engineer", "Manager", "Director", "Intern", "Associate"];
-const LOCATIONS = ["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Pune", "Chennai", "Remote"];
+type Option = { id: string; name: string };
 
 export default function PeoplePage() {
   const router = useRouter();
@@ -36,6 +34,9 @@ export default function PeoplePage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [deptFilter, setDeptFilter] = useState("ALL");
   const [departments, setDepartments] = useState<string[]>([]);
+  const [deptOptions, setDeptOptions] = useState<Option[]>([]);
+  const [desigOptions, setDesigOptions] = useState<Option[]>([]);
+  const [locOptions, setLocOptions] = useState<Option[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +59,16 @@ export default function PeoplePage() {
 
     const depts = Array.from(new Set(list.map((e) => String(e.department ?? "")).filter(Boolean)));
     setDepartments(depts);
+
+    // Load real department / designation / location options for the Add form
+    const [dRes, dgRes, lRes] = await Promise.all([
+      supabase.from("departments").select("id,name").eq("company_id", companyId).eq("is_active", true).order("name"),
+      supabase.from("designations").select("id,name").eq("company_id", companyId).eq("is_active", true).order("name"),
+      supabase.from("locations").select("id,name").eq("company_id", companyId).eq("is_active", true).order("name"),
+    ]);
+    setDeptOptions((dRes.data as Option[]) ?? []);
+    setDesigOptions((dgRes.data as Option[]) ?? []);
+    setLocOptions((lRes.data as Option[]) ?? []);
 
     setLoading(false);
   }, [companyId, profileLoading]);
@@ -116,9 +127,9 @@ export default function PeoplePage() {
         official_email: values.official_email || null,
         official_mobile: values.official_mobile || null,
         joining_date: values.joining_date,
-        department_id: values.department || null,
-        designation_id: values.designation || null,
-        location_id: values.location || null,
+        department_id: values.department || null,   // real UUID from DB
+        designation_id: values.designation || null, // real UUID from DB
+        location_id: values.location || null,       // real UUID from DB
       }),
     });
     const json = await res.json();
@@ -344,7 +355,7 @@ export default function PeoplePage() {
               value={form.values.department}
               onChange={form.handleChange("department")}
               onBlur={form.handleBlur("department")}
-              options={DEPARTMENTS.map(d => ({ value: d, label: d }))}
+              options={deptOptions.map(d => ({ value: d.id, label: d.name }))}
               placeholder="Select department"
             />
             <Select
@@ -353,7 +364,7 @@ export default function PeoplePage() {
               value={form.values.designation}
               onChange={form.handleChange("designation")}
               onBlur={form.handleBlur("designation")}
-              options={DESIGNATIONS.map(d => ({ value: d, label: d }))}
+              options={desigOptions.map(d => ({ value: d.id, label: d.name }))}
               placeholder="Select designation"
             />
             <Select
@@ -362,7 +373,7 @@ export default function PeoplePage() {
               value={form.values.location}
               onChange={form.handleChange("location")}
               onBlur={form.handleBlur("location")}
-              options={LOCATIONS.map(l => ({ value: l, label: l }))}
+              options={locOptions.map(l => ({ value: l.id, label: l.name }))}
               placeholder="Select location"
             />
           </div>

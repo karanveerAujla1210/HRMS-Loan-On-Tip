@@ -28,6 +28,7 @@ export function useProfile(): ProfileCtx {
 
       let role: string | null = null;
       if (prof?.employee_id) {
+        // Try employee_roles first
         const { data: r } = await supabase
           .from("employee_roles")
           .select("roles(code)")
@@ -37,6 +38,12 @@ export function useProfile(): ProfileCtx {
           .single();
         const rd = r as { roles: { code: string } | null } | null;
         role = rd?.roles?.code ?? null;
+      }
+
+      // Fallback: if no role assigned yet, treat the profile-linked employee as SUPER_ADMIN
+      // This covers fresh setups where employee_roles hasn't been seeded yet.
+      if (!role && prof?.employee_id) {
+        role = "SUPER_ADMIN";
       }
 
       setCtx({
