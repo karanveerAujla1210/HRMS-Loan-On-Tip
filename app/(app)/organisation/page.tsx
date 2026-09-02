@@ -27,7 +27,7 @@ export default function OrganisationPage() {
     let q;
     if (tab === "departments") q = supabase.from("departments").select("id,department_code,name,is_active").eq("company_id", companyId).order("name");
     else if (tab === "designations") q = supabase.from("designations").select("id,designation_code,name,level,is_active").eq("company_id", companyId).order("level");
-    else if (tab === "locations") q = supabase.from("locations").select("id,location_code,name,city,state,attendance_radius_meters,is_active").eq("company_id", companyId).order("name");
+    else if (tab === "locations") q = supabase.from("locations").select("id,location_code,name,city,state,latitude,longitude,attendance_radius_meters,is_active").eq("company_id", companyId).order("name");
     else if (tab === "shifts") q = supabase.from("shifts").select("id,shift_code,name,start_time,end_time,grace_minutes,is_active").eq("company_id", companyId).order("name");
     else if (tab === "leave_types") q = supabase.from("leave_types").select("id,code,name,is_paid,allows_half_day,requires_document,is_active").eq("company_id", companyId).order("name");
     else if (tab === "custom_fields") q = supabase.from("custom_fields").select("id,name,field_type,options,is_active").eq("company_id", companyId).order("name");
@@ -57,7 +57,7 @@ export default function OrganisationPage() {
       state: fd.get("state") || null,
       latitude: fd.get("latitude") ? Number(fd.get("latitude")) : null,
       longitude: fd.get("longitude") ? Number(fd.get("longitude")) : null,
-      attendance_radius_meters: fd.get("radius") ? Number(fd.get("radius")) : 150,
+      attendance_radius_meters: fd.get("radius") ? Number(fd.get("radius")) : 70,
       start_time: fd.get("start_time") || null,
       end_time: fd.get("end_time") || null,
       grace_minutes: fd.get("grace_minutes") ? Number(fd.get("grace_minutes")) : 15,
@@ -238,7 +238,7 @@ function FormFields({ tab, editing }: { tab: Tab; editing: Row | null }) {
         <div className="form-group"><label>Latitude</label><input name="latitude" type="number" step="any" defaultValue={v("latitude")} /></div>
         <div className="form-group"><label>Longitude</label><input name="longitude" type="number" step="any" defaultValue={v("longitude")} /></div>
       </div>
-      <div className="form-group"><label>Geo-fence radius (metres)</label><input name="radius" type="number" defaultValue={v("attendance_radius_meters") || "150"} /></div>
+      <div className="form-group"><label>Geo-fence radius (metres)</label><input name="radius" type="number" min={25} max={5000} defaultValue={v("attendance_radius_meters") || "70"} /></div>
     </>
   );
 

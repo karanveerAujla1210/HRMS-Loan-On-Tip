@@ -17,7 +17,7 @@ const AssetCreateSchema = z.object({
   purchase_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   purchase_cost: z.number().nullable().optional(),
   warranty_end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-  condition: z.enum(["GOOD", "FAIR", "POOR"]).default("GOOD"),
+  condition: z.enum(["NEW", "EXCELLENT", "GOOD", "FAIR", "POOR"]).default("GOOD"),
   vendor_name: z.string().nullable().optional(),
   invoice_number: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),

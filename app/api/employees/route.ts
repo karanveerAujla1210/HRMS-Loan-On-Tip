@@ -26,10 +26,8 @@ export const GET = withApi({
     if (query.search) {
       q = q.or(`display_name.ilike.%${query.search}%,employee_code.ilike.%${query.search}%,official_email.ilike.%${query.search}%,department.ilike.%${query.search}%,designation.ilike.%${query.search}%`);
     }
-    if (query.departmentId) q = q.eq("department_id", query.departmentId);
-    if (query.designationId) q = q.eq("designation_id", query.designationId);
-    if (query.locationId) q = q.eq("location_id", query.locationId);
-    if (query.managerId) q = q.eq("manager_id", query.managerId);
+    // v_employee_directory exposes display fields rather than foreign-key IDs.
+    // Keep ID filters out of this view query until the view exposes those IDs.
     if (query.status) q = q.eq("employment_status", query.status);
 
     const { data, error, count } = await q;

@@ -45,6 +45,7 @@ export default function ReportsPage() {
       const res = await supabase
         .from("leave_requests")
         .select("id,from_date,to_date,total_days,status,submitted_at,employees(employee_code,display_name,departments(name)),leave_types(name)")
+        .eq("company_id", companyId)
         .gte("from_date", from)
         .lte("to_date", to)
         .order("submitted_at", { ascending: false })

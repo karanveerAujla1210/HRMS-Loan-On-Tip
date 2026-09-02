@@ -46,7 +46,7 @@ export function mapOrgPayload(
         state: body.state ?? null,
         latitude: body.latitude ?? null,
         longitude: body.longitude ?? null,
-        attendance_radius_meters: body.attendance_radius_meters ?? 150,
+        attendance_radius_meters: body.attendance_radius_meters ?? 70,
         is_active: body.is_active ?? true,
       };
     case "shifts":

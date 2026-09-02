@@ -8,6 +8,7 @@ import { PageHeader, DataTable, SubNav, Modal, useToast, SkeletonTable, Skeleton
 
 const ATTENDANCE_NAV = [
   { href: "/attendance", label: "Daily Attendance", exact: true },
+  { href: "/attendance/calendar", label: "Calendar" },
   { href: "/attendance/corrections", label: "Corrections" },
   { href: "/attendance/exceptions", label: "Exceptions & Geofence" },
 ];
@@ -72,7 +73,10 @@ export default function AttendancePage() {
       const res = await fetch("/api/attendance/bulk-mark", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bulkForm),
+        body: JSON.stringify({
+          ...bulkForm,
+          employee_ids: Array.from(new Set(selectedRows.map((row) => String(row.employee_id ?? "")).filter(Boolean))),
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Failed to bulk mark attendance");
@@ -264,8 +268,9 @@ export default function AttendancePage() {
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="alert alert-info" style={{ fontSize: 13 }}>
-            <strong>Note:</strong> This will mark attendance for all active employees in the selected date range. 
-            Existing records will be overwritten.
+            <strong>Note:</strong> {selectedRows.length > 0
+              ? `This will mark attendance for ${new Set(selectedRows.map((row) => String(row.employee_id ?? "")).filter(Boolean)).size} selected staff member(s).`
+              : "This will mark attendance for all active employees in the selected date range."} Existing records will be overwritten.
           </div>
           
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>

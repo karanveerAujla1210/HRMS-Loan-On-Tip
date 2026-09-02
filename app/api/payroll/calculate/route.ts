@@ -225,6 +225,7 @@ export const POST = route(async (req: Request) => {
           gross_salary: result.grossEarnings,
           deductions: result.totalDeductions,
           net_salary: result.netPay,
+          generated_at: new Date().toISOString(),
           payslip_json: result as unknown as Record<string, unknown>,
         },
         { onConflict: "payroll_run_id,employee_id" }

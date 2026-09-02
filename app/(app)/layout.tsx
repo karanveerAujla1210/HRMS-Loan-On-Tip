@@ -51,7 +51,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: "Administration",
     items: [
       { href: "/organisation", label: "Organisation", roles: ["SUPER_ADMIN", "HR_ADMIN"], Icon: IconBuilding },
-      { href: "/reports", label: "Reports", roles: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN", "OPERATIONS_ADMIN"], Icon: IconChart },
+      { href: "/reports", label: "Reports", roles: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN", "OPERATIONS_ADMIN", "MANAGER"], Icon: IconChart },
     ],
   },
 ];
