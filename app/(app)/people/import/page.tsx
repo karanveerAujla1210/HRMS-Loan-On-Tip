@@ -71,11 +71,11 @@ export default function ImportPage() {
   const [errors, setErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<{ success: number; failed: number; failedRows: string[] } | null>(null);
-  const [depts, setDepts] = useState<LookupMap>({});
-  const [desigs, setDesigs] = useState<LookupMap>({});
-  const [locs, setLocs] = useState<LookupMap>({});
-  const [empTypes, setEmpTypes] = useState<LookupMap>({});
-  const [empEmails, setEmpEmails] = useState<LookupMap>({});
+  const [, setDepts] = useState<LookupMap>({});
+  const [, setDesigs] = useState<LookupMap>({});
+  const [, setLocs] = useState<LookupMap>({});
+  const [, setEmpTypes] = useState<LookupMap>({});
+  const [, setEmpEmails] = useState<LookupMap>({});
   const [lookupReady, setLookupReady] = useState(false);
 
   useEffect(() => {

@@ -1,10 +1,8 @@
 import "server-only";
 import { withApi, jsonOk } from "@/lib/server/http";
-import { z } from "zod";
 import { EmployeeCreateSchema, EmployeeListQuerySchema } from "@hrms/api-contract";
 import { mapDatabaseError } from "@/lib/server/errors";
 import { adminClient } from "@/lib/server/supabase";
-import { writeAudit } from "@/lib/audit";
 
 export const GET = withApi({
   permission: "employee.view",

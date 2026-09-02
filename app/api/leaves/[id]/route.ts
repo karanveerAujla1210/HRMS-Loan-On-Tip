@@ -1,16 +1,14 @@
 import "server-only";
 import { withApi, jsonOk } from "@/lib/server/http";
-import { z } from "zod";
 import { LeaveDecisionSchema } from "@hrms/api-contract";
 import { adminClient } from "@/lib/server/supabase";
-import { writeAudit } from "@/lib/audit";
 
 export const PATCH = withApi({
   permission: "leave.approve",
   body: LeaveDecisionSchema,
   idempotencyEndpoint: "leave/decide",
   idempotencyKey: (body) => body.idempotency_key,
-  handler: async ({ req, ctx, body, params, audit, requestId }) => {
+  handler: async ({ ctx, body, params, audit, requestId }) => {
     const companyId = ctx.companyId!;
     const leaveId = params.id;
     const db = adminClient();

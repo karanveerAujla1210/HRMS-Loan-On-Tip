@@ -10,6 +10,12 @@ import PageHeader from "@/components/PageHeader";
 import EmployeeSubNav from "@/components/EmployeeSubNav";
 
 type Emp = Record<string, unknown>;
+type CustomField = {
+  id: string;
+  name: string;
+  field_type: string;
+  options?: unknown;
+};
 
 export default function EmployeeDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -23,8 +29,8 @@ export default function EmployeeDetailPage() {
   const [depts, setDepts] = useState<Emp[]>([]);
   const [desigs, setDesigs] = useState<Emp[]>([]);
   const [locs, setLocs] = useState<Emp[]>([]);
-  const [customFields, setCustomFields] = useState<any[]>([]);
-  const [customData, setCustomData] = useState<Record<string, any>>({});
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [customData, setCustomData] = useState<Record<string, unknown>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -46,9 +52,12 @@ export default function EmployeeDetailPage() {
         supabase.from("custom_fields").select("*").eq("company_id", eData.company_id).eq("is_active", true),
         supabase.from("employee_custom_data").select("custom_field_id, field_value").eq("employee_id", id),
       ]);
-      setCustomFields(cfRes.data || []);
-      const cdMap: Record<string, any> = {};
-      (cdRes.data || []).forEach((cd: any) => { cdMap[cd.custom_field_id] = cd.field_value; });
+      setCustomFields((cfRes.data as CustomField[]) || []);
+      const cdMap: Record<string, unknown> = {};
+      ((cdRes.data as Array<Record<string, unknown>>) || []).forEach((cd) => {
+        const key = String((cd as Record<string, unknown>).custom_field_id ?? "");
+        if (key) cdMap[key] = (cd as Record<string, unknown>).field_value;
+      });
       setCustomData(cdMap);
     }
     
@@ -263,12 +272,12 @@ export default function EmployeeDetailPage() {
                         <div className="form-group" key={cf.id}>
                           <label>{cf.name}</label>
                           {cf.field_type === "DROPDOWN" || cf.field_type === "MULTI_SELECT" ? (
-                            <select name={`cf_${cf.id}`} defaultValue={customData[cf.id] || ""}>
+                            <select name={`cf_${cf.id}`} defaultValue={String(customData[cf.id] ?? "")}>
                               <option value="">Select</option>
                               {Array.isArray(cf.options) && cf.options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
                             </select>
                           ) : cf.field_type === "BOOLEAN" ? (
-                            <select name={`cf_${cf.id}`} defaultValue={customData[cf.id] || ""}>
+                            <select name={`cf_${cf.id}`} defaultValue={String(customData[cf.id] ?? "")}>
                               <option value="">Select</option>
                               <option value="true">Yes</option>
                               <option value="false">No</option>
@@ -278,7 +287,7 @@ export default function EmployeeDetailPage() {
                               name={`cf_${cf.id}`}
                               type={cf.field_type === "DATE" ? "date" : cf.field_type === "NUMBER" || cf.field_type === "CURRENCY" ? "number" : cf.field_type === "EMAIL" ? "email" : cf.field_type === "PHONE" ? "tel" : "text"}
                               step={cf.field_type === "NUMBER" || cf.field_type === "CURRENCY" ? "any" : undefined}
-                              defaultValue={customData[cf.id] || ""}
+                              defaultValue={String(customData[cf.id] ?? "")}
                             />
                           )}
                         </div>

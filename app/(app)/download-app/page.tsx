@@ -76,7 +76,7 @@ export default function DownloadAppPage() {
                 file.
               </li>
               <li>
-                If prompted, allow your browser to "Install unknown apps".
+                If prompted, allow your browser to &quot;Install unknown apps&quot;.
               </li>
               <li>Follow the on-screen prompts to install.</li>
             </ol>

@@ -193,7 +193,7 @@ export default function DashboardPage() {
           <div className="card">
             <div className="card-header">
               <div>
-                <h2>Today's attendance</h2>
+                <h2>Today&apos;s attendance</h2>
                 <p>{attendance.length} records shown</p>
               </div>
               <Link href="/attendance" className="btn btn-secondary btn-sm">

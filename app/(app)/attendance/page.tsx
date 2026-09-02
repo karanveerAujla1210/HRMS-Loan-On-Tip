@@ -3,9 +3,8 @@
 export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { PageHeader, DataTable, SubNav, Modal, useToast, SkeletonTable, Skeleton, SkeletonText } from "@/components";
+import { PageHeader, DataTable, SubNav, Modal, useToast, SkeletonTable, Skeleton } from "@/components";
 
 const ATTENDANCE_NAV = [
   { href: "/attendance", label: "Daily Attendance", exact: true },
@@ -85,8 +84,9 @@ export default function AttendancePage() {
       });
       setShowBulkModal(false);
       void load();
-    } catch (err: any) {
-      showToast({ type: "error", title: "Failed to mark attendance", message: err.message });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      showToast({ type: "error", title: "Failed to mark attendance", message });
     } finally {
       setBulkLoading(false);
     }

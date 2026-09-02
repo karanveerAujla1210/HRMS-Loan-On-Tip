@@ -65,8 +65,9 @@ export default function LeavePage() {
       });
       setConfirmLeave(null);
       void load();
-    } catch (err: any) {
-      showToast({ type: "error", title: "Action failed", message: err.message });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      showToast({ type: "error", title: "Action failed", message });
     } finally {
       setActionLoading(false);
     }

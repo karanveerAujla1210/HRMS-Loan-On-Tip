@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/lib/useProfile";
-import { PageHeader, DataTable, Modal, useForm, Input, Select, FormRow, Textarea, SkeletonTable, Skeleton } from "@/components";
+import { PageHeader, DataTable, Modal, useForm, Input, Select, SkeletonTable, Skeleton } from "@/components";
 import { useToast } from "@/components/Toast";
 
 type Row = Record<string, unknown>;

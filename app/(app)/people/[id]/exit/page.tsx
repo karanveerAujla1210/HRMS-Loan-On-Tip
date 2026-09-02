@@ -5,7 +5,6 @@ export const dynamic = "force-dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
 import EmployeeSubNav from "@/components/EmployeeSubNav";
 
@@ -14,7 +13,6 @@ type Row = Record<string, unknown>;
 export default function EmployeeExitPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { employeeId: currentEmpId, role } = useProfile();
   const [emp, setEmp] = useState<Row | null>(null);
   const [resignation, setResignation] = useState<Row | null>(null);
   const [assignedAssets, setAssignedAssets] = useState<Row[]>([]);

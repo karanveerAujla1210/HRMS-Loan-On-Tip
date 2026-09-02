@@ -7,7 +7,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
-import { SidebarProvider, useSidebar } from "@/components/SidebarContext";
+import { useSidebar } from "@/components/SidebarContext";
 
 type Profile = { employee_id: string | null; company_id: string | null; role: string | null };
 
@@ -55,8 +55,6 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
 ];
-
-const ALL_NAV_ITEMS = NAV_SECTIONS.flatMap(s => s.items);
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();

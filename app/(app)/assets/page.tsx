@@ -50,7 +50,7 @@ const COLS = [
 
 export default function AssetsPage() {
   const router = useRouter();
-  const { companyId, employeeId } = useProfile();
+  const { companyId } = useProfile();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [employees, setEmployees] = useState<Row[]>([]);
   const [categories, setCategories] = useState<Row[]>([]);

@@ -3,7 +3,6 @@
 export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
@@ -47,8 +46,7 @@ const MAINTENANCE_TYPES = [
 ];
 
 export default function AssetMaintenancePage() {
-  const router = useRouter();
-  const { companyId, employeeId } = useProfile();
+  const { companyId } = useProfile();
   const [records, setRecords] = useState<MaintenanceRecord[]>([]);
   const [assets, setAssets] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);

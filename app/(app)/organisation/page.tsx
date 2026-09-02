@@ -48,7 +48,7 @@ export default function OrganisationPage() {
     setMsg(null);
     const fd = new FormData(e.currentTarget);
 
-    let payload: Record<string, unknown> = {
+    const payload: Record<string, unknown> = {
       table: tab,
       code: fd.get("code"),
       name: String(fd.get("name")),

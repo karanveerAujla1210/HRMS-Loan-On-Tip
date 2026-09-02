@@ -237,7 +237,7 @@ export const POST = route(async (req: Request) => {
     count += 1;
   }
 
-  const { data: updated, error: updErr } = await db
+  const { error: updErr } = await db
     .from("payroll_runs")
     .update({
       status: "CALCULATED",

@@ -1,5 +1,4 @@
-import { route, resolveActor, requirePermission, requireCompany, ok, badRequest, notFound, dbError, readJson, serviceClient } from "@/lib/server";
-import { writeAudit } from "@/lib/audit";
+import { route, resolveActor, requirePermission, requireCompany, ok, badRequest, dbError, readJson, serviceClient } from "@/lib/server";
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");

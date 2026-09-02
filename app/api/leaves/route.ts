@@ -1,10 +1,8 @@
 import "server-only";
 import { withApi, jsonOk } from "@/lib/server/http";
-import { z } from "zod";
 import { LeaveApplyRequestSchema, LeaveListQuerySchema } from "@hrms/api-contract";
 import { mapDatabaseError } from "@/lib/server/errors";
 import { adminClient } from "@/lib/server/supabase";
-import { writeAudit } from "@/lib/audit";
 import {
   calculateLeaveDays,
   validateLeaveRequest,
@@ -22,7 +20,7 @@ const ERROR_MESSAGES: Record<LeaveValidationError, string> = {
 export const GET = withApi({
   permission: "leave.view",
   query: LeaveListQuerySchema,
-  handler: async ({ req, ctx, query, requestId }) => {
+  handler: async ({ ctx, query, requestId }) => {
     const companyId = ctx.companyId!;
     const db = adminClient();
 
@@ -89,7 +87,7 @@ export const POST = withApi({
   idempotencyEndpoint: "leave/apply",
   idempotencyKey: (body) => body.idempotency_key,
   rateLimit: { limit: 30, windowMs: 60_000 },
-  handler: async ({ req, ctx, body, audit, requestId }) => {
+  handler: async ({ ctx, body, audit, requestId }) => {
     const companyId = ctx.companyId!;
     const employeeId = ctx.employeeId!;
     const db = adminClient();

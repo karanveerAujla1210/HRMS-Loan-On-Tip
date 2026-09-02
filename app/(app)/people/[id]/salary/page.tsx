@@ -15,7 +15,6 @@ export default function EmployeeSalaryPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [empName, setEmpName] = useState("");
-  const [companyId, setCompanyId] = useState<string | null>(null);
   const [current, setCurrent] = useState<Row | null>(null);
   const [history, setHistory] = useState<Row[]>([]);
   const [structures, setStructures] = useState<Row[]>([]);
@@ -41,7 +40,6 @@ export default function EmployeeSalaryPage() {
     ]);
     setEmpName(String(empRes.data?.display_name ?? "Employee"));
     const cid = empRes.data?.company_id as string | null;
-    setCompanyId(cid);
     setCurrent(currRes.data as Row | null);
     const hist = ((histRes.data ?? []) as Record<string, unknown>[]).map((r) => ({
       ...r,

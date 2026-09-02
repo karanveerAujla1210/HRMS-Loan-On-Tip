@@ -362,7 +362,7 @@ export default function SelfServicePage() {
             {tab === "attendance" && (
               <>
                 <div className="card">
-                  <div className="card-header"><div><h2>This Month's Attendance</h2><p>{attRows.length} records</p></div></div>
+                  <div className="card-header"><div><h2>This Month&apos;s Attendance</h2><p>{attRows.length} records</p></div></div>
                   <DataTable 
                     rows={attRows} 
                     columns={["attendance_date", "status", "check_in_at", "check_out_at", "worked_minutes"]} 
