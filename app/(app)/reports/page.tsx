@@ -13,7 +13,7 @@ function today() { return new Date().toISOString().slice(0, 10); }
 function monthStart() { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); }
 
 export default function ReportsPage() {
-  const { companyId } = useProfile();
+  const { companyId, loading: profileLoading } = useProfile();
   const [tab, setTab] = useState<Tab>("attendance");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
@@ -22,7 +22,7 @@ export default function ReportsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!companyId) { setLoading(false); return; }
+    if (!companyId) { if (!profileLoading) setLoading(false); return; }
     setLoading(true);
     setError(null);
 
@@ -108,7 +108,7 @@ export default function ReportsPage() {
     if (err) setError(err.message);
     setRows(data);
     setLoading(false);
-  }, [companyId, tab, from, to]);
+  }, [companyId, tab, from, to, profileLoading]);
 
   useEffect(() => { void load(); }, [load]);
 

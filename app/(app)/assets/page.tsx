@@ -50,7 +50,7 @@ const COLS = [
 
 export default function AssetsPage() {
   const router = useRouter();
-  const { companyId } = useProfile();
+  const { companyId, loading: profileLoading } = useProfile();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [employees, setEmployees] = useState<Row[]>([]);
   const [categories, setCategories] = useState<Row[]>([]);
@@ -69,7 +69,7 @@ export default function AssetsPage() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!companyId) { setLoading(false); return; }
+    if (!companyId) { if (!profileLoading) setLoading(false); return; }
     setLoading(true);
     setError(null);
     const [assetsRes, empRes, catRes, locRes] = await Promise.all([
@@ -91,7 +91,7 @@ export default function AssetsPage() {
     setCategories((catRes.data as Row[]) ?? []);
     setLocations((locRes.data as Row[]) ?? []);
     setLoading(false);
-  }, [companyId]);
+  }, [companyId, profileLoading]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -351,6 +351,11 @@ export default function AssetsPage() {
             </div>
             <form onSubmit={handleAddAsset}>
               <div className="modal-body">
+                {categories.length === 0 && (
+                  <div className="alert alert-info" style={{ fontSize: 13, marginBottom: 16 }}>
+                    No asset categories found. Go to <strong>Organisation → Asset Categories</strong> to add categories first.
+                  </div>
+                )}
                 <div className="form-row">
                   <div className="form-group">
                     <label>Category *</label>

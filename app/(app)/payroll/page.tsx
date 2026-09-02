@@ -16,7 +16,7 @@ const MONTHS = [
 ];
 
 export default function PayrollPage() {
-  const { companyId } = useProfile();
+  const { companyId, loading: profileLoading } = useProfile();
   const [runs, setRuns] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export default function PayrollPage() {
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
-    if (!companyId) { setLoading(false); return; }
+    if (!companyId) { if (!profileLoading) setLoading(false); return; }
     setLoading(true);
     setError(null);
     const { data, error } = await supabase
@@ -37,7 +37,7 @@ export default function PayrollPage() {
     if (error) setError(error.message);
     setRuns((data as Row[]) ?? []);
     setLoading(false);
-  }, [companyId]);
+  }, [companyId, profileLoading]);
 
   useEffect(() => { void load(); }, [load]);
 

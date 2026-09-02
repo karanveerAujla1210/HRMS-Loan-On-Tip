@@ -28,7 +28,7 @@ const LOCATIONS = ["Mumbai", "Delhi", "Bangalore", "Hyderabad", "Pune", "Chennai
 
 export default function PeoplePage() {
   const router = useRouter();
-  const { companyId } = useProfile();
+  const { companyId, loading: profileLoading } = useProfile();
   const { showToast } = useToast();
   const [employees, setEmployees] = useState<Row[]>([]);
   const [filtered, setFiltered] = useState<Row[]>([]);
@@ -42,7 +42,7 @@ export default function PeoplePage() {
   const [showForm, setShowForm] = useState(false);
 
   const load = useCallback(async () => {
-    if (!companyId) { setLoading(false); return; }
+    if (!companyId) { if (!profileLoading) setLoading(false); return; }
     setLoading(true);
     setError(null);
     const { data, error } = await supabase
@@ -60,7 +60,7 @@ export default function PeoplePage() {
     setDepartments(depts);
 
     setLoading(false);
-  }, [companyId]);
+  }, [companyId, profileLoading]);
 
   useEffect(() => { void load(); }, [load]);
 

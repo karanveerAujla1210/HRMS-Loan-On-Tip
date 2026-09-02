@@ -75,7 +75,13 @@ export default function AttendancePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...bulkForm,
-          employee_ids: Array.from(new Set(selectedRows.map((row) => String(row.employee_id ?? "")).filter(Boolean))),
+          employee_ids: selectedRows.length > 0
+            ? Array.from(new Set(
+                selectedRows
+                  .map((row) => String(row.employee_id ?? ""))
+                  .filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+              ))
+            : undefined,
         }),
       });
       const json = await res.json();
