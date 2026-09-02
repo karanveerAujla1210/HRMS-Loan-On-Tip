@@ -10,13 +10,13 @@ import {
 
 export type Db = SupabaseClient;
 
-/**
- * Request-scoped Supabase client that carries the caller's session.
- *
- * All domain reads and writes go through this client so Row Level Security
- * remains a second line of defence behind API authorisation.
- */
-export async function createUserClient(): Promise<Db> {
+export async function createUserClient(accessToken?: string): Promise<Db> {
+  if (accessToken) {
+    return createClient(supabaseUrl(), supabasePublishableKey(), {
+      auth: { autoRefreshToken: false, persistSession: false },
+      global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    });
+  }
   const cookieStore = await cookies();
   return createServerClient(supabaseUrl(), supabasePublishableKey(), {
     cookies: {
@@ -28,21 +28,12 @@ export async function createUserClient(): Promise<Db> {
           }
         } catch {
           // Route handlers may run in a context where cookies are read-only.
-          // Session refresh is handled by middleware, so this is safe to ignore.
         }
       },
     },
   });
 }
 
-/**
- * Privileged client that bypasses Row Level Security.
- *
- * Restricted to cross-cutting infrastructure that a user session legitimately
- * cannot perform: resolving the auth context, append-only audit writes,
- * idempotency bookkeeping, API logs and scheduled jobs. Never expose it to the
- * browser and never use it to skip an authorisation check.
- */
 export function createAdminClient(): Db {
   const key = supabaseServiceRoleKey();
   if (!key) {
@@ -58,7 +49,6 @@ export function createAdminClient(): Db {
 
 let cachedAdmin: Db | null = null;
 
-/** Memoised admin client for hot paths such as audit logging. */
 export function adminClient(): Db {
   if (!cachedAdmin) cachedAdmin = createAdminClient();
   return cachedAdmin;
