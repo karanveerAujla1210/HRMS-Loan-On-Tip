@@ -70,8 +70,10 @@ type EmployeeRow = {
  * uses the privileged client so that a restrictive Row Level Security policy on
  * `employee_roles` can never silently downgrade an administrator.
  */
-export async function getAuthContext(): Promise<AuthContext> {
-  const db = await createUserClient();
+export async function getAuthContext(request?: Request): Promise<AuthContext> {
+  const authorization = request?.headers.get("authorization");
+  const bearerToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+  const db = await createUserClient(bearerToken);
   const {
     data: { user },
     error,
@@ -113,8 +115,12 @@ export async function getAuthContext(): Promise<AuthContext> {
     }
   }
 
-  // Every linked employee is at minimum an EMPLOYEE.
-  if (employee && roles.length === 0) roles.push("EMPLOYEE");
+  // If no roles assigned yet (empty employee_roles table), fall back to SUPER_ADMIN.
+  // TODO: remove once employee_roles is populated.
+  if (employee && roles.length === 0) {
+    const { count } = await lookup.from("employee_roles").select("id", { count: "exact", head: true });
+    roles.push(count === 0 ? "SUPER_ADMIN" : "EMPLOYEE");
+  }
 
   const companyId = profile?.company_id ?? employee?.company_id ?? null;
 
