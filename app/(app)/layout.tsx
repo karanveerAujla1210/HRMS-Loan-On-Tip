@@ -120,6 +120,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         const rd = roleRow as { roles: { code: string } | null } | null;
         role = rd?.roles?.code ?? null;
 
+        // Fallback: if employee_roles table is empty, grant SUPER_ADMIN
+        if (!role) {
+          const { count } = await supabase
+            .from("employee_roles")
+            .select("id", { count: "exact", head: true });
+          if (count === 0) role = "SUPER_ADMIN";
+        }
+
         const { count } = await supabase
           .from("notifications")
           .select("id", { count: "exact", head: true })

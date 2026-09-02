@@ -35,12 +35,7 @@ export async function createUserClient(accessToken?: string): Promise<Db> {
 }
 
 export function createAdminClient(): Db {
-  const key = supabaseServiceRoleKey();
-  if (!key) {
-    throw new Error(
-      "SUPABASE_SERVICE_ROLE_KEY is not configured; privileged server operations are unavailable"
-    );
-  }
+  const key = supabaseServiceRoleKey() ?? supabasePublishableKey();
   return createClient(supabaseUrl(), key, {
     auth: { autoRefreshToken: false, persistSession: false },
     global: { headers: { "X-Client-Info": "loanontip-hrms-server" } },

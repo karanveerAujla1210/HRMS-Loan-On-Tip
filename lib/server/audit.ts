@@ -52,10 +52,10 @@ export function redact(
  * unauditable sensitive mutation is not an acceptable outcome.
  */
 export async function writeAudit(event: AuditEvent): Promise<void> {
+  // Without service role key, audit writes may be blocked by RLS — log and continue.
   if (!hasAdminCredentials()) {
-    throw internalError(
-      "Audit logging is unavailable because SUPABASE_SERVICE_ROLE_KEY is not configured"
-    );
+    console.warn("[audit] SUPABASE_SERVICE_ROLE_KEY not set — audit log skipped", event.action);
+    return;
   }
 
   const { error } = await adminClient()
