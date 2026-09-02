@@ -9,7 +9,7 @@ import { writeAudit } from "@/lib/audit";
 export const GET = withApi({
   permission: "employee.view",
   query: EmployeeListQuerySchema,
-  handler: async ({ req, ctx, query, requestId }) => {
+  handler: async ({ ctx, query, requestId }) => {
     const companyId = ctx.companyId!;
     const db = adminClient();
 
@@ -58,7 +58,7 @@ export const POST = withApi({
   idempotencyEndpoint: "employees/create",
   idempotencyKey: (body) => body.idempotency_key,
   rateLimit: { limit: 30, windowMs: 60_000 },
-  handler: async ({ req, ctx, body, audit, requestId }) => {
+  handler: async ({ ctx, body, audit, requestId }) => {
     const companyId = ctx.companyId!;
     const db = adminClient();
 

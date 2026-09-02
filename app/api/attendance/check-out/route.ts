@@ -1,6 +1,5 @@
 import "server-only";
 import { withApi, jsonOk } from "@/lib/server/http";
-import { z } from "zod";
 import { CheckOutRequestSchema } from "@hrms/api-contract";
 import { mapDatabaseError } from "@/lib/server/errors";
 import { adminClient } from "@/lib/server/supabase";
@@ -11,7 +10,7 @@ export const POST = withApi({
   idempotencyEndpoint: "attendance/check-out",
   idempotencyKey: (body) => body.idempotency_key,
   rateLimit: { limit: 60, windowMs: 60_000 },
-  handler: async ({ req, ctx, body, audit, requestId }) => {
+  handler: async ({ ctx, body, audit, requestId }) => {
     const employeeId = ctx.employeeId!;
     const nowIso = new Date().toISOString();
     const date = new Date().toISOString().slice(0, 10);

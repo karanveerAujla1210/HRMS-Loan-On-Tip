@@ -1,45 +1,52 @@
-import { route, resolveActor, requirePermission, requireCompany, ok, badRequest, dbError, readJson, serviceClient } from "@/lib/server";
-import { writeAudit } from "@/lib/audit";
+import "server-only";
+import { withApi, jsonOk } from "@/lib/server/http";
+import { z } from "zod";
+import { adminClient } from "@/lib/server/supabase";
+import { mapDatabaseError } from "@/lib/server/errors";
 
-export const POST = route(async (req: Request) => {
-  const actor = await resolveActor();
-  requirePermission(actor, "expense.view");
-  if (!actor.employeeId) throw badRequest("NO_EMPLOYEE", "No employee record linked to this account");
-  const companyId = requireCompany(actor);
+const ExpenseSubmitSchema = z.object({
+  expense_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  category: z.string().min(1),
+  amount: z.number().positive(),
+  description: z.string().nullable().optional(),
+  receipt_path: z.string().nullable().optional(),
+  idempotency_key: z.string().min(8).max(200).optional(),
+});
 
-  const body = await readJson(req);
-  const expense_date = body.expense_date ? String(body.expense_date) : new Date().toISOString().slice(0, 10);
-  const category = body.category ? String(body.category) : null;
-  const amount = body.amount ? Number(body.amount) : 0;
-  if (!category || !(amount > 0)) throw badRequest("INVALID_INPUT", "category and a positive amount are required");
+export const POST = withApi({
+  permission: "expense.view",
+  body: ExpenseSubmitSchema,
+  idempotencyEndpoint: "expense/submit",
+  idempotencyKey: (body) => body.idempotency_key,
+  rateLimit: { limit: 30, windowMs: 60_000 },
+  handler: async ({ ctx, body, audit, requestId }) => {
+    const companyId = ctx.companyId!;
+    const db = adminClient();
 
-  const db = serviceClient();
-  const { data, error } = await db
-    .from("expenses")
-    .insert({
-      employee_id: actor.employeeId,
-      company_id: companyId,
-      expense_date,
-      category,
-      amount,
-      description: body.description ?? null,
-      receipt_path: body.receipt_path ?? null,
-      status: "SUBMITTED",
-      submitted_at: new Date().toISOString(),
-    })
-    .select("id, status")
-    .single();
-  if (error) throw dbError(error);
+    const { data, error } = await db
+      .from("expenses")
+      .insert({
+        employee_id: ctx.employeeId,
+        company_id: companyId,
+        expense_date: body.expense_date,
+        category: body.category,
+        amount: body.amount,
+        description: body.description ?? null,
+        receipt_path: body.receipt_path ?? null,
+        status: "SUBMITTED",
+        submitted_at: new Date().toISOString(),
+      })
+      .select("id, status")
+      .single();
+    if (error) throw mapDatabaseError(error);
 
-  await writeAudit(db, {
-    company_id: companyId,
-    actor_employee_id: actor.employeeId,
-    actor_auth_user_id: actor.authUserId,
-    action: "EXPENSE_SUBMIT",
-    entity_type: "expenses",
-    entity_id: (data as { id: string }).id,
-    new_values: { category, amount },
-  }).catch(() => {});
+    await audit({
+      action: "EXPENSE_SUBMIT",
+      entityType: "expenses",
+      entityId: (data as { id: string }).id,
+      newValues: { category: body.category, amount: body.amount },
+    });
 
-  return ok(data, { status: 201 });
+    return jsonOk(data, requestId, 201);
+  },
 });

@@ -2,7 +2,6 @@ import "server-only";
 import { withApi, jsonOk } from "@/lib/server/http";
 import { z } from "zod";
 import { adminClient } from "@/lib/server/supabase";
-import { writeAudit } from "@/lib/audit";
 import { mapDatabaseError } from "@/lib/server/errors";
 
 const BulkMarkSchema = z.object({
@@ -19,7 +18,7 @@ export const POST = withApi({
   idempotencyEndpoint: "attendance/bulk-mark",
   idempotencyKey: (body) => body.idempotency_key,
   rateLimit: { limit: 5, windowMs: 60_000 },
-  handler: async ({ req, ctx, body, audit, requestId }) => {
+  handler: async ({ ctx, body, audit, requestId }) => {
     const companyId = ctx.companyId!;
     const db = adminClient();
 

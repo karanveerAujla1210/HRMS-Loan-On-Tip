@@ -1,10 +1,7 @@
 import "server-only";
 import { withApi, jsonOk } from "@/lib/server/http";
-import { z } from "zod";
 import { CheckInRequestSchema } from "@hrms/api-contract";
 import { mapDatabaseError } from "@/lib/server/errors";
-import { writeAudit } from "@/lib/audit";
-import { DEFAULT_TIMEZONE } from "@hrms/config";
 import {
   evaluateGeoFence,
   parseTimeToMinutes,
@@ -36,7 +33,7 @@ export const POST = withApi({
   idempotencyEndpoint: "attendance/check-in",
   idempotencyKey: (body) => body.idempotency_key,
   rateLimit: { limit: 60, windowMs: 60_000 },
-  handler: async ({ req, ctx, body, audit, requestId }) => {
+  handler: async ({ ctx, body, audit, requestId }) => {
     const companyId = ctx.companyId!;
     const employeeId = ctx.employeeId!;
     const nowIso = new Date().toISOString();
