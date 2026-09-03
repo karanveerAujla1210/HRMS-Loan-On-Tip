@@ -1,15 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { MOBILE_APP_DOWNLOAD_PATH, MOBILE_APP_VERSION } from "@/lib/mobile-app";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("admin@loanontip.com");
+  const [password, setPassword] = useState("LOT@123");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [otpSent, setOtpSent] = useState(false);
@@ -18,13 +16,14 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) {
       setError(error.message);
       setLoading(false);
       return;
     }
-    router.push("/dashboard");
+    // Hard refresh navigation ensures @supabase/ssr session cookies are sent to Next.js middleware
+    window.location.href = "/dashboard";
   }
 
   async function handleMagicLink(e: React.FormEvent) {
@@ -32,10 +31,15 @@ export default function LoginPage() {
     if (!email) { setError("Enter your email first."); return; }
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithOtp({ email });
+    const { error } = await supabase.auth.signInWithOtp({ email: email.trim() });
     if (error) { setError(error.message); setLoading(false); return; }
     setOtpSent(true);
     setLoading(false);
+  }
+
+  function quickLogin(roleEmail: string) {
+    setEmail(roleEmail);
+    setPassword("LOT@123");
   }
 
   if (otpSent) {
@@ -82,7 +86,7 @@ export default function LoginPage() {
             <input
               id="email"
               type="email"
-               placeholder="you@company.com"
+              placeholder="you@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -90,11 +94,11 @@ export default function LoginPage() {
             />
           </div>
           <div className="form-group">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">Password (Default: LOT@123)</label>
             <input
               id="password"
               type="password"
-              placeholder="••••••••"
+              placeholder="LOT@123"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -102,9 +106,26 @@ export default function LoginPage() {
             />
           </div>
           <button className="btn btn-primary" style={{ width: "100%", marginTop: 4 }} type="submit" disabled={loading}>
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? "Signing in…" : "Sign in with LOT@123"}
           </button>
         </form>
+
+        <div style={{ marginTop: 16 }}>
+          <span style={{ fontSize: 11, color: "var(--text-4)", fontWeight: 600, textTransform: "uppercase" }}>
+            Quick Demo Credentials:
+          </span>
+          <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => quickLogin("admin@loanontip.com")}>
+              Admin
+            </button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => quickLogin("deepak.kumar@loanontip.com")}>
+              Deepak Kumar
+            </button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => quickLogin("naveen.bhilwara@loanontip.com")}>
+              Naveen Bhilwara
+            </button>
+          </div>
+        </div>
 
         <div style={{ textAlign: "center", margin: "16px 0", color: "var(--text-4)", fontSize: 12 }}>or</div>
 
