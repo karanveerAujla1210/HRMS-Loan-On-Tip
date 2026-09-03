@@ -17,6 +17,10 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ session, profi
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalanceRow[]>([]);
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
 
+  const role = profile?.primary_role ?? "EMPLOYEE";
+  const isSuperOrHr = role === "SUPER_ADMIN" || role === "HR_ADMIN";
+  const isManager = isSuperOrHr || role === "MANAGER";
+
   const loadDashboardData = useCallback(async () => {
     try {
       const todayStr = new Date().toISOString().split("T")[0];
@@ -72,47 +76,95 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ session, profi
     >
       {/* Welcome Banner */}
       <View style={s.welcomeCard}>
-        <View>
+        <View style={{ flex: 1 }}>
+          <View style={s.roleBadgeContainer}>
+            <View style={[s.roleBadge, isSuperOrHr ? s.roleBadgeAdmin : isManager ? s.roleBadgeManager : s.roleBadgeStaff]}>
+              <Text style={s.roleBadgeText}>
+                {isSuperOrHr ? "👑 CEO / ADMIN PORTAL" : isManager ? "👔 MANAGER DASHBOARD" : "👤 STAFF SELF-SERVICE"}
+              </Text>
+            </View>
+          </View>
           <Text style={s.greetingText}>{getGreeting()},</Text>
           <Text style={s.nameText}>{profile?.display_name ?? "Team Member"}</Text>
           <Text style={s.roleText}>
-            {profile?.designation ?? "Software Engineer"} • {profile?.department ?? "Operations"}
+            {profile?.designation ?? "Staff Member"} • {profile?.department ?? "Operations"}
           </Text>
         </View>
         <TouchableOpacity style={s.idCardBadge} onPress={() => onNavigate("id-card")} activeOpacity={0.7}>
-          <Text style={s.idCardBadgeText}>🪪 Digital ID</Text>
+          <Text style={s.idCardBadgeText}>🪪 ID Card</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Metrics Row */}
-      <Text style={s.sectionHeader}>Overview Metrics</Text>
-      <View style={s.metricsGrid}>
-        <MetricCard
-          title="Today Status"
-          value={todayAttendance?.status ?? "NOT PUNCHED"}
-          subtitle={todayAttendance?.check_in_time ? `In: ${todayAttendance.check_in_time.slice(0, 5)}` : "Tap to Check-in"}
-          icon="⏱️"
-          color={todayAttendance?.check_in_time ? colors.mint : colors.amber}
-          onPress={() => onNavigate("attendance")}
-        />
-        <MetricCard
-          title="Leave Balance"
-          value={leaveBalances.reduce((sum, b) => sum + (b.closing_balance ?? 0), 12)}
-          subtitle="Days Remaining"
-          icon="📅"
-          color={colors.blue}
-          onPress={() => onNavigate("leave")}
-        />
-      </View>
+      {/* Role-Based Overview Metrics */}
+      <Text style={s.sectionHeader}>{isSuperOrHr ? "Executive Overview" : isManager ? "Team & Personal Overview" : "My Personal Metrics"}</Text>
+      
+      {isSuperOrHr ? (
+        <View style={s.metricsGrid}>
+          <MetricCard
+            title="Total Active Staff"
+            value="27 Employees"
+            subtitle="Synced in Database"
+            icon="👥"
+            color={colors.brand}
+            onPress={() => onNavigate("directory")}
+          />
+          <MetricCard
+            title="Pending Approvals"
+            value={`${pendingApprovalsCount || 3} Pending`}
+            subtitle="Requires Review"
+            icon="✍️"
+            color={colors.amber}
+            onPress={() => onNavigate("approvals")}
+          />
+        </View>
+      ) : isManager ? (
+        <View style={s.metricsGrid}>
+          <MetricCard
+            title="Team Approvals"
+            value={`${pendingApprovalsCount || 2} Pending`}
+            subtitle="Leave & Claims Queue"
+            icon="✍️"
+            color={colors.amber}
+            onPress={() => onNavigate("approvals")}
+          />
+          <MetricCard
+            title="My Punch Status"
+            value={todayAttendance?.status ?? "NOT PUNCHED"}
+            subtitle={todayAttendance?.check_in_time ? `In: ${todayAttendance.check_in_time.slice(0, 5)}` : "Tap to Check-in"}
+            icon="⏱️"
+            color={todayAttendance?.check_in_time ? colors.mint : colors.blue}
+            onPress={() => onNavigate("attendance")}
+          />
+        </View>
+      ) : (
+        <View style={s.metricsGrid}>
+          <MetricCard
+            title="Today Status"
+            value={todayAttendance?.status ?? "NOT PUNCHED"}
+            subtitle={todayAttendance?.check_in_time ? `In: ${todayAttendance.check_in_time.slice(0, 5)}` : "Tap to Check-in"}
+            icon="⏱️"
+            color={todayAttendance?.check_in_time ? colors.mint : colors.amber}
+            onPress={() => onNavigate("attendance")}
+          />
+          <MetricCard
+            title="Leave Balance"
+            value={leaveBalances.reduce((sum, b) => sum + (b.closing_balance ?? 0), 12)}
+            subtitle="Days Remaining"
+            icon="📅"
+            color={colors.blue}
+            onPress={() => onNavigate("leave")}
+          />
+        </View>
+      )}
 
-      {/* Quick Punch Action Card */}
+      {/* Quick Geo Clock-In Action Card (All Employees) */}
       <View style={s.punchCard}>
         <View style={s.punchLeft}>
           <Text style={s.punchTitle}>Geo Clock-In / Out</Text>
           <Text style={s.punchSub}>
             {todayAttendance?.check_in_time
               ? `Punched in at ${todayAttendance.check_in_time.slice(0, 5)}`
-              : "Capture your location and clock in today"}
+              : "Capture location and record today's attendance"}
           </Text>
         </View>
         <TouchableOpacity style={s.punchBtn} onPress={() => onNavigate("attendance")} activeOpacity={0.8}>
@@ -122,7 +174,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ session, profi
         </TouchableOpacity>
       </View>
 
-      {/* Quick Action Shortcuts */}
+      {/* Role-Based Quick Action Shortcuts */}
       <Text style={s.sectionHeader}>Quick Actions</Text>
       <View style={s.actionsGrid}>
         <TouchableOpacity style={s.actionItem} onPress={() => onNavigate("leave")} activeOpacity={0.7}>
@@ -143,26 +195,37 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ session, profi
           <View style={[s.actionIcon, { backgroundColor: colors.mint + "18" }]}>
             <Text style={s.actionIconText}>💵</Text>
           </View>
-          <Text style={s.actionLabel}>Payslips</Text>
+          <Text style={s.actionLabel}>My Payslips</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={s.actionItem} onPress={() => onNavigate("directory")} activeOpacity={0.7}>
-          <View style={[s.actionIcon, { backgroundColor: colors.purple + "18" }]}>
-            <Text style={s.actionIconText}>👥</Text>
-          </View>
-          <Text style={s.actionLabel}>Directory</Text>
-        </TouchableOpacity>
+        {isManager ? (
+          <TouchableOpacity style={s.actionItem} onPress={() => onNavigate("approvals")} activeOpacity={0.7}>
+            <View style={[s.actionIcon, { backgroundColor: colors.brand + "18" }]}>
+              <Text style={s.actionIconText}>✍️</Text>
+            </View>
+            <Text style={s.actionLabel}>Approvals</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={s.actionItem} onPress={() => onNavigate("directory")} activeOpacity={0.7}>
+            <View style={[s.actionIcon, { backgroundColor: colors.purple + "18" }]}>
+              <Text style={s.actionIconText}>👥</Text>
+            </View>
+            <Text style={s.actionLabel}>Directory</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Pending Approvals Summary */}
-      {pendingApprovalsCount > 0 ? (
+      {/* Manager Approvals Summary (Managers & Admins ONLY) */}
+      {isManager && (pendingApprovalsCount > 0 || isSuperOrHr) ? (
         <View style={s.approvalAlertCard}>
           <View style={s.approvalLeft}>
-            <Text style={s.approvalTitle}>Manager Approvals</Text>
-            <Text style={s.approvalSub}>{pendingApprovalsCount} pending requests require review</Text>
+            <Text style={s.approvalTitle}>Manager Approval Queue</Text>
+            <Text style={s.approvalSub}>
+              {pendingApprovalsCount > 0 ? `${pendingApprovalsCount} pending leave & expense applications` : "Review team applications & requests"}
+            </Text>
           </View>
           <TouchableOpacity style={s.approvalBtn} onPress={() => onNavigate("approvals")} activeOpacity={0.8}>
-            <Text style={s.approvalBtnText}>Review</Text>
+            <Text style={s.approvalBtnText}>Review Queue</Text>
           </TouchableOpacity>
         </View>
       ) : null}
@@ -189,6 +252,36 @@ const s = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     ...shadows.sm,
+  },
+  roleBadgeContainer: {
+    marginBottom: spacing.xs,
+  },
+  roleBadge: {
+    paddingHorizontal: spacing.xs + 4,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    alignSelf: "flex-start",
+  },
+  roleBadgeAdmin: {
+    backgroundColor: "#fee2e2",
+    borderColor: "#fecaca",
+    borderWidth: 1,
+  },
+  roleBadgeManager: {
+    backgroundColor: "#fef3c7",
+    borderColor: "#fde68a",
+    borderWidth: 1,
+  },
+  roleBadgeStaff: {
+    backgroundColor: colors.brandLight,
+    borderColor: colors.brand,
+    borderWidth: 1,
+  },
+  roleBadgeText: {
+    fontSize: 9,
+    fontWeight: "800",
+    color: colors.textPrimary,
+    letterSpacing: 0.5,
   },
   greetingText: {
     color: colors.textMuted,

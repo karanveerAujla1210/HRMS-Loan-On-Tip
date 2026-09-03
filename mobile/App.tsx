@@ -26,7 +26,27 @@ export default function App() {
 
   useEffect(() => {
     if (!session?.access_token) return;
-    const userEmail = session.user?.email ?? "admin@loanontip.com";
+    const userEmail = (session.user?.email ?? "admin@loanontip.com").toLowerCase();
+
+    // Determine role based on official employee assignment
+    const isSuperAdmin = userEmail.includes("admin") || userEmail.includes("arjan.gandhi");
+    const isHrAdmin = userEmail.includes("hr") || userEmail.includes("megha.singh");
+    const isManager =
+      isSuperAdmin ||
+      isHrAdmin ||
+      userEmail.includes("mudit.bhardwaj") ||
+      userEmail.includes("kishan.kumar") ||
+      userEmail.includes("naveen.bhilwara") ||
+      userEmail.includes("ankit.kumar") ||
+      userEmail.includes("anand");
+
+    const derivedRole = isSuperAdmin
+      ? "SUPER_ADMIN"
+      : isHrAdmin
+      ? "HR_ADMIN"
+      : isManager
+      ? "MANAGER"
+      : "EMPLOYEE";
 
     // Attempt live Supabase DB profile query matching official_email
     dbGet<ProfileRow>(
@@ -39,11 +59,7 @@ export default function App() {
         if (first) {
           setProfile({
             ...first,
-            primary_role: userEmail.includes("admin")
-              ? "SUPER_ADMIN"
-              : userEmail.includes("hr")
-              ? "HR_ADMIN"
-              : "EMPLOYEE",
+            primary_role: derivedRole,
           });
         } else {
           throw new Error("No live profile row found");
@@ -51,42 +67,22 @@ export default function App() {
       })
       .catch(() => {
         // Fallback exact role authorization mapping based on user email
-        if (userEmail.includes("admin")) {
-          setProfile({
-            display_name: "Karanveer Aujla (Admin)",
-            employee_code: "EMP-000001",
-            official_email: userEmail,
-            department: "Executive & Admin",
-            designation: "Chief Executive / Admin",
-            location: "Head Office (Delhi)",
-            joining_date: "2024-01-15",
-            primary_role: "SUPER_ADMIN",
-          });
-        } else if (userEmail.includes("hr")) {
-          setProfile({
-            display_name: "Priya Verma (HR)",
-            employee_code: "EMP-000002",
-            official_email: userEmail,
-            department: "Human Resources",
-            designation: "HR Operations Manager",
-            location: "Head Office (Delhi)",
-            joining_date: "2024-03-01",
-            primary_role: "HR_ADMIN",
-          });
-        } else {
-          const prefix = userEmail.split("@")[0] || "Employee";
-          const formattedName = prefix.charAt(0).toUpperCase() + prefix.slice(1).replace(/[._]/g, " ");
-          setProfile({
-            display_name: formattedName,
-            employee_code: "EMP-000042",
-            official_email: userEmail,
-            department: "Engineering & Operations",
-            designation: "Software Engineer",
-            location: "Head Office (Delhi)",
-            joining_date: "2024-06-01",
-            primary_role: "EMPLOYEE",
-          });
-        }
+        const prefix = userEmail.split("@")[0] || "Employee";
+        const formattedName = prefix
+          .split(".")
+          .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(" ");
+
+        setProfile({
+          display_name: formattedName,
+          employee_code: userEmail.includes("admin") ? "EMP-000001" : "EMP005",
+          official_email: userEmail,
+          department: userEmail.includes("credit") ? "Credit" : userEmail.includes("collection") ? "Collection" : "Management",
+          designation: derivedRole === "SUPER_ADMIN" ? "CEO / Executive" : derivedRole === "MANAGER" ? "Team Lead / Manager" : "Staff Member",
+          location: "Head Office (Delhi)",
+          joining_date: "2024-01-15",
+          primary_role: derivedRole,
+        });
       });
   }, [session?.access_token, session?.user?.email]);
 
@@ -134,7 +130,7 @@ export default function App() {
       case "profile":
         return <ProfileScreen profile={profile} onSignOut={handleSignOut} />;
       case "approvals":
-        return <ApprovalsScreen session={session} />;
+        return isManager ? <ApprovalsScreen session={session} /> : <DashboardScreen session={session} profile={profile} onNavigate={setActiveTab} />;
       default:
         return <DashboardScreen session={session} profile={profile} onNavigate={setActiveTab} />;
     }
