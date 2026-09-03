@@ -44,7 +44,7 @@ export default function DashboardPage() {
   const onLeave  = Number(metrics.on_leave_today ?? 0);
   const rate     = active ? Math.round((present / active) * 100) : 0;
 
-  const isAdmin = !role || ["SUPER_ADMIN","HR_ADMIN","FINANCE_ADMIN","OPERATIONS_ADMIN","MANAGER"].includes(role);
+  const isAdmin = Boolean(role && ["SUPER_ADMIN","HR_ADMIN","FINANCE_ADMIN","OPERATIONS_ADMIN","MANAGER"].includes(role));
 
   if (loading) {
     return (

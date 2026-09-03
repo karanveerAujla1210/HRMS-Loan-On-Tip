@@ -1,5 +1,5 @@
 -- ==============================================================================
--- MIGRATION 36: Harden RLS on sensitive tables
+-- MIGRATION 43: Harden RLS on sensitive tables
 --
 -- Several early migrations left UNRESTRICTED policies (USING (true) / FOR ALL
 -- USING (true)) on asset, salary, holiday and dynamic-field tables. Those let
@@ -196,4 +196,4 @@ create policy "employee_custom_data: self or hr write"
     or public.has_permission('employee.update')
   );
 
-select 'Migration 36 (RLS hardening) completed' as status;
+select 'Migration 43 (RLS hardening) completed' as status;

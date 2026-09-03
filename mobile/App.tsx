@@ -28,27 +28,7 @@ export default function App() {
     if (!session?.access_token) return;
     const userEmail = (session.user?.email ?? "admin@loanontip.com").toLowerCase();
 
-    // Determine role based on official employee assignment
-    const isSuperAdmin = userEmail.includes("admin") || userEmail.includes("arjan.gandhi");
-    const isHrAdmin = userEmail.includes("hr") || userEmail.includes("megha.singh");
-    const isManager =
-      isSuperAdmin ||
-      isHrAdmin ||
-      userEmail.includes("mudit.bhardwaj") ||
-      userEmail.includes("kishan.kumar") ||
-      userEmail.includes("naveen.bhilwara") ||
-      userEmail.includes("ankit.kumar") ||
-      userEmail.includes("anand");
-
-    const derivedRole = isSuperAdmin
-      ? "SUPER_ADMIN"
-      : isHrAdmin
-      ? "HR_ADMIN"
-      : isManager
-      ? "MANAGER"
-      : "EMPLOYEE";
-
-    // Attempt live Supabase DB profile query matching official_email
+    // Fetch official profile from live Supabase DB
     dbGet<ProfileRow>(
       "v_employee_directory",
       `select=display_name,employee_code,official_email,department,designation,location,joining_date&official_email=eq.${encodeURIComponent(userEmail)}&limit=1`,
@@ -59,14 +39,13 @@ export default function App() {
         if (first) {
           setProfile({
             ...first,
-            primary_role: derivedRole,
+            primary_role: first.primary_role ?? "EMPLOYEE",
           });
         } else {
           throw new Error("No live profile row found");
         }
       })
       .catch(() => {
-        // Fallback exact role authorization mapping based on user email
         const prefix = userEmail.split("@")[0] || "Employee";
         const formattedName = prefix
           .split(".")
@@ -75,13 +54,13 @@ export default function App() {
 
         setProfile({
           display_name: formattedName,
-          employee_code: userEmail.includes("admin") ? "EMP-000001" : "EMP005",
+          employee_code: "EMP-000000",
           official_email: userEmail,
-          department: userEmail.includes("credit") ? "Credit" : userEmail.includes("collection") ? "Collection" : "Management",
-          designation: derivedRole === "SUPER_ADMIN" ? "CEO / Executive" : derivedRole === "MANAGER" ? "Team Lead / Manager" : "Staff Member",
-          location: "Head Office (Delhi)",
+          department: "Staff",
+          designation: "Staff Member",
+          location: "Head Office",
           joining_date: "2024-01-15",
-          primary_role: derivedRole,
+          primary_role: "EMPLOYEE",
         });
       });
   }, [session?.access_token, session?.user?.email]);

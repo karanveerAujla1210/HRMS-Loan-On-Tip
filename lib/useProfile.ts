@@ -40,11 +40,6 @@ export function useProfile(): ProfileCtx {
         role = rd?.roles?.code ?? null;
       }
 
-      // Fallback: if no role assigned yet, treat the profile-linked employee as SUPER_ADMIN
-      // This covers fresh setups where employee_roles hasn't been seeded yet.
-      if (!role && prof?.employee_id) {
-        role = "SUPER_ADMIN";
-      }
 
       setCtx({
         companyId: prof?.company_id ?? null,

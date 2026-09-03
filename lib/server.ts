@@ -2,6 +2,8 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import type { Role } from "@hrms/api-contract";
+import { getAuthContext } from "./server/auth";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
@@ -58,6 +60,7 @@ export type Actor = {
   profileId: string;
   permissions: Set<string>;
   role: string | null;
+  roles: Role[];
 };
 
 /**
@@ -66,57 +69,17 @@ export type Actor = {
  * the client). Throws {@link ApiError} when unauthenticated / unlinked.
  */
 export async function resolveActor(): Promise<Actor> {
-  const cookieStore = await cookies();
-  const auth = createServerClient(SUPABASE_URL!, SUPABASE_PUBLISHABLE_KEY!, {
-    cookies: { getAll: () => cookieStore.getAll() },
-  });
-
-  const {
-    data: { user },
-    error,
-  } = await auth.auth.getUser();
-  if (error || !user) throw unauthorized();
-
-  const db = serviceClient();
-  const { data: profile, error: profileError } = await db
-    .from("profiles")
-    .select("id, employee_id, company_id")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
-
-  if (profileError || !profile) throw forbidden("No profile is linked to this account");
-
-  const employeeId = profile.employee_id as string | null;
-  let role: string | null = null;
-  const permissions = new Set<string>();
-
-  if (employeeId) {
-    const { data: perms } = await db.rpc("permissions_for_employee", {
-      p_employee_id: employeeId,
-    });
-    for (const code of (Array.isArray(perms) ? (perms as string[]) : []) as string[]) {
-      permissions.add(code);
-    }
-
-    const { data: roles } = await db
-      .from("employee_roles")
-      .select("roles(code, is_system)")
-      .eq("employee_id", employeeId)
-      .eq("is_active", true);
-
-    for (const er of (roles ?? []) as Array<{ roles?: { code?: string } | null }>) {
-      const code = er.roles?.code;
-      if (code && !role) role = code;
-    }
-  }
+  const ctx = await getAuthContext();
+  if (!ctx.profileId) throw forbidden("No profile is linked to this account");
 
   return {
-    authUserId: user.id,
-    employeeId,
-    companyId: (profile.company_id as string) ?? null,
-    profileId: profile.id as string,
-    permissions,
-    role,
+    authUserId: ctx.authUserId,
+    employeeId: ctx.employeeId,
+    companyId: ctx.companyId,
+    profileId: ctx.profileId,
+    permissions: new Set(ctx.permissions),
+    role: ctx.primaryRole,
+    roles: ctx.roles,
   };
 }
 

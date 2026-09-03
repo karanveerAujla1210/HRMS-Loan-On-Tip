@@ -115,12 +115,6 @@ export async function getAuthContext(request?: Request): Promise<AuthContext> {
     }
   }
 
-  // If no roles assigned yet (empty employee_roles table), fall back to SUPER_ADMIN.
-  // TODO: remove once employee_roles is populated.
-  if (employee && roles.length === 0) {
-    const { count } = await lookup.from("employee_roles").select("id", { count: "exact", head: true });
-    roles.push(count === 0 ? "SUPER_ADMIN" : "EMPLOYEE");
-  }
 
   const companyId = profile?.company_id ?? employee?.company_id ?? null;
 
@@ -201,6 +195,12 @@ export function requireCompany(ctx: AuthContext): string {
 
 export function isSuperAdmin(ctx: AuthContext): boolean {
   return ctx.roles.includes("SUPER_ADMIN");
+}
+
+export function requireRole(ctx: AuthContext, role: Role): void {
+  if (!ctx.roles.includes(role)) {
+    throw forbidden(`Missing required role: ${role}`);
+  }
 }
 
 /**

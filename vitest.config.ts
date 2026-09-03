@@ -10,6 +10,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      "server-only": fileURLToPath(
+        new URL("./tests/mocks/server-only.js", import.meta.url)
+      ),
       "@": fileURLToPath(new URL("./", import.meta.url)),
       "@hrms/api-contract": fileURLToPath(
         new URL("./packages/api-contract/src/index.ts", import.meta.url)

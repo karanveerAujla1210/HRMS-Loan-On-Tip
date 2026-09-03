@@ -46,7 +46,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ profile, onSignOut
         <Text style={s.nameText}>{profile?.display_name ?? "Karanveer Aujla"}</Text>
         <Text style={s.designationText}>{profile?.designation ?? "Lead Architect"}</Text>
         <View style={s.roleBadge}>
-          <Text style={s.roleText}>{profile?.primary_role ?? "SUPER_ADMIN"}</Text>
+          <Text style={s.roleText}>{profile?.primary_role ?? "EMPLOYEE"}</Text>
         </View>
       </View>
 
