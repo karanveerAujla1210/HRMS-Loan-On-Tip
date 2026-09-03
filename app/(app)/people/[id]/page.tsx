@@ -31,6 +31,9 @@ export default function EmployeeDetailPage() {
   const [locs, setLocs] = useState<Emp[]>([]);
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [customData, setCustomData] = useState<Record<string, unknown>>({});
+  const [loginStatus, setLoginStatus] = useState<{ hasLogin: boolean; checked: boolean }>({ hasLogin: false, checked: false });
+  const [generatingLogin, setGeneratingLogin] = useState(false);
+  const [loginMsg, setLoginMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,7 +63,14 @@ export default function EmployeeDetailPage() {
       });
       setCustomData(cdMap);
     }
-    
+
+    const { data: profileRow } = await supabase
+      .from("profiles")
+      .select("id, auth_user_id")
+      .eq("employee_id", id)
+      .maybeSingle();
+    setLoginStatus({ hasLogin: !!(profileRow as Record<string, unknown> | null)?.auth_user_id, checked: true });
+
     setLoading(false);
   }, [id]);
 
@@ -118,6 +128,24 @@ export default function EmployeeDetailPage() {
     setSaving(false);
   }
 
+  async function handleGenerateLogin() {
+    setGeneratingLogin(true);
+    setLoginMsg(null);
+    const res = await fetch(`/api/employees/${id}/generate-login`, { method: "POST" });
+    const json = await res.json();
+    if (json.error) {
+      setLoginMsg({ type: "error", text: json.error.message ?? "Failed to generate login" });
+    } else {
+      const d = json.data as { message: string; email: string; already_existed: boolean };
+      setLoginMsg({
+        type: "success",
+        text: d.already_existed ? `Login already exists for ${d.email}` : `Invite email sent to ${d.email}`,
+      });
+      setLoginStatus({ hasLogin: true, checked: true });
+    }
+    setGeneratingLogin(false);
+  }
+
   if (loading) return <div className="loading-spinner" style={{ minHeight: "60vh" }}><div className="spinner" /> Loading…</div>;
   if (!emp) return <div className="page-body"><div className="alert alert-error">{error ?? "Employee not found."}</div></div>;
 
@@ -137,6 +165,20 @@ export default function EmployeeDetailPage() {
         actions={
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button className="btn btn-secondary btn-sm" onClick={() => router.push("/people")}>← People Directory</button>
+            {loginStatus.checked && !loginStatus.hasLogin && !!emp.official_email && (
+              <button
+                className="btn btn-warning btn-sm"
+                onClick={() => void handleGenerateLogin()}
+                disabled={generatingLogin}
+              >
+                {generatingLogin ? "Generating…" : "🔑 Generate Login"}
+              </button>
+            )}
+            {loginStatus.checked && loginStatus.hasLogin && (
+              <span style={{ fontSize: 12, color: "var(--success)", display: "flex", alignItems: "center", gap: 4, padding: "0 8px" }}>
+                ✓ Login Active
+              </span>
+            )}
             <Link href={`/people/${id}/id-card`} className="btn btn-primary btn-sm">🖨 ID Card</Link>
           </div>
         }
@@ -146,6 +188,11 @@ export default function EmployeeDetailPage() {
 
       <div className="page-body">
         {msg && <div className="alert alert-success">{msg}</div>}
+        {loginMsg && (
+          <div className={`alert alert-${loginMsg.type === "success" ? "success" : "error"}`}>
+            {loginMsg.text}
+          </div>
+        )}
 
         <div className="card">
           <div className="card-header">
@@ -322,7 +369,7 @@ export default function EmployeeDetailPage() {
               ].map(([label, val]) => (
                 <div key={String(label)}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".5px" }}>{String(label)}</div>
-                  <div style={{ fontSize: 13, color: "var(--text)", marginTop: 3 }}>{val ? String(val) : <span style={{ color: "var(--text-4)" }}>—</span>}</div>
+                  <div style={{ fontSize: 13, color: "var(--text)", marginTop: 3 }}>{val != null && val !== "" ? String(val) : <span style={{ color: "var(--text-4)" }}>—</span>}</div>
                 </div>
               ))}
               
