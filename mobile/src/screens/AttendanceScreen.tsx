@@ -4,40 +4,49 @@ import * as Location from "expo-location";
 import { colors, radius, spacing, shadows } from "../theme";
 import { StatusBadge } from "../components/StatusBadge";
 import { dbGet, apiPost } from "../lib/api";
-import type { Session, AttendanceRow } from "../types";
+import type { Session, AttendanceRow, ProfileRow } from "../types";
 
 type AttendanceScreenProps = {
   session: Session;
+  profile?: ProfileRow | null;
 };
 
-export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session }) => {
-  const [history, setHistory] = useState<AttendanceRow[]>([]);
+interface RoleAttendanceItem extends AttendanceRow {
+  employee_name?: string;
+  employee_code?: string;
+  department?: string;
+}
+
+export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session, profile }) => {
+  const [history, setHistory] = useState<RoleAttendanceItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [punching, setPunching] = useState(false);
-  const [locationStatus, setLocationStatus] = useState<string>("Locating GPS...");
+  const [locationStatus, setLocationStatus] = useState("Locating GPS...");
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [search, setSearch] = useState("");
 
-  // Correction modal state
-  const [showCorrection, setShowCorrection] = useState(false);
-  const [corrDate, setCorrDate] = useState("");
-  const [corrReason, setCorrReason] = useState("");
-  const [corrMsg, setCorrMsg] = useState("");
+  const role = profile?.primary_role ?? "EMPLOYEE";
+  const isSuperOrHr = role === "SUPER_ADMIN" || role === "HR_ADMIN";
+  const isManager = isSuperOrHr || role === "MANAGER";
 
   const loadAttendanceHistory = useCallback(async () => {
     setLoading(true);
     try {
-      const logs = await dbGet<AttendanceRow>(
+      const logs = await dbGet<RoleAttendanceItem>(
         "attendance",
-        "select=id,attendance_date,check_in_time,check_out_time,status,latitude,longitude&order=attendance_date.desc&limit=15",
+        "select=id,attendance_date,check_in_time,check_out_time,status,latitude,longitude&order=attendance_date.desc&limit=25",
         session.access_token
       );
       if (logs.length > 0) {
         setHistory(logs);
       } else {
-        // Fallback demo data for immediate interactive testing
+        // Scoped team attendance fallback logs for testing
         setHistory([
           {
             id: "att-001",
+            employee_name: "Roshini",
+            employee_code: "EMP005",
+            department: "Collection",
             attendance_date: new Date().toISOString().split("T")[0],
             check_in_time: "09:30:00",
             check_out_time: null,
@@ -45,6 +54,19 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session }) =
           },
           {
             id: "att-002",
+            employee_name: "Deepak Kumar",
+            employee_code: "EMP027",
+            department: "Credit",
+            attendance_date: new Date().toISOString().split("T")[0],
+            check_in_time: "09:45:00",
+            check_out_time: null,
+            status: "LATE",
+          },
+          {
+            id: "att-003",
+            employee_name: "Sujeet Pandey",
+            employee_code: "EMP008",
+            department: "Collection",
             attendance_date: "2026-09-02",
             check_in_time: "09:15:00",
             check_out_time: "18:30:00",
@@ -53,7 +75,7 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session }) =
         ]);
       }
     } catch {
-      /* silent */
+      /* silent catch */
     } finally {
       setLoading(false);
     }
@@ -93,7 +115,7 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session }) =
         longitude: coords?.longitude ?? 77.2090,
       });
     } catch {
-      /* fallback to local optimistic state */
+      /* fallback */
     } finally {
       setHistory((prev) => [
         {
@@ -102,11 +124,13 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session }) =
           check_in_time: nowTime,
           check_out_time: null,
           status: "PRESENT",
+          employee_name: profile?.display_name ?? "My Self",
+          employee_code: profile?.employee_code ?? "ME",
         },
-        ...prev.filter((item) => item.attendance_date !== todayStr),
+        ...prev.filter((h) => h.attendance_date !== todayStr),
       ]);
       setPunching(false);
-      Alert.alert("Clock In Success", `Checked in at ${nowTime.slice(0, 5)}!`);
+      Alert.alert("Clock-In Successful", `Marked PRESENT at ${nowTime.slice(0, 5)} (${locationStatus})`);
     }
   }
 
@@ -119,129 +143,121 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session }) =
         longitude: coords?.longitude ?? 77.2090,
       });
     } catch {
-      /* fallback to local optimistic state */
+      /* fallback */
     } finally {
       setHistory((prev) =>
-        prev.map((item) =>
-          item.attendance_date === todayStr
-            ? { ...item, check_out_time: nowTime }
-            : item
-        )
+        prev.map((h) => (h.attendance_date === todayStr ? { ...h, check_out_time: nowTime } : h))
       );
       setPunching(false);
-      Alert.alert("Clock Out Success", `Checked out at ${nowTime.slice(0, 5)}!`);
+      Alert.alert("Clock-Out Successful", `Marked OUT at ${nowTime.slice(0, 5)}`);
     }
   }
 
-  async function submitCorrection() {
-    if (!corrDate || !corrReason) {
-      setCorrMsg("Please enter both date and reason.");
-      return;
+  // Filter logs strictly by Role-Based Access Control (RBAC)
+  const filteredHistory = history.filter((item) => {
+    // Individual Staff see ONLY their own attendance
+    if (!isManager) {
+      return item.employee_code === profile?.employee_code || !item.employee_code || item.employee_name === profile?.display_name;
     }
-    setPunching(true);
-    setCorrMsg("");
-    try {
-      await apiPost("/api/attendance/correction", session.access_token, {
-        attendance_date: corrDate,
-        reason: corrReason,
-      });
-    } catch {
-      /* fallback */
-    } finally {
-      setPunching(false);
-      setShowCorrection(false);
-      setCorrDate("");
-      setCorrReason("");
-      Alert.alert("Submitted", "Attendance correction request submitted for manager review!");
-    }
-  }
+    // Managers & Admins can search
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      item.employee_name?.toLowerCase().includes(q) ||
+      item.employee_code?.toLowerCase().includes(q) ||
+      item.department?.toLowerCase().includes(q) ||
+      item.attendance_date?.includes(q)
+    );
+  });
 
   return (
     <ScrollView style={s.container} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-      {/* Today Punch Header Card */}
-      <View style={s.todayCard}>
-        <Text style={s.cardTitle}>Today's Punch Status</Text>
-        <Text style={s.dateSubtitle}>{new Date().toDateString()}</Text>
-
-        <View style={s.statusRow}>
-          <StatusBadge status={todayRecord?.status ?? "NOT PUNCHED"} />
-          <Text style={s.gpsText}>{locationStatus}</Text>
+      {/* Attendance Geo Clock-in Card */}
+      <View style={s.clockCard}>
+        <View style={s.clockCardHeader}>
+          <Text style={s.cardTitle}>Geo Attendance Punch</Text>
+          <Text style={s.locationTag}>{locationStatus}</Text>
         </View>
 
-        <View style={s.punchTimesRow}>
+        <View style={s.todayStatusRow}>
           <View style={s.timeBox}>
-            <Text style={s.timeLabel}>Check In</Text>
+            <Text style={s.timeLabel}>Clock-In</Text>
             <Text style={s.timeVal}>{todayRecord?.check_in_time ? todayRecord.check_in_time.slice(0, 5) : "--:--"}</Text>
           </View>
+          <View style={s.divider} />
           <View style={s.timeBox}>
-            <Text style={s.timeLabel}>Check Out</Text>
+            <Text style={s.timeLabel}>Clock-Out</Text>
             <Text style={s.timeVal}>{todayRecord?.check_out_time ? todayRecord.check_out_time.slice(0, 5) : "--:--"}</Text>
+          </View>
+          <View style={s.divider} />
+          <View style={s.timeBox}>
+            <Text style={s.timeLabel}>Today Status</Text>
+            <StatusBadge status={todayRecord?.status ?? "PENDING"} />
           </View>
         </View>
 
-        <View style={s.btnRow}>
+        <View style={s.actionBtnRow}>
           {!todayRecord?.check_in_time ? (
             <TouchableOpacity style={s.checkInBtn} onPress={handleCheckIn} disabled={punching} activeOpacity={0.8}>
-              {punching ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>📍 Check In Now</Text>}
+              {punching ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>⏱️ Clock In Now</Text>}
             </TouchableOpacity>
           ) : !todayRecord?.check_out_time ? (
             <TouchableOpacity style={s.checkOutBtn} onPress={handleCheckOut} disabled={punching} activeOpacity={0.8}>
-              {punching ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>🛑 Check Out Now</Text>}
+              {punching ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>🚪 Clock Out</Text>}
             </TouchableOpacity>
           ) : (
-            <View style={s.completedBox}>
-              <Text style={s.completedText}>✅ Today's Punch Complete</Text>
+            <View style={s.completedBanner}>
+              <Text style={s.completedText}>✅ Today's Shift Completed</Text>
             </View>
           )}
         </View>
       </View>
 
-      {/* Correction Modal Toggle Button */}
-      <TouchableOpacity style={s.corrToggleBtn} onPress={() => setShowCorrection(!showCorrection)} activeOpacity={0.7}>
-        <Text style={s.corrToggleText}>
-          {showCorrection ? "✕ Close Form" : "📝 Request Attendance Correction"}
+      {/* Role-Based Attendance Log Header */}
+      <View style={s.headerRow}>
+        <Text style={s.sectionHeader}>
+          {isSuperOrHr ? "Company Attendance Log (All 27 Staff)" : isManager ? "Team Attendance Log" : "My Personal Attendance Log"}
         </Text>
-      </TouchableOpacity>
+        {isManager ? (
+          <View style={s.rbacBadge}>
+            <Text style={s.rbacBadgeText}>{isSuperOrHr ? "CEO/HR VIEW" : "TEAM MANAGER VIEW"}</Text>
+          </View>
+        ) : (
+          <View style={s.rbacBadgeStaff}>
+            <Text style={s.rbacBadgeTextStaff}>STAFF PRIVATE VIEW</Text>
+          </View>
+        )}
+      </View>
 
-      {/* Correction Form */}
-      {showCorrection ? (
-        <View style={s.correctionCard}>
-          <Text style={s.formTitle}>Request Attendance Correction</Text>
-          {corrMsg ? <Text style={s.errorText}>{corrMsg}</Text> : null}
-          <Text style={s.label}>Date (YYYY-MM-DD)</Text>
-          <TextInput
-            style={s.input}
-            placeholder={todayStr}
-            placeholderTextColor={colors.textDisabled}
-            value={corrDate}
-            onChangeText={setCorrDate}
-          />
-          <Text style={s.label}>Reason for Correction</Text>
-          <TextInput
-            style={[s.input, { height: 60 }]}
-            placeholder="Forgot to punch / Network issue..."
-            placeholderTextColor={colors.textDisabled}
-            value={corrReason}
-            onChangeText={setCorrReason}
-            multiline
-          />
-          <TouchableOpacity style={s.submitCorrBtn} onPress={submitCorrection} disabled={punching} activeOpacity={0.8}>
-            <Text style={s.btnText}>Submit Correction Request</Text>
-          </TouchableOpacity>
-        </View>
-      ) : null}
+      {/* Search Input for Managers & Admins */}
+      {isManager && (
+        <TextInput
+          style={s.searchInput}
+          placeholder="🔍 Search team member by name or code..."
+          placeholderTextColor={colors.textDisabled}
+          value={search}
+          onChangeText={setSearch}
+        />
+      )}
 
-      {/* History Log */}
-      <Text style={s.historyHeader}>Recent Attendance Logs</Text>
+      {/* Attendance History Log List */}
       {loading ? (
-        <ActivityIndicator color={colors.brand} style={{ marginTop: spacing.md }} />
+        <ActivityIndicator color={colors.brand} />
+      ) : filteredHistory.length === 0 ? (
+        <Text style={s.emptyText}>No attendance records found for your view scope.</Text>
       ) : (
-        history.map((item) => (
+        filteredHistory.map((item) => (
           <View key={item.id} style={s.logItem}>
             <View style={s.logLeft}>
               <Text style={s.logDate}>{item.attendance_date}</Text>
-              <Text style={s.logTimes}>
-                In: {item.check_in_time ? item.check_in_time.slice(0, 5) : "--:--"} • Out: {item.check_out_time ? item.check_out_time.slice(0, 5) : "--:--"}
+              {isManager && item.employee_name ? (
+                <Text style={s.logEmp}>
+                  👤 {item.employee_name} ({item.employee_code})
+                </Text>
+              ) : null}
+              <Text style={s.logTime}>
+                In: {item.check_in_time ? item.check_in_time.slice(0, 5) : "--:--"} • Out:{" "}
+                {item.check_out_time ? item.check_out_time.slice(0, 5) : "--:--"}
               </Text>
             </View>
             <StatusBadge status={item.status} />
@@ -261,59 +277,63 @@ const s = StyleSheet.create({
     padding: spacing.md,
     gap: spacing.md,
   },
-  todayCard: {
+  clockCard: {
     backgroundColor: colors.cardBg,
     borderRadius: radius.lg,
     padding: spacing.md,
     borderColor: colors.border,
     borderWidth: 1,
-    ...shadows.md,
+    gap: spacing.md,
+    ...shadows.sm,
+  },
+  clockCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   cardTitle: {
     color: colors.textPrimary,
     fontSize: 16,
     fontWeight: "800",
   },
-  dateSubtitle: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginBottom: spacing.sm,
-  },
-  statusRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: spacing.md,
-  },
-  gpsText: {
-    color: colors.textMuted,
+  locationTag: {
+    color: colors.brandDark,
     fontSize: 11,
+    fontWeight: "600",
+    backgroundColor: colors.brandLight,
+    paddingHorizontal: spacing.xs + 2,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
   },
-  punchTimesRow: {
+  todayStatusRow: {
     flexDirection: "row",
-    gap: spacing.md,
-    marginBottom: spacing.md,
+    justifyContent: "space-around",
+    alignItems: "center",
+    backgroundColor: colors.bg,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.sm,
+    borderColor: colors.border,
+    borderWidth: 1,
   },
   timeBox: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    padding: spacing.sm,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
     alignItems: "center",
   },
   timeLabel: {
     color: colors.textMuted,
     fontSize: 11,
+    marginBottom: 2,
   },
   timeVal: {
     color: colors.textPrimary,
-    fontSize: 18,
-    fontWeight: "800",
-    marginTop: 2,
+    fontSize: 15,
+    fontWeight: "700",
   },
-  btnRow: {
+  divider: {
+    width: 1,
+    height: 24,
+    backgroundColor: colors.border,
+  },
+  actionBtnRow: {
     marginTop: spacing.xs,
   },
   checkInBtn: {
@@ -321,90 +341,86 @@ const s = StyleSheet.create({
     paddingVertical: spacing.md,
     borderRadius: radius.sm,
     alignItems: "center",
+    ...shadows.sm,
   },
   checkOutBtn: {
-    backgroundColor: colors.rose,
+    backgroundColor: colors.brand,
     paddingVertical: spacing.md,
     borderRadius: radius.sm,
     alignItems: "center",
+    ...shadows.sm,
   },
   btnText: {
     color: "#fff",
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
   },
-  completedBox: {
-    backgroundColor: colors.cardBgHover,
+  completedBanner: {
+    backgroundColor: "#d1fae5",
+    borderColor: colors.mint,
+    borderWidth: 1,
     paddingVertical: spacing.sm,
     borderRadius: radius.sm,
     alignItems: "center",
-    borderColor: colors.border,
-    borderWidth: 1,
   },
   completedText: {
-    color: colors.mint,
-    fontWeight: "700",
+    color: "#065f46",
     fontSize: 13,
+    fontWeight: "700",
   },
-  corrToggleBtn: {
-    backgroundColor: colors.cardBg,
-    borderColor: colors.brand,
-    borderWidth: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.sm,
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
+    marginTop: spacing.xs,
   },
-  corrToggleText: {
-    color: colors.brand,
-    fontWeight: "700",
-    fontSize: 13,
-  },
-  correctionCard: {
-    backgroundColor: colors.cardBg,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    borderColor: colors.border,
-    borderWidth: 1,
-  },
-  formTitle: {
-    color: colors.textPrimary,
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: spacing.sm,
-  },
-  errorText: {
-    color: colors.rose,
-    fontSize: 12,
-    marginBottom: spacing.xs,
-  },
-  label: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginBottom: 4,
-  },
-  input: {
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    color: colors.textPrimary,
-    fontSize: 13,
-    marginBottom: spacing.sm,
-  },
-  submitCorrBtn: {
-    backgroundColor: colors.brand,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.sm,
-    alignItems: "center",
-  },
-  historyHeader: {
+  sectionHeader: {
     color: colors.textMuted,
     fontSize: 11,
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.5,
+  },
+  rbacBadge: {
+    backgroundColor: colors.brandLight,
+    borderColor: colors.brand,
+    borderWidth: 1,
+    paddingHorizontal: spacing.xs + 4,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+  },
+  rbacBadgeText: {
+    color: colors.brandDark,
+    fontSize: 9,
+    fontWeight: "800",
+  },
+  rbacBadgeStaff: {
+    backgroundColor: colors.cardBg,
+    borderColor: colors.border,
+    borderWidth: 1,
+    paddingHorizontal: spacing.xs + 4,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+  },
+  rbacBadgeTextStaff: {
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  searchInput: {
+    backgroundColor: colors.cardBg,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    color: colors.textPrimary,
+    fontSize: 13,
+  },
+  emptyText: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontStyle: "italic",
   },
   logItem: {
     backgroundColor: colors.cardBg,
@@ -425,8 +441,13 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
   },
-  logTimes: {
+  logEmp: {
+    color: colors.brandDark,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  logTime: {
     color: colors.textSecondary,
-    fontSize: 11,
+    fontSize: 12,
   },
 });

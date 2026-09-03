@@ -114,7 +114,7 @@ export default function App() {
       case "dashboard":
         return <DashboardScreen session={session} profile={profile} onNavigate={setActiveTab} />;
       case "attendance":
-        return <AttendanceScreen session={session} />;
+        return <AttendanceScreen session={session} profile={profile} />;
       case "leave":
         return <LeaveScreen session={session} />;
       case "payroll":
