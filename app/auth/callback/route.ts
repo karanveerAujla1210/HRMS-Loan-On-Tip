@@ -7,6 +7,14 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/dashboard";
 
+  // Invite links carry a hash fragment (#access_token=...&type=invite) which
+  // the browser never sends to the server. Redirect to the client-side
+  // set-password page which reads the hash and calls updateUser.
+  const type = searchParams.get("type");
+  if (type === "invite") {
+    return NextResponse.redirect(new URL("/auth/set-password", origin));
+  }
+
   if (code) {
     const cookieStore = await cookies();
     const supabase = createServerClient(

@@ -47,7 +47,7 @@ export const POST = withApi<never, never, { id: string }>({
     // Derive the app URL from the incoming request headers (works on Vercel + localhost)
     const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "";
     const proto = req.headers.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-    const redirectTo = `${proto}://${host}/auth/callback`;
+    const redirectTo = `${proto}://${host}/auth/set-password`;
 
     const { data: authData, error: authErr } = await adminAuth.auth.admin.inviteUserByEmail(
       emp.official_email,

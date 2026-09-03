@@ -159,7 +159,7 @@ export function withApi<
 
       // ── Authentication and authorisation ────────────────────────────────
       if (!config.cron) {
-        ctx = await getAuthContext();
+        ctx = await getAuthContext(req);
         if (config.requireCompany !== false) requireCompany(ctx);
         if (config.requireEmployee !== false) requireEmployee(ctx);
         if (config.permission) requirePermission(ctx, config.permission);
