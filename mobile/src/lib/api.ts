@@ -1,6 +1,6 @@
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL ?? "";
-const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || "https://huyuayotmwthjisguemq.supabase.co";
+const SUPABASE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_TO_VASmNYUAIOLv3Cp1euA_OJ8jJqT-";
+const API_URL = process.env.EXPO_PUBLIC_API_URL || "https://hrms-loan-on-tip.vercel.app";
 
 export async function supabasePost(path: string, body: unknown, token?: string) {
   const headers: Record<string, string> = {
