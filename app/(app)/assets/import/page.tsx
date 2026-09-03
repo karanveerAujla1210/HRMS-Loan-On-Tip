@@ -165,7 +165,10 @@ export default function AssetImportPage() {
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="card-header">
             <div><h2>Step 1 — Download sample CSV</h2><p>Fill asset data and save as .csv</p></div>
-            <button className="btn btn-primary btn-sm" onClick={downloadSample}>⬇ Download sample.csv</button>
+            <div style={{ display: "flex", gap: 10 }}>
+              <a className="btn btn-secondary btn-sm" href="/templates/asset_import_template.csv" download>⬇ Download Template.csv</a>
+              <button className="btn btn-primary btn-sm" onClick={downloadSample}>⬇ Generate Sample CSV</button>
+            </div>
           </div>
           <div className="card-body" style={{ overflowX: "auto" }}>
             <table>

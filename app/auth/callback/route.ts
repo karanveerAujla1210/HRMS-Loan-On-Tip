@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     }
   );
 
-  const formData = await request.formData();
+  const formData = (await request.formData()) as any;
   const email = String(formData.get("email") ?? "");
   const password = String(formData.get("password") ?? "");
   const redirectTo = (formData.get("next") as string) ?? "/dashboard";

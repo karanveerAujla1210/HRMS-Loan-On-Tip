@@ -111,21 +111,17 @@ alter table public.employee_documents
   add column if not exists document_number_encrypted text;
 
 -- ── 9. ENSURE attendance_status accepts ON_LEAVE ─────────────────────────────
--- Migration 33 should have converted the enum to varchar+CHECK.
--- If the column is still an enum type, add the value safely.
+-- Migration 33 converted status to varchar with chk_attendance_status constraint.
 do $$ begin
   if exists (
-    select 1 from information_schema.columns c
-    join pg_type t on t.typname = udt_name
-    where c.table_schema = 'public'
-      and c.table_name   = 'attendance'
-      and c.column_name  = 'status'
-      and c.data_type    = 'USER-DEFINED'
+    select 1 from information_schema.table_constraints
+    where table_schema = 'public'
+      and table_name   = 'attendance'
+      and constraint_name = 'chk_attendance_status'
   ) then
-    -- Safe enum extension (auto-committed outside transaction block)
-    execute 'alter type public.attendance_status_enum add value if not exists ''ON_LEAVE''';
+    null;
   end if;
-exception when others then null; end $$;
+end $$;
 
 -- ── 10. INDEX cleanup — drop duplicates created across migrations ─────────────
 -- Keep the IF NOT EXISTS versions; drop any plain duplicates by name.

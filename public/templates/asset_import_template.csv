@@ -1,0 +1,4 @@
+category,model,serial_number,asset_tag,imei_1,imei_2,mobile_number,sim_number,brand,purchase_date,purchase_cost,warranty_end,vendor_name,invoice_number,location,condition,notes
+Laptop,MacBook Pro 14" M3,C02G189PK3,AST-2026-0042,,,,,Apple,2026-01-10,169900,2027-01-10,Apple India,INV-APP-9981,Head Office,EXCELLENT,Assigned to Engineering Lead
+Monitor,Dell UltraSharp 27",CN-098K21,AST-2026-0088,,,,,Dell,2026-02-15,32000,2029-02-15,Reliance Digital,INV-REL-4412,Head Office,NEW,Dual monitor setup
+Mobile,Samsung Galaxy S24,354123456789012,AST-2026-0105,354123456789012,354123456789013,9811223344,,Samsung,2026-03-01,74999,2027-03-01,Croma,INV-CRO-1092,Head Office,EXCELLENT,Company Mobile

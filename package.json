@@ -17,12 +17,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:lint": "vitest run tests/db",
-    "mobile:sync": "cap sync android",
-    "mobile:build:android": "cap sync android && cd android && gradlew.bat assembleDebug"
+    "mobile:start": "npm --prefix mobile start",
+    "mobile:android": "npm --prefix mobile run android",
+    "mobile:typecheck": "npm --prefix mobile run typecheck"
   },
   "dependencies": {
-    "@capacitor/android": "^8.5.0",
-    "@capacitor/core": "^8.5.0",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.49.1",
     "next": "15.3.9",
@@ -31,7 +30,6 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@capacitor/cli": "^8.5.0",
     "@eslint/eslintrc": "^3.2.0",
     "@types/node": "^22.13.9",
     "@types/pg": "^8.23.1",
