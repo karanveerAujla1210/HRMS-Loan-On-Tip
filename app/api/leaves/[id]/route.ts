@@ -2,6 +2,7 @@ import "server-only";
 import { withApi, jsonOk } from "@/lib/server/http";
 import { LeaveDecisionSchema } from "@hrms/api-contract";
 import { adminClient } from "@/lib/server/supabase";
+import { mapDatabaseError } from "@/lib/server/errors";
 
 export const PATCH = withApi({
   permission: "leave.approve",
@@ -18,7 +19,7 @@ export const PATCH = withApi({
       .select("id, employee_id, leave_type_id, from_date, total_days, status, company_id")
       .eq("id", leaveId)
       .maybeSingle();
-    if (lvErr) throw lvErr;
+    if (lvErr) throw mapDatabaseError(lvErr);
     if (!leave) {
       return jsonOk(
         { error: "NOT_FOUND", message: "Leave request not found" },
@@ -49,14 +50,14 @@ export const PATCH = withApi({
       p_action: body.action,
       p_comments: body.comments ?? null,
     });
-    if (rpcErr) throw rpcErr;
+    if (rpcErr) throw mapDatabaseError(rpcErr);
 
     const { data, error: updErr } = await db
       .from("leave_requests")
       .select("id, status")
       .eq("id", resultId ?? leaveId)
       .single();
-    if (updErr) throw updErr;
+    if (updErr) throw mapDatabaseError(updErr);
 
     await audit({
       action: body.action === "APPROVED" ? "LEAVE_APPROVE" : "LEAVE_REJECT",

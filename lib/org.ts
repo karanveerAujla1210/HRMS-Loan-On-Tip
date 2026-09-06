@@ -7,7 +7,11 @@ export type OrgTab =
   | "shifts"
   | "leave_types"
   | "holidays"
-  | "custom_fields";
+  | "employment_types"
+  | "asset_categories"
+  | "asset_brands"
+  | "custom_fields"
+  | "salary_structures";
 
 const TAB_TABLE: Record<OrgTab, string> = {
   departments: "departments",
@@ -16,7 +20,11 @@ const TAB_TABLE: Record<OrgTab, string> = {
   shifts: "shifts",
   leave_types: "leave_types",
   holidays: "holidays",
+  employment_types: "employment_types",
+  asset_categories: "asset_categories",
+  asset_brands: "asset_brands",
   custom_fields: "custom_fields",
+  salary_structures: "salary_structures",
 };
 
 const VALID_TABS = new Set<string>(Object.keys(TAB_TABLE));
@@ -69,6 +77,27 @@ export function mapOrgPayload(
         requires_document: body.requires_document ?? false,
         is_active: body.is_active ?? true,
       };
+    case "employment_types":
+      return {
+        ...base,
+        code: body.code,
+        name: body.name,
+        is_active: body.is_active ?? true,
+      };
+    case "asset_categories":
+      return {
+        ...base,
+        code: body.code,
+        name: body.name,
+        prefix: body.prefix ?? null,
+        is_active: body.is_active ?? true,
+      };
+    case "asset_brands":
+      return {
+        ...base,
+        name: body.name,
+        is_active: body.is_active ?? true,
+      };
     case "custom_fields":
       return { ...base, name: body.name, field_type: body.field_type, options: body.options ?? null, is_active: body.is_active ?? true };
     case "holidays":
@@ -78,6 +107,14 @@ export function mapOrgPayload(
         holiday_date: body.holiday_date,
         is_optional: body.is_optional ?? false,
         description: body.description ?? null,
+      };
+    case "salary_structures":
+      return {
+        ...base,
+        code: body.code,
+        name: body.name,
+        annual_ctc: body.annual_ctc ?? null,
+        is_active: body.is_active ?? true,
       };
     default:
       return base;

@@ -25,6 +25,18 @@ export const POST = route(async (req: Request, ctx: { params: Promise<{ id: stri
     throw badRequest("ASSET_NOT_AVAILABLE", `Asset is ${String((asset as { status: string }).status)}, not AVAILABLE`);
   }
 
+  // Validate the target employee belongs to the same company.
+  const { data: emp, error: empErr } = await db
+    .from("employees")
+    .select("id, company_id")
+    .eq("id", employee_id)
+    .maybeSingle();
+  if (empErr) throw dbError(empErr);
+  if (!emp) throw notFound("Employee not found");
+  if ((emp as { company_id: string }).company_id !== companyId) {
+    throw badRequest("FORBIDDEN", "Employee belongs to another company");
+  }
+
   const { data: assignment, error: asgErr } = await db
     .from("asset_assignments")
     .insert({

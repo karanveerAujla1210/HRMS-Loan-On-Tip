@@ -76,7 +76,6 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
     update.status = String(body.status);
     if (body.status === "COMPLETED") {
       update.completed_at = new Date().toISOString();
-      update.employee_id = id;
     }
   }
   if (Object.keys(update).length === 0) throw badRequest("INVALID_INPUT", "No supported fields provided");

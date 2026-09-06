@@ -52,6 +52,15 @@ export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: str
   if (!run) throw notFound("Payroll run not found");
   if ((run as { company_id: string }).company_id !== companyId) throw badRequest("FORBIDDEN", "Run belongs to another company");
 
+  const currentStatus = (run as { status: string }).status;
+  // Validate state transitions: APPROVED requires CALCULATED; LOCKED requires APPROVED.
+  if (action === "APPROVED" && currentStatus !== "CALCULATED") {
+    throw badRequest("PAYROLL_INVALID_STATE", "Only CALCULATED runs can be approved");
+  }
+  if (action === "LOCKED" && currentStatus !== "APPROVED") {
+    throw badRequest("PAYROLL_INVALID_STATE", "Only APPROVED runs can be locked");
+  }
+
   const update: Record<string, unknown> = { status: action, updated_at: new Date().toISOString() };
   if (action === "APPROVED") {
     update.approved_by = actor.employeeId;

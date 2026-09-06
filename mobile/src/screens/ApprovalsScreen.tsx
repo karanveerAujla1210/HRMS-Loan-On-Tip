@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { colors, radius, spacing, shadows } from "../theme";
 import { StatusBadge } from "../components/StatusBadge";
-import { dbGet, apiPost } from "../lib/api";
+import { dbGet, apiPatch, newIdempotencyKey } from "../lib/api";
 import type { Session, LeaveRow } from "../types";
 
 type ApprovalsScreenProps = {
@@ -44,9 +44,13 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ session }) => 
   async function handleApprove(item: LeaveRow) {
     setActionBusy(true);
     try {
-      await apiPost(`/api/leaves/${item.id}/approve`, session.access_token, { action: "APPROVE" });
-    } catch {
-      /* fallback */
+      await apiPatch(`/api/leaves/${item.id}`, session.access_token, {
+        action: "APPROVED",
+        idempotency_key: newIdempotencyKey(),
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Approval failed";
+      Alert.alert("Approval Error", msg);
     } finally {
       setPendingLeaves((prev) => prev.filter((req) => req.id !== item.id));
       setActionBusy(false);
@@ -57,9 +61,13 @@ export const ApprovalsScreen: React.FC<ApprovalsScreenProps> = ({ session }) => 
   async function handleReject(item: LeaveRow) {
     setActionBusy(true);
     try {
-      await apiPost(`/api/leaves/${item.id}/reject`, session.access_token, { action: "REJECT" });
-    } catch {
-      /* fallback */
+      await apiPatch(`/api/leaves/${item.id}`, session.access_token, {
+        action: "REJECTED",
+        idempotency_key: newIdempotencyKey(),
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Rejection failed";
+      Alert.alert("Rejection Error", msg);
     } finally {
       setPendingLeaves((prev) => prev.filter((req) => req.id !== item.id));
       setActionBusy(false);

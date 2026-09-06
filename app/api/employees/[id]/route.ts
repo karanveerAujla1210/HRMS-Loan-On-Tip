@@ -15,6 +15,7 @@ async function loadEmployee(db: ReturnType<typeof serviceClient>, companyId: str
 
 export const GET = route(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
   const actor = await resolveActor();
+  requirePermission(actor, "employee.view");
   const companyId = requireCompany(actor);
   const { id } = await ctx.params;
   const db = serviceClient();

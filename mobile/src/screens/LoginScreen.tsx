@@ -38,24 +38,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         });
         return;
       }
-    } catch {
-      /* fallback authorization */
+      setErrorMsg("Invalid credentials. Please try again.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Login failed. Please try again.";
+      setErrorMsg(msg);
     }
 
     setLoading(false);
-    onLoginSuccess({
-      access_token: `token_${Date.now()}`,
-      user: { email: cleanEmail },
-    });
   }
 
   function fillDemoUser(roleEmail: string) {
     setEmail(roleEmail);
     setPassword("LOT@123");
-    onLoginSuccess({
-      access_token: `token_${Date.now()}`,
-      user: { email: roleEmail },
-    });
   }
 
   return (

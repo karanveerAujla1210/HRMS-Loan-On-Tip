@@ -60,7 +60,7 @@ export default function App() {
           designation: "Staff Member",
           location: "Head Office",
           joining_date: "2024-01-15",
-          primary_role: "EMPLOYEE",
+          primary_role: undefined,
         });
       });
   }, [session?.access_token, session?.user?.email]);

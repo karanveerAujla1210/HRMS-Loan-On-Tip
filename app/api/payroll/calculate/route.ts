@@ -136,10 +136,10 @@ export const POST = route(async (req: Request) => {
       });
 
       if (components.length === 0) {
-        components = fallbackStructureComponents(ctc * 12, PAYROLL_DEFAULTS.fallbackSplit);
+        components = fallbackStructureComponents(ctc, PAYROLL_DEFAULTS.fallbackSplit);
       }
     } else {
-      components = fallbackStructureComponents(ctc * 12, PAYROLL_DEFAULTS.fallbackSplit);
+      components = fallbackStructureComponents(ctc, PAYROLL_DEFAULTS.fallbackSplit);
     }
 
     // Paid days from attendance; absence reduces pay, weekly offs/holidays are

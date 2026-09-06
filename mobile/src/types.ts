@@ -33,12 +33,13 @@ export type ProfileRow = {
 export type AttendanceRow = {
   id: string;
   attendance_date: string;
-  check_in_time: string | null;
-  check_out_time: string | null;
+  check_in_at: string | null;
+  check_out_at: string | null;
   status: string;
   work_hours?: number;
-  latitude?: number;
-  longitude?: number;
+  check_in_latitude?: number;
+  check_in_longitude?: number;
+  check_in_accuracy?: number;
 };
 
 export type LeaveRow = {
@@ -83,9 +84,9 @@ export type ExpenseRow = {
 
 export type AssetRow = {
   id: string;
-  asset_name: string;
-  asset_tag: string;
-  category: string;
+  asset_code: string;
+  model: string;
+  category?: string;
   status: string;
   serial_number?: string;
   assigned_date?: string;

@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useSidebar } from "@/components/SidebarContext";
 
-type Profile = { employee_id: string | null; company_id: string | null; role: string | null };
+type Profile = { employee_id: string | null; company_id: string | null; role: string | null; roles: string[] };
 
 interface NavItem {
   href: string;
@@ -98,39 +98,44 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [pathname, closeSidebar]);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!data.session) { router.replace("/login"); setChecking(false); return; }
-      setUser(data.session.user);
+supabase.auth.getSession().then(async ({ data }) => {
+        if (!data.session) { router.replace("/login"); setChecking(false); return; }
+        setUser(data.session.user);
 
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("employee_id,company_id")
-        .eq("auth_user_id", data.session.user.id)
-        .single();
-
-      let role: string | null = null;
-      if (prof?.employee_id) {
-        const { data: roleRow } = await supabase
-          .from("employee_roles")
-          .select("roles(code)")
-          .eq("employee_id", prof.employee_id)
-          .eq("is_active", true)
-          .limit(1)
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("employee_id,company_id")
+          .eq("auth_user_id", data.session.user.id)
           .single();
-        const rd = roleRow as { roles: { code: string } | null } | null;
-        role = rd?.roles?.code ?? null;
 
-        const { count } = await supabase
-          .from("notifications")
-          .select("id", { count: "exact", head: true })
-          .eq("recipient_employee_id", prof.employee_id)
-          .is("read_at", null);
-        setUnread(count ?? 0);
-      }
+        const roles: string[] = [];
+        if (prof?.employee_id) {
+          const { data: roleRows } = await supabase
+            .from("employee_roles")
+            .select("roles(code)")
+            .eq("employee_id", prof.employee_id)
+            .eq("is_active", true);
+          
+          if (roleRows) {
+            for (const row of roleRows as unknown as { roles: { code: string } | null }[]) {
+              if (row.roles?.code && !roles.includes(row.roles.code)) {
+                roles.push(row.roles.code);
+              }
+            }
+          }
 
-      setProfile({ employee_id: prof?.employee_id ?? null, company_id: prof?.company_id ?? null, role });
-      setChecking(false);
-    });
+          const { count } = await supabase
+            .from("notifications")
+            .select("id", { count: "exact", head: true })
+            .eq("recipient_employee_id", prof.employee_id)
+            .is("read_at", null);
+          setUnread(count ?? 0);
+        }
+
+        const primaryRole = roles.length > 0 ? (roles[0] ?? null) : null;
+        setProfile({ employee_id: prof?.employee_id ?? null, company_id: prof?.company_id ?? null, role: primaryRole ?? null, roles });
+        setChecking(false);
+      });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) router.replace("/login");
@@ -154,6 +159,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   const effectiveRole = profile?.role ?? null;
+  const effectiveRoles = profile?.roles ?? [];
 
   const initials = user?.email?.slice(0, 2).toUpperCase() ?? "HR";
   const roleLabel = effectiveRole
@@ -169,11 +175,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const hasRoleAccess = (requiredRoles: string[] | null) => {
+    if (requiredRoles === null) return true;
+    if (effectiveRoles.includes("SUPER_ADMIN")) return true;
+    return effectiveRoles.some(r => requiredRoles.includes(r));
+  };
+
   const renderNav = () => {
     return NAV_SECTIONS.map((section) => {
-      const visibleItems = section.items.filter(({ roles }) =>
-        roles === null || effectiveRole === "SUPER_ADMIN" || (effectiveRole && roles.includes(effectiveRole))
-      );
+      const visibleItems = section.items.filter(({ roles }) => hasRoleAccess(roles));
       if (visibleItems.length === 0) return null;
 
       const isCollapsed = collapsedSections.has(section.label);

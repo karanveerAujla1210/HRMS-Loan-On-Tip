@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from "react-native";
 import { colors, radius, spacing, shadows } from "../theme";
 import { StatusBadge } from "../components/StatusBadge";
-import { dbGet, apiPost } from "../lib/api";
+import { dbGet, apiPost, newIdempotencyKey } from "../lib/api";
 import type { Session, LeaveRow, LeaveBalanceRow } from "../types";
 
 type LeaveScreenProps = {
@@ -85,6 +85,7 @@ export const LeaveScreen: React.FC<LeaveScreenProps> = ({ session }) => {
         from_date: fromDate,
         to_date: toDate,
         reason,
+        idempotency_key: newIdempotencyKey(),
       });
     } catch {
       /* fallback to optimistic addition */

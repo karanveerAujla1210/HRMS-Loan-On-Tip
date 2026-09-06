@@ -3,6 +3,7 @@ import { withApi, jsonOk } from "@/lib/server/http";
 import { CheckOutRequestSchema } from "@hrms/api-contract";
 import { mapDatabaseError } from "@/lib/server/errors";
 import { adminClient } from "@/lib/server/supabase";
+import { zonedParts } from "@hrms/domain";
 
 export const POST = withApi({
   permission: "attendance.mark_self",
@@ -13,7 +14,7 @@ export const POST = withApi({
   handler: async ({ ctx, body, audit, requestId }) => {
     const employeeId = ctx.employeeId!;
     const nowIso = new Date().toISOString();
-    const date = new Date().toISOString().slice(0, 10);
+    const date = zonedParts(new Date(), ctx.timezone).date;
 
     const db = adminClient();
 

@@ -67,7 +67,7 @@ export const POST = withApi({
           company_id: companyId,
           attendance_date: date,
           status: body.status,
-          source: "ADMIN",
+          source: "MANUAL",
           is_manual_adjustment: true,
           approved_by: ctx.employeeId,
           approved_at: nowIso,

@@ -1,4 +1,4 @@
-import { route, resolveActor, requirePermission, requireCompany, ok, badRequest, notFound, dbError, readJson, serviceClient } from "@/lib/server";
+import { route, resolveActor, requirePermission, requireCompany, ok, badRequest, forbidden, notFound, dbError, readJson, serviceClient } from "@/lib/server";
 import { writeAudit } from "@/lib/audit";
 
 export const POST = route(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
@@ -19,7 +19,7 @@ export const POST = route(async (req: Request, ctx: { params: Promise<{ id: stri
     .maybeSingle();
   if (assetErr) throw dbError(assetErr);
   if (!asset) throw notFound("Asset not found");
-  if ((asset as { company_id: string }).company_id !== companyId) throw badRequest("FORBIDDEN", "Asset belongs to another company");
+  if ((asset as { company_id: string }).company_id !== companyId) throw forbidden("Asset belongs to another company");
   if ((asset as { status: string }).status !== "ASSIGNED") {
     throw badRequest("ASSET_NOT_ASSIGNED", `Asset is ${String((asset as { status: string }).status)}, not ASSIGNED`);
   }

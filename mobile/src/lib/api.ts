@@ -25,8 +25,28 @@ export async function apiPost(path: string, token: string, body: unknown) {
     body: JSON.stringify(body),
   });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok || json.error) throw new Error(json.message ?? json.error ?? "Request failed");
+  if (!res.ok || json.error) throw new Error(json.error?.message ?? json.message ?? json.error ?? "Request failed");
   return json.data ?? json;
+}
+
+export async function apiPatch(path: string, token: string, body: unknown) {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || json.error) throw new Error(json.error?.message ?? json.message ?? json.error ?? "Request failed");
+  return json.data ?? json;
+}
+
+export async function apiGet<T = Record<string, unknown>>(path: string, token: string): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || json.error) throw new Error(json.error?.message ?? json.message ?? json.error ?? "Request failed");
+  return (json.data ?? json) as T;
 }
 
 export async function dbGet<T = Record<string, unknown>>(table: string, query: string, token: string): Promise<T[]> {
@@ -55,4 +75,9 @@ export async function dbPost(table: string, token: string, body: unknown) {
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.message ?? json.details ?? "Failed to save");
   return json;
+}
+
+/** Generates a unique idempotency key for a mutation. */
+export function newIdempotencyKey(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
 }

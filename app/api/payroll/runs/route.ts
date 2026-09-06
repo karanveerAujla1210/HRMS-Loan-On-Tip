@@ -24,6 +24,17 @@ export const POST = route(async (req: Request) => {
   const period_end = lastDayOfMonth(payroll_year, payroll_month);
 
   const db = serviceClient();
+
+  // Prevent duplicate payroll runs for the same period.
+  const { data: existing } = await db
+    .from("payroll_runs")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("payroll_month", payroll_month)
+    .eq("payroll_year", payroll_year)
+    .maybeSingle();
+  if (existing) throw badRequest("PAYROLL_ALREADY_EXISTS", "A payroll run already exists for this period");
+
   const { data, error } = await db
     .from("payroll_runs")
     .insert({

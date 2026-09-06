@@ -17,8 +17,8 @@ export const PayrollScreen: React.FC<PayrollScreenProps> = ({ session }) => {
     setLoading(true);
     try {
       const data = await dbGet<PayslipRow>(
-        "payroll_slips",
-        "select=id,payroll_month,payroll_year,net_pay,gross_pay,total_deductions,status,disbursed_at&order=payroll_year.desc,payroll_month.desc&limit=10",
+        "payslips",
+        "select=id,payroll_month,payroll_year,net_salary,gross_salary,total_deductions,status,generated_at&order=payroll_year.desc,payroll_month.desc&limit=10",
         session.access_token
       );
       if (data.length > 0) {

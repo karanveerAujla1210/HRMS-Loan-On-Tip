@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { colors, radius, spacing, shadows } from "../theme";
 import { StatusBadge } from "../components/StatusBadge";
-import { dbGet, apiPost } from "../lib/api";
+import { dbGet, apiPost, newIdempotencyKey } from "../lib/api";
 import type { Session, AssetRow } from "../types";
 
 type AssetsScreenProps = {
@@ -19,15 +19,15 @@ export const AssetsScreen: React.FC<AssetsScreenProps> = ({ session }) => {
     try {
       const data = await dbGet<AssetRow>(
         "assets",
-        "select=id,asset_name,asset_tag,category,status,serial_number,assigned_date&limit=10",
+        "select=id,asset_code,model,status,serial_number&limit=10",
         session.access_token
       );
       if (data.length > 0) {
         setAssets(data);
       } else {
         setAssets([
-          { id: "ast-1", asset_name: "MacBook Pro 14\" (M3)", asset_tag: "AST-2026-0042", category: "Laptop", status: "ASSIGNED", serial_number: "C02G189PK3" },
-          { id: "ast-2", asset_name: "Dell UltraSharp 27\" Monitor", asset_tag: "AST-2026-0088", category: "Monitor", status: "ASSIGNED", serial_number: "CN-098K21" },
+          { id: "ast-1", asset_code: "AST-2026-0042", model: "MacBook Pro 14\" (M3)", category: "Laptop", status: "ASSIGNED", serial_number: "C02G189PK3" },
+          { id: "ast-2", asset_code: "AST-2026-0088", model: "Dell UltraSharp 27\" Monitor", category: "Monitor", status: "ASSIGNED", serial_number: "CN-098K21" },
         ]);
       }
     } catch {
@@ -44,7 +44,7 @@ export const AssetsScreen: React.FC<AssetsScreenProps> = ({ session }) => {
   async function handleRepair(asset: AssetRow) {
     Alert.alert(
       "Request Repair",
-      `Are you sure you want to request IT repair for ${asset.asset_name}?`,
+      `Are you sure you want to request IT repair for ${asset.model}?`,
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -52,7 +52,11 @@ export const AssetsScreen: React.FC<AssetsScreenProps> = ({ session }) => {
           onPress: async () => {
             setActionBusy(true);
             try {
-              await apiPost(`/api/assets/${asset.id}/repair`, session.access_token, { issue: "Hardware glitch" });
+              await apiPost(`/api/assets/${asset.id}/repair`, session.access_token, {
+                maintenance_type: "Hardware Repair",
+                description: "Hardware glitch reported by employee",
+                idempotency_key: newIdempotencyKey(),
+              });
             } catch {
               /* fallback */
             } finally {
@@ -80,9 +84,9 @@ export const AssetsScreen: React.FC<AssetsScreenProps> = ({ session }) => {
           <View key={asset.id} style={s.assetCard}>
             <View style={s.assetHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={s.assetName}>{asset.asset_name}</Text>
+                <Text style={s.assetName}>{asset.model}</Text>
                 <Text style={s.assetTag}>
-                  Tag: {asset.asset_tag} {asset.serial_number ? `• S/N: ${asset.serial_number}` : ""}
+                  Tag: {asset.asset_code} {asset.serial_number ? `• S/N: ${asset.serial_number}` : ""}
                 </Text>
               </View>
               <StatusBadge status={asset.status ?? "ASSIGNED"} />

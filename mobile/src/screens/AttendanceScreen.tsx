@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import * as Location from "expo-location";
 import { colors, radius, spacing, shadows } from "../theme";
 import { StatusBadge } from "../components/StatusBadge";
-import { dbGet, apiPost } from "../lib/api";
+import { dbGet, apiPost, newIdempotencyKey } from "../lib/api";
 import type { Session, AttendanceRow, ProfileRow } from "../types";
 
 type AttendanceScreenProps = {
@@ -23,9 +23,10 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session, pro
   const [punching, setPunching] = useState(false);
   const [locationStatus, setLocationStatus] = useState("Locating GPS...");
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [accuracy, setAccuracy] = useState<number | null>(null);
   const [search, setSearch] = useState("");
 
-  const role = profile?.primary_role ?? "EMPLOYEE";
+  const role = profile?.primary_role ?? null;
   const isSuperOrHr = role === "SUPER_ADMIN" || role === "HR_ADMIN";
   const isManager = isSuperOrHr || role === "MANAGER";
 
@@ -34,7 +35,7 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session, pro
     try {
       const logs = await dbGet<RoleAttendanceItem>(
         "attendance",
-        "select=id,attendance_date,check_in_time,check_out_time,status,latitude,longitude&order=attendance_date.desc&limit=25",
+        "select=id,attendance_date,check_in_at,check_out_at,status,check_in_latitude,check_in_longitude&order=attendance_date.desc&limit=25",
         session.access_token
       );
       if (logs.length > 0) {
@@ -48,8 +49,8 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session, pro
             employee_code: "EMP005",
             department: "Collection",
             attendance_date: new Date().toISOString().split("T")[0],
-            check_in_time: "09:30:00",
-            check_out_time: null,
+            check_in_at: "09:30:00",
+            check_out_at: null,
             status: "PRESENT",
           },
           {
@@ -58,8 +59,8 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session, pro
             employee_code: "EMP027",
             department: "Credit",
             attendance_date: new Date().toISOString().split("T")[0],
-            check_in_time: "09:45:00",
-            check_out_time: null,
+            check_in_at: "09:45:00",
+            check_out_at: null,
             status: "LATE",
           },
           {
@@ -68,8 +69,8 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session, pro
             employee_code: "EMP008",
             department: "Collection",
             attendance_date: "2026-09-02",
-            check_in_time: "09:15:00",
-            check_out_time: "18:30:00",
+            check_in_at: "09:15:00",
+            check_out_at: "18:30:00",
             status: "PRESENT",
           },
         ]);
@@ -87,14 +88,17 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session, pro
       if (status !== "granted") {
         setLocationStatus("GPS: 28.6139, 77.2090 (Delhi HQ)");
         setCoords({ latitude: 28.6139, longitude: 77.2090 });
+        setAccuracy(50);
         return;
       }
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       setCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      setAccuracy(loc.coords.accuracy ?? 50);
       setLocationStatus(`GPS: ${loc.coords.latitude.toFixed(4)}, ${loc.coords.longitude.toFixed(4)}`);
     } catch {
       setLocationStatus("GPS: 28.6139, 77.2090 (Default)");
       setCoords({ latitude: 28.6139, longitude: 77.2090 });
+      setAccuracy(50);
     }
   }, []);
 
@@ -113,16 +117,20 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session, pro
       await apiPost("/api/attendance/check-in", session.access_token, {
         latitude: coords?.latitude ?? 28.6139,
         longitude: coords?.longitude ?? 77.2090,
+        accuracy_m: accuracy ?? 50,
+        idempotency_key: newIdempotencyKey(),
+        source: "MOBILE",
       });
-    } catch {
-      /* fallback */
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Check-in failed";
+      Alert.alert("Check-in Error", msg);
     } finally {
       setHistory((prev) => [
         {
           id: `att-${Date.now()}`,
           attendance_date: todayStr,
-          check_in_time: nowTime,
-          check_out_time: null,
+          check_in_at: nowTime,
+          check_out_at: null,
           status: "PRESENT",
           employee_name: profile?.display_name ?? "My Self",
           employee_code: profile?.employee_code ?? "ME",
@@ -141,12 +149,16 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session, pro
       await apiPost("/api/attendance/check-out", session.access_token, {
         latitude: coords?.latitude ?? 28.6139,
         longitude: coords?.longitude ?? 77.2090,
+        accuracy_m: accuracy ?? 50,
+        idempotency_key: newIdempotencyKey(),
+        source: "MOBILE",
       });
-    } catch {
-      /* fallback */
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Check-out failed";
+      Alert.alert("Check-out Error", msg);
     } finally {
       setHistory((prev) =>
-        prev.map((h) => (h.attendance_date === todayStr ? { ...h, check_out_time: nowTime } : h))
+        prev.map((h) => (h.attendance_date === todayStr ? { ...h, check_out_at: nowTime } : h))
       );
       setPunching(false);
       Alert.alert("Clock-Out Successful", `Marked OUT at ${nowTime.slice(0, 5)}`);
@@ -182,12 +194,12 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session, pro
         <View style={s.todayStatusRow}>
           <View style={s.timeBox}>
             <Text style={s.timeLabel}>Clock-In</Text>
-            <Text style={s.timeVal}>{todayRecord?.check_in_time ? todayRecord.check_in_time.slice(0, 5) : "--:--"}</Text>
+            <Text style={s.timeVal}>{todayRecord?.check_in_at ? todayRecord.check_in_at.slice(0, 5) : "--:--"}</Text>
           </View>
           <View style={s.divider} />
           <View style={s.timeBox}>
             <Text style={s.timeLabel}>Clock-Out</Text>
-            <Text style={s.timeVal}>{todayRecord?.check_out_time ? todayRecord.check_out_time.slice(0, 5) : "--:--"}</Text>
+            <Text style={s.timeVal}>{todayRecord?.check_out_at ? todayRecord.check_out_at.slice(0, 5) : "--:--"}</Text>
           </View>
           <View style={s.divider} />
           <View style={s.timeBox}>
@@ -197,11 +209,11 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session, pro
         </View>
 
         <View style={s.actionBtnRow}>
-          {!todayRecord?.check_in_time ? (
+          {!todayRecord?.check_in_at ? (
             <TouchableOpacity style={s.checkInBtn} onPress={handleCheckIn} disabled={punching} activeOpacity={0.8}>
               {punching ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>⏱️ Clock In Now</Text>}
             </TouchableOpacity>
-          ) : !todayRecord?.check_out_time ? (
+          ) : !todayRecord?.check_out_at ? (
             <TouchableOpacity style={s.checkOutBtn} onPress={handleCheckOut} disabled={punching} activeOpacity={0.8}>
               {punching ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>🚪 Clock Out</Text>}
             </TouchableOpacity>
@@ -256,8 +268,8 @@ export const AttendanceScreen: React.FC<AttendanceScreenProps> = ({ session, pro
                 </Text>
               ) : null}
               <Text style={s.logTime}>
-                In: {item.check_in_time ? item.check_in_time.slice(0, 5) : "--:--"} • Out:{" "}
-                {item.check_out_time ? item.check_out_time.slice(0, 5) : "--:--"}
+                In: {item.check_in_at ? item.check_in_at.slice(0, 5) : "--:--"} • Out:{" "}
+                {item.check_out_at ? item.check_out_at.slice(0, 5) : "--:--"}
               </Text>
             </View>
             <StatusBadge status={item.status} />

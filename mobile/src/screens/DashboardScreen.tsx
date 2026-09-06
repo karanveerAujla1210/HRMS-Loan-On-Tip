@@ -17,7 +17,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ session, profi
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalanceRow[]>([]);
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
 
-  const role = profile?.primary_role ?? "EMPLOYEE";
+  const role = profile?.primary_role ?? null;
   const isSuperOrHr = role === "SUPER_ADMIN" || role === "HR_ADMIN";
   const isManager = isSuperOrHr || role === "MANAGER";
 
@@ -27,7 +27,7 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ session, profi
       const [att, bal, appr] = await Promise.all([
         dbGet<AttendanceRow>(
           "attendance",
-          `select=id,attendance_date,check_in_time,check_out_time,status&attendance_date=eq.${todayStr}&limit=1`,
+          `select=id,attendance_date,check_in_at,check_out_at,status&attendance_date=eq.${todayStr}&limit=1`,
           session.access_token
         ),
         dbGet<LeaveBalanceRow>(
@@ -130,9 +130,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ session, profi
           <MetricCard
             title="My Punch Status"
             value={todayAttendance?.status ?? "NOT PUNCHED"}
-            subtitle={todayAttendance?.check_in_time ? `In: ${todayAttendance.check_in_time.slice(0, 5)}` : "Tap to Check-in"}
+            subtitle={todayAttendance?.check_in_at ? `In: ${todayAttendance.check_in_at.slice(0, 5)}` : "Tap to Check-in"}
             icon="⏱️"
-            color={todayAttendance?.check_in_time ? colors.mint : colors.blue}
+            color={todayAttendance?.check_in_at ? colors.mint : colors.blue}
             onPress={() => onNavigate("attendance")}
           />
         </View>
@@ -141,9 +141,9 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ session, profi
           <MetricCard
             title="Today Status"
             value={todayAttendance?.status ?? "NOT PUNCHED"}
-            subtitle={todayAttendance?.check_in_time ? `In: ${todayAttendance.check_in_time.slice(0, 5)}` : "Tap to Check-in"}
+            subtitle={todayAttendance?.check_in_at ? `In: ${todayAttendance.check_in_at.slice(0, 5)}` : "Tap to Check-in"}
             icon="⏱️"
-            color={todayAttendance?.check_in_time ? colors.mint : colors.amber}
+            color={todayAttendance?.check_in_at ? colors.mint : colors.amber}
             onPress={() => onNavigate("attendance")}
           />
           <MetricCard
@@ -162,14 +162,14 @@ export const DashboardScreen: React.FC<DashboardScreenProps> = ({ session, profi
         <View style={s.punchLeft}>
           <Text style={s.punchTitle}>Geo Clock-In / Out</Text>
           <Text style={s.punchSub}>
-            {todayAttendance?.check_in_time
-              ? `Punched in at ${todayAttendance.check_in_time.slice(0, 5)}`
+            {todayAttendance?.check_in_at
+              ? `Punched in at ${todayAttendance.check_in_at.slice(0, 5)}`
               : "Capture location and record today's attendance"}
           </Text>
         </View>
         <TouchableOpacity style={s.punchBtn} onPress={() => onNavigate("attendance")} activeOpacity={0.8}>
           <Text style={s.punchBtnText}>
-            {todayAttendance?.check_in_time && !todayAttendance.check_out_time ? "Check Out" : "Clock In"}
+            {todayAttendance?.check_in_at && !todayAttendance.check_out_at ? "Check Out" : "Clock In"}
           </Text>
         </TouchableOpacity>
       </View>
