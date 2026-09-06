@@ -1,40 +1,56 @@
-import { route, resolveActor, requirePermission, requireCompany, ok, badRequest, dbError, readJson, serviceClient } from "@/lib/server";
+import "server-only";
+import { withApi, jsonOk } from "@/lib/server/http";
+import { z } from "zod";
+import { adminClient } from "@/lib/server/supabase";
+import { mapDatabaseError } from "@/lib/server/errors";
 import { assertOrgTab, mapOrgPayload, orgTable } from "@/lib/org";
-import { writeAudit } from "@/lib/audit";
 
-export const POST = route(async (req: Request) => {
-  const actor = await resolveActor();
-  requirePermission(actor, "organisation.manage");
-  const companyId = requireCompany(actor);
+const OrgCreateSchema = z
+  .object({
+    table: z.enum([
+      "departments",
+      "designations",
+      "locations",
+      "shifts",
+      "leave_types",
+      "holidays",
+      "employment_types",
+      "asset_categories",
+      "asset_brands",
+      "custom_fields",
+      "salary_structures",
+    ]),
+    name: z.string().trim().min(1).max(200),
+    code: z.string().trim().min(1).max(50).optional(),
+    // Remaining per-tab fields are mapped and validated by mapOrgPayload.
+    payload: z.record(z.unknown()).optional(),
+  })
+  .passthrough();
 
-  const body = await readJson(req);
-  const tab = typeof body.table === "string" ? body.table : null;
-  if (!tab) throw badRequest("INVALID_INPUT", "table is required");
-  let orgTab;
-  try {
-    orgTab = assertOrgTab(tab);
-  } catch {
-    throw badRequest("INVALID_TABLE", `Unknown organisation table: ${tab}`);
-  }
+export const POST = withApi<typeof OrgCreateSchema>({
+  permission: "organisation.manage",
+  body: OrgCreateSchema,
+  rateLimit: { limit: 60, windowMs: 60_000 },
+  handler: async ({ ctx, body, audit, requestId }) => {
+    const companyId = ctx.companyId!;
+    const orgTab = assertOrgTab(body.table); // validated by schema; kept for type-safety
+    const db = adminClient();
 
-  const db = serviceClient();
-  const row = mapOrgPayload(orgTab, body, companyId);
-  const { data, error } = await db
-    .from(orgTable(orgTab)!)
-    .insert(row)
-    .select("id")
-    .single();
-  if (error) throw dbError(error);
+    const row = mapOrgPayload(orgTab, body as unknown as Record<string, unknown>, companyId);
+    const { data, error } = await db
+      .from(orgTable(orgTab)!)
+      .insert(row)
+      .select("id")
+      .single();
+    if (error) throw mapDatabaseError(error);
 
-  await writeAudit(db, {
-    company_id: companyId,
-    actor_employee_id: actor.employeeId,
-    actor_auth_user_id: actor.authUserId,
-    action: "ORG_CREATE",
-    entity_type: orgTable(orgTab)!,
-    entity_id: (data as { id: string }).id,
-    new_values: row,
-  }).catch(() => {});
+    await audit({
+      action: "ORG_CREATE",
+      entityType: orgTable(orgTab)!,
+      entityId: (data as { id: string }).id,
+      newValues: row,
+    });
 
-  return ok(data, { status: 201 });
+    return jsonOk(data, requestId, 201);
+  },
 });

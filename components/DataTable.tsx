@@ -68,7 +68,6 @@ export default function DataTable({
   emptyMessage = "No records found.",
   rowKey = "id",
   striped = true,
-  hoverable = true,
   dense = false,
 }: DataTableProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -166,6 +165,7 @@ export default function DataTable({
                   cursor: "pointer",
                   userSelect: "none",
                 }}
+                title="Click to sort"
                 onClick={() => handleSort(col)}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -188,12 +188,11 @@ export default function DataTable({
             return (
               <tr
                 key={id}
+                data-selected={isSelected || undefined}
                 style={{
-                  background: isSelected ? "var(--brand-light)" : striped && i % 2 === 1 ? "var(--border-light)" : "transparent",
+                  background: isSelected ? undefined : striped && i % 2 === 1 ? "var(--bg)" : undefined,
                   transition: "background 0.15s",
                 }}
-                onMouseEnter={hoverable ? () => {} : undefined}
-                onMouseLeave={hoverable ? () => {} : undefined}
               >
                 {selectable && (
                   <td style={{ textAlign: "center", padding: cellPadding }}>

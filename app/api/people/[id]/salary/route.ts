@@ -1,78 +1,90 @@
-import { route, resolveActor, requirePermission, requireCompany, ok, badRequest, notFound, dbError, readJson, serviceClient } from "@/lib/server";
-import { writeAudit } from "@/lib/audit";
+import "server-only";
+import { withApi, jsonOk } from "@/lib/server/http";
+import { z } from "zod";
+import { adminClient } from "@/lib/server/supabase";
+import { mapDatabaseError, notFound as notFoundError } from "@/lib/server/errors";
 
-export const POST = route(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
-  const actor = await resolveActor();
-  requirePermission(actor, "employee.salary.manage");
-  const companyId = requireCompany(actor);
-  const { id } = await ctx.params;
-  const db = serviceClient();
+type RouteParams = { id: string };
 
-  const { data: emp, error: empErr } = await db
-    .from("employees")
-    .select("id, company_id")
-    .eq("id", id)
-    .maybeSingle();
-  if (empErr) throw dbError(empErr);
-  if (!emp) throw notFound("Employee not found");
-  if ((emp as { company_id: string }).company_id !== companyId) throw badRequest("FORBIDDEN", "Employee belongs to another company");
+const SalaryAssignSchema = z
+  .object({
+    annual_ctc: z.number().positive().max(1_000_000_000),
+    salary_structure_id: z.string().uuid().nullable().optional(),
+    effective_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    reason: z.string().max(2000).nullable().optional(),
+    idempotency_key: z.string().min(8).max(200).optional(),
+  })
+  .strict();
 
-  const body = await readJson(req);
-  const annual_ctc = body.annual_ctc ? Number(body.annual_ctc) : 0;
-  if (!(annual_ctc > 0)) throw badRequest("INVALID_INPUT", "annual_ctc must be a positive number");
-  const effective_from = body.effective_from ? String(body.effective_from) : new Date().toISOString().slice(0, 10);
+export const POST = withApi<typeof SalaryAssignSchema, z.ZodTypeAny, RouteParams>({
+  permission: "employee.salary.manage",
+  body: SalaryAssignSchema,
+  idempotencyEndpoint: "people/salary/assign",
+  idempotencyKey: (body) => body.idempotency_key,
+  rateLimit: { limit: 20, windowMs: 60_000 },
+  handler: async ({ ctx, body, params, audit, requestId }) => {
+    const companyId = ctx.companyId!;
+    const db = adminClient();
 
-  // Demote any existing current assignment.
-  const { data: prev } = await db
-    .from("employee_salary_assignments")
-    .select("annual_ctc")
-    .eq("employee_id", id)
-    .eq("is_current", true)
-    .maybeSingle();
+    const { data: emp, error: empErr } = await db
+      .from("employees")
+      .select("id, company_id")
+      .eq("id", params.id)
+      .eq("company_id", companyId)
+      .maybeSingle();
+    if (empErr) throw mapDatabaseError(empErr);
+    if (!emp) throw notFoundError("Employee not found");
 
-  const { error: updErr } = await db
-    .from("employee_salary_assignments")
-    .update({ is_current: false, effective_to: effective_from, updated_at: new Date().toISOString() })
-    .eq("employee_id", id)
-    .eq("is_current", true);
-  if (updErr) throw dbError(updErr);
+    const effective_from = body.effective_from ?? new Date().toISOString().slice(0, 10);
 
-  const { data, error } = await db
-    .from("employee_salary_assignments")
-    .insert({
-      employee_id: id,
-      salary_structure_id: body.salary_structure_id ?? null,
-      annual_ctc,
-      effective_from,
-      is_current: true,
-      approved_by: actor.employeeId,
-    })
-    .select("id, annual_ctc, monthly_ctc, effective_from")
-    .single();
-  if (error) throw dbError(error);
+    // Capture the previous CTC for the history record before demoting it.
+    const { data: prev } = await db
+      .from("employee_salary_assignments")
+      .select("annual_ctc")
+      .eq("employee_id", params.id)
+      .eq("is_current", true)
+      .maybeSingle();
 
-  await db
-    .from("employee_salary_history")
-    .insert({
-      employee_id: id,
+    const { error: updErr } = await db
+      .from("employee_salary_assignments")
+      .update({ is_current: false, effective_to: effective_from, updated_at: new Date().toISOString() })
+      .eq("employee_id", params.id)
+      .eq("is_current", true);
+    if (updErr) throw mapDatabaseError(updErr);
+
+    const { data, error } = await db
+      .from("employee_salary_assignments")
+      .insert({
+        employee_id: params.id,
+        salary_structure_id: body.salary_structure_id ?? null,
+        annual_ctc: body.annual_ctc,
+        effective_from,
+        is_current: true,
+        approved_by: ctx.employeeId,
+      })
+      .select("id, annual_ctc, monthly_ctc, effective_from")
+      .single();
+    if (error) throw mapDatabaseError(error);
+
+    const { error: histErr } = await db.from("employee_salary_history").insert({
+      employee_id: params.id,
       previous_ctc: prev ? Number((prev as { annual_ctc: number }).annual_ctc) : 0,
-      new_ctc: annual_ctc,
+      new_ctc: body.annual_ctc,
       new_structure_id: body.salary_structure_id ?? null,
       effective_date: effective_from,
       reason: body.reason ?? null,
-      approved_by: actor.employeeId,
-    })
-    .then(() => {});
+      approved_by: ctx.employeeId,
+    });
+    if (histErr) throw mapDatabaseError(histErr);
 
-  await writeAudit(db, {
-    company_id: companyId,
-    actor_employee_id: actor.employeeId,
-    actor_auth_user_id: actor.authUserId,
-    action: "SALARY_ASSIGN",
-    entity_type: "employee_salary_assignments",
-    entity_id: (data as { id: string }).id,
-    new_values: { annual_ctc, effective_from },
-  }).catch(() => {});
+    await audit({
+      action: "SALARY_ASSIGN",
+      entityType: "employee_salary_assignments",
+      entityId: (data as { id: string }).id,
+      oldValues: { annual_ctc: prev ? Number((prev as { annual_ctc: number }).annual_ctc) : null },
+      newValues: { annual_ctc: body.annual_ctc, effective_from },
+    });
 
-  return ok(data, { status: 201 });
+    return jsonOk(data, requestId, 201);
+  },
 });

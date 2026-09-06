@@ -1,105 +1,151 @@
-import { route, resolveActor, requirePermission, requireCompany, ok, badRequest, notFound, dbError, readJson, serviceClient } from "@/lib/server";
-import { writeAudit } from "@/lib/audit";
+import "server-only";
+import { withApi, jsonOk } from "@/lib/server/http";
+import { z } from "zod";
+import { adminClient } from "@/lib/server/supabase";
+import { ApiError, mapDatabaseError, notFound as notFoundError } from "@/lib/server/errors";
 
-async function loadEmployee(db: ReturnType<typeof serviceClient>, companyId: string, id: string) {
+type RouteParams = { id: string };
+
+const nullableString = z.string().trim().min(1).nullable();
+const nullableDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable();
+const nullableUuid = z.string().uuid().nullable();
+
+const EmployeePatchSchema = z
+  .object({
+    first_name: nullableString.optional(),
+    middle_name: nullableString.optional(),
+    last_name: nullableString.optional(),
+    gender: z.enum(["MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY"]).nullable().optional(),
+    date_of_birth: nullableDate.optional(),
+    blood_group: z
+      .enum(["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"])
+      .nullable()
+      .optional(),
+    official_email: z.string().trim().email().nullable().optional(),
+    personal_email: z.string().trim().email().nullable().optional(),
+    official_mobile: nullableString.optional(),
+    personal_mobile: nullableString.optional(),
+    joining_date: nullableDate.optional(),
+    confirmation_date: nullableDate.optional(),
+    employment_type_id: nullableUuid.optional(),
+    department_id: nullableUuid.optional(),
+    designation_id: nullableUuid.optional(),
+    team_id: nullableUuid.optional(),
+    location_id: nullableUuid.optional(),
+    manager_id: nullableUuid.optional(),
+    hr_manager_id: nullableUuid.optional(),
+    employment_status: z
+      .enum([
+        "ACTIVE",
+        "PROBATION",
+        "ON_NOTICE",
+        "ON_LEAVE",
+        "INACTIVE",
+        "EXITED",
+        "TERMINATED",
+        "SUSPENDED",
+      ])
+      .optional(),
+    probation_end_date: nullableDate.optional(),
+    notice_period_days: z.number().int().min(0).max(365).nullable().optional(),
+    last_working_date: nullableDate.optional(),
+    nationality: nullableString.optional(),
+    marital_status: z.enum(["SINGLE", "MARRIED", "DIVORCED", "WIDOWED"]).nullable().optional(),
+  })
+  .strict();
+
+async function loadEmployee(companyId: string, id: string) {
+  const db = adminClient();
   const { data, error } = await db
     .from("employees")
     .select("*")
     .eq("id", id)
     .eq("company_id", companyId)
     .maybeSingle();
-  if (error) throw dbError(error);
-  if (!data) throw notFound("Employee not found");
+  if (error) throw mapDatabaseError(error);
+  if (!data) throw notFoundError("Employee not found");
   return data;
 }
 
-export const GET = route(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
-  const actor = await resolveActor();
-  requirePermission(actor, "employee.view");
-  const companyId = requireCompany(actor);
-  const { id } = await ctx.params;
-  const db = serviceClient();
-  const data = await loadEmployee(db, companyId, id);
-  return ok(data);
+export const GET = withApi<z.ZodTypeAny, z.ZodTypeAny, RouteParams>({
+  permission: "employee.view",
+  rateLimit: { limit: 120, windowMs: 60_000 },
+  handler: async ({ ctx, params, requestId }) => {
+    const data = await loadEmployee(ctx.companyId!, params.id);
+    return jsonOk(data, requestId);
+  },
 });
 
-export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
-  const actor = await resolveActor();
-  requirePermission(actor, "employee.update");
-  const companyId = requireCompany(actor);
-  const { id } = await ctx.params;
+export const PATCH = withApi<typeof EmployeePatchSchema, z.ZodTypeAny, RouteParams>({
+  permission: "employee.update",
+  body: EmployeePatchSchema,
+  rateLimit: { limit: 30, windowMs: 60_000 },
+  handler: async ({ ctx, body, params, audit, requestId }) => {
+    const companyId = ctx.companyId!;
+    const existing = await loadEmployee(companyId, params.id);
 
-  const db = serviceClient();
-  const existing = await loadEmployee(db, companyId, id);
+    // Guard against circular reporting chains: an employee can never be made
+    // their own manager.
+    if (body.manager_id && body.manager_id === params.id) {
+      throw new ApiError("EMPLOYEE_MANAGER_CYCLE", "An employee cannot report to themselves.");
+    }
 
-  const body = await readJson(req);
-  const updatable = [
-    "first_name", "middle_name", "last_name", "gender", "date_of_birth",
-    "blood_group", "official_email", "personal_email", "official_mobile",
-    "personal_mobile", "joining_date", "confirmation_date", "employment_type_id",
-    "department_id", "designation_id", "team_id", "location_id", "manager_id",
-    "hr_manager_id", "employment_status", "probation_end_date", "notice_period_days",
-    "last_working_date", "nationality", "marital_status",
-  ];
-  const update: Record<string, unknown> = {};
-  for (const key of updatable) {
-    if (key in body) update[key] = (body as Record<string, unknown>)[key];
-  }
-  if (Object.keys(update).length === 0) {
-    throw badRequest("INVALID_INPUT", "No updatable fields provided");
-  }
-  update.updated_at = new Date().toISOString();
+    const db = adminClient();
+    const update: Record<string, unknown> = {
+      ...(body as Record<string, unknown>),
+      updated_at: new Date().toISOString(),
+    };
 
-  const { data, error } = await db
-    .from("employees")
-    .update(update)
-    .eq("id", id)
-    .eq("company_id", companyId)
-    .select("id, employee_code, display_name")
-    .single();
-  if (error) throw dbError(error);
+    const { data, error } = await db
+      .from("employees")
+      .update(update)
+      .eq("id", params.id)
+      .eq("company_id", companyId)
+      .select("id, employee_code, display_name")
+      .single();
+    if (error) throw mapDatabaseError(error);
 
-  await writeAudit(db, {
-    company_id: companyId,
-    actor_employee_id: actor.employeeId,
-    actor_auth_user_id: actor.authUserId,
-    action: "EMPLOYEE_UPDATE",
-    entity_type: "employees",
-    entity_id: id,
-    old_values: { employment_status: existing.employment_status },
-    new_values: update,
-  }).catch(() => {});
+    await audit({
+      action: "EMPLOYEE_UPDATE",
+      entityType: "employees",
+      entityId: params.id,
+      oldValues: { employment_status: (existing as { employment_status?: string }).employment_status ?? null },
+      newValues: update,
+    });
 
-  return ok(data);
+    return jsonOk(data, requestId);
+  },
 });
 
-export const DELETE = route(async (_req: Request, ctx: { params: Promise<{ id: string }> }) => {
-  const actor = await resolveActor();
-  requirePermission(actor, "employee.offboard");
-  const companyId = requireCompany(actor);
-  const { id } = await ctx.params;
+export const DELETE = withApi<z.ZodTypeAny, z.ZodTypeAny, RouteParams>({
+  permission: "employee.offboard",
+  rateLimit: { limit: 10, windowMs: 60_000 },
+  handler: async ({ ctx, params, audit, requestId }) => {
+    const companyId = ctx.companyId!;
+    const existing = await loadEmployee(companyId, params.id);
 
-  const db = serviceClient();
-  const existing = await loadEmployee(db, companyId, id);
-  const { data, error } = await db
-    .from("employees")
-    .update({ employment_status: "TERMINATED", last_working_date: new Date().toISOString().slice(0, 10), updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("company_id", companyId)
-    .select("id, employee_code")
-    .single();
-  if (error) throw dbError(error);
+    const db = adminClient();
+    const { data, error } = await db
+      .from("employees")
+      .update({
+        employment_status: "TERMINATED",
+        last_working_date: new Date().toISOString().slice(0, 10),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", params.id)
+      .eq("company_id", companyId)
+      .select("id, employee_code")
+      .single();
+    if (error) throw mapDatabaseError(error);
 
-  await writeAudit(db, {
-    company_id: companyId,
-    actor_employee_id: actor.employeeId,
-    actor_auth_user_id: actor.authUserId,
-    action: "EMPLOYEE_OFFBOARD",
-    entity_type: "employees",
-    entity_id: id,
-    old_values: { employment_status: existing.employment_status },
-    new_values: { employment_status: "TERMINATED" },
-  }).catch(() => {});
+    await audit({
+      action: "EMPLOYEE_OFFBOARD",
+      entityType: "employees",
+      entityId: params.id,
+      oldValues: { employment_status: (existing as { employment_status?: string }).employment_status ?? null },
+      newValues: { employment_status: "TERMINATED" },
+    });
 
-  return ok(data);
+    return jsonOk(data, requestId);
+  },
 });

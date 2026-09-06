@@ -54,24 +54,11 @@ export function Modal({
   if (!isOpen) return null;
 
   const modalContent = (
-    <div className="modal-backdrop" onClick={closeOnOverlayClick ? onClose : undefined} style={{ 
-      position: "fixed", 
-      inset: 0, 
-      background: "rgba(0,0,0,.45)", 
-      display: "grid", 
-      placeItems: "center", 
-      zIndex: 200, 
-      padding: "20px" 
-    }}>
+    <div className="modal-backdrop" onClick={closeOnOverlayClick ? onClose : undefined}>
       <div 
         className="modal" 
         style={{ 
-          background: "var(--surface)", 
-          borderRadius: "12px", 
-          width: "100%", 
           maxWidth: sizeMaxWidth[size] ?? "560px",
-          boxShadow: "0 20px 60px rgba(0,0,0,.2)", 
-          overflow: "hidden",
         }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"

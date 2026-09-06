@@ -1,55 +1,68 @@
-import { route, resolveActor, requirePermission, requireCompany, ok, badRequest, notFound, dbError, readJson, serviceClient } from "@/lib/server";
-import { writeAudit } from "@/lib/audit";
+import "server-only";
+import { withApi, jsonOk } from "@/lib/server/http";
+import { z } from "zod";
+import { adminClient } from "@/lib/server/supabase";
+import { mapDatabaseError, notFound as notFoundError } from "@/lib/server/errors";
 
-async function assertEmployeeInCompany(db: ReturnType<typeof serviceClient>, companyId: string, employeeId: string) {
+type RouteParams = { id: string };
+
+const DocumentCreateSchema = z
+  .object({
+    document_type_id: z.string().uuid(),
+    file_name: z.string().trim().min(1).max(500),
+    storage_path: z.string().trim().min(1).max(1000).default("pending-upload"),
+    issue_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    expiry_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+    idempotency_key: z.string().min(8).max(200).optional(),
+  })
+  .strict();
+
+async function assertEmployeeInCompany(companyId: string, employeeId: string) {
+  const db = adminClient();
   const { data, error } = await db
     .from("employees")
     .select("id, company_id")
     .eq("id", employeeId)
+    .eq("company_id", companyId)
     .maybeSingle();
-  if (error) throw dbError(error);
-  if (!data) throw notFound("Employee not found");
-  if ((data as { company_id: string }).company_id !== companyId) throw badRequest("FORBIDDEN", "Employee belongs to another company");
+  if (error) throw mapDatabaseError(error);
+  if (!data) throw notFoundError("Employee not found");
 }
 
-export const POST = route(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
-  const actor = await resolveActor();
-  requirePermission(actor, "employee.document.manage");
-  const companyId = requireCompany(actor);
-  const { id } = await ctx.params;
-  const db = serviceClient();
-  await assertEmployeeInCompany(db, companyId, id);
+export const POST = withApi<typeof DocumentCreateSchema, z.ZodTypeAny, RouteParams>({
+  permission: "employee.document.manage",
+  body: DocumentCreateSchema,
+  idempotencyEndpoint: "people/documents/create",
+  idempotencyKey: (body) => body.idempotency_key,
+  rateLimit: { limit: 60, windowMs: 60_000 },
+  handler: async ({ ctx, body, params, audit, requestId }) => {
+    const companyId = ctx.companyId!;
+    await assertEmployeeInCompany(companyId, params.id);
+    const db = adminClient();
 
-  const body = await readJson(req);
-  const document_type_id = body.document_type_id ? String(body.document_type_id) : null;
-  const file_name = body.file_name ? String(body.file_name) : null;
-  if (!document_type_id || !file_name) throw badRequest("INVALID_INPUT", "document_type_id and file_name are required");
+    const { data, error } = await db
+      .from("employee_documents")
+      .insert({
+        employee_id: params.id,
+        document_type_id: body.document_type_id,
+        file_name: body.file_name,
+        storage_path: body.storage_path,
+        issue_date: body.issue_date ?? null,
+        expiry_date: body.expiry_date ?? null,
+        uploaded_by: ctx.employeeId,
+        status: "PENDING",
+      })
+      .select("id")
+      .single();
+    if (error) throw mapDatabaseError(error);
 
-  const { data, error } = await db
-    .from("employee_documents")
-    .insert({
-      employee_id: id,
-      document_type_id,
-      file_name,
-      storage_path: body.storage_path ?? "pending-upload",
-      issue_date: body.issue_date ?? null,
-      expiry_date: body.expiry_date ?? null,
-      uploaded_by: actor.employeeId,
-      status: "PENDING",
-    })
-    .select("id")
-    .single();
-  if (error) throw dbError(error);
+    await audit({
+      action: "DOCUMENT_ADD",
+      entityType: "employee_documents",
+      entityId: params.id,
+      newValues: { file_name: body.file_name, document_type_id: body.document_type_id },
+    });
 
-  await writeAudit(db, {
-    company_id: companyId,
-    actor_employee_id: actor.employeeId,
-    actor_auth_user_id: actor.authUserId,
-    action: "DOCUMENT_ADD",
-    entity_type: "employee_documents",
-    entity_id: id,
-    new_values: { file_name, document_type_id },
-  }).catch(() => {});
-
-  return ok(data, { status: 201 });
+    return jsonOk(data, requestId, 201);
+  },
 });

@@ -24,6 +24,8 @@ interface NavSection {
   items: NavItem[];
 }
 
+const SHORTCUTS_KEY = "lot-hrms-shortcuts-dismissed";
+
 const NAV_SECTIONS: NavSection[] = [
   {
     label: "Core",
@@ -59,20 +61,48 @@ const NAV_SECTIONS: NavSection[] = [
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isOpen: sidebarOpen, close: closeSidebar } = useSidebar();
+  const { isOpen: sidebarOpen, close: closeSidebar, toggle: toggleSidebar } = useSidebar();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [checking, setChecking] = useState(true);
   const [unread, setUnread] = useState(0);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [isMobile, setIsMobile] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  // Hydration-safe mobile detection
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  // Restore shortcuts panel preference (dismissible)
+  useEffect(() => {
+    try {
+      setShowShortcuts(window.localStorage.getItem(SHORTCUTS_KEY) !== "1");
+    } catch {
+      setShowShortcuts(true);
+    }
+  }, []);
+
+  const dismissShortcuts = () => {
+    setShowShortcuts(false);
+    try {
+      window.localStorage.setItem(SHORTCUTS_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  };
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl/Cmd + B to toggle sidebar
-      if ((e.ctrlKey || e.metaKey) && e.key === "b") {
+      // Ctrl/Cmd + B toggles the sidebar
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "b") {
         e.preventDefault();
-        // Toggle via context - need to access the context value
+        toggleSidebar();
       }
       // Escape to close sidebar on mobile
       if (e.key === "Escape" && sidebarOpen) {
@@ -88,7 +118,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [sidebarOpen, closeSidebar]);
+  }, [sidebarOpen, closeSidebar, toggleSidebar]);
 
   // Close sidebar on route change (mobile)
   useEffect(() => {
@@ -238,7 +268,7 @@ supabase.auth.getSession().then(async ({ data }) => {
 
   return (
     <>
-      {sidebarOpen && window.innerWidth < 768 && (
+      {sidebarOpen && isMobile && (
         <div
           className="sidebar-overlay"
           onClick={closeSidebar}
@@ -285,30 +315,48 @@ supabase.auth.getSession().then(async ({ data }) => {
         </div>
       </aside>
 
-      <div className="main-content">{children}</div>
-
-      {/* Keyboard shortcuts help tooltip */}
-      <div style={{
-        position: "fixed",
-        bottom: 20,
-        right: 20,
-        background: "var(--surface)",
-        border: "1px solid var(--border)",
-        borderRadius: 10,
-        padding: 16,
-        boxShadow: "var(--shadow-md)",
-        fontSize: 12,
-        color: "var(--text-2)",
-        zIndex: 50,
-        opacity: 0.8,
-      }}>
-        <div style={{ fontWeight: 600, marginBottom: 8, color: "var(--text)" }}>Shortcuts</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <kbd style={{ display: "flex", gap: 8, alignItems: "center" }}><span style={{ background: "var(--bg)", padding: "2px 6px", borderRadius: 4, border: "1px solid var(--border)" }}>⌘/Ctrl + B</span><span>Toggle Sidebar</span></kbd>
-          <kbd style={{ display: "flex", gap: 8, alignItems: "center" }}><span style={{ background: "var(--bg)", padding: "2px 6px", borderRadius: 4, border: "1px solid var(--border)" }}>⌘/Ctrl + K</span><span>Focus Search</span></kbd>
-          <kbd style={{ display: "flex", gap: 8, alignItems: "center" }}><span style={{ background: "var(--bg)", padding: "2px 6px", borderRadius: 4, border: "1px solid var(--border)" }}>Esc</span><span>Close Sidebar</span></kbd>
+      <div className="main-content">
+        {/* Mobile topbar with hamburger to open the sidebar */}
+        <div className="mobile-topbar">
+          <button
+            className="hamburger-btn"
+            onClick={toggleSidebar}
+            aria-label="Open navigation menu"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <img src="/logo.png" alt="Loan On Tip" className="brand-logo" />
+          <span className="mobile-topbar-title">Loan On Tip HRMS</span>
+          {unread > 0 && (
+            <Link href="/self-service" className="hamburger-btn" style={{ marginLeft: "auto", position: "relative" }} aria-label="Notifications">
+              <IconBell />
+              <span style={{
+                position: "absolute", top: 2, right: 2,
+                background: "var(--danger)", color: "#fff",
+                fontSize: 9, fontWeight: 700,
+                borderRadius: "50%", width: 15, height: 15,
+                display: "grid", placeItems: "center",
+              }}>{unread > 9 ? "9+" : unread}</span>
+            </Link>
+          )}
         </div>
+        {children}
       </div>
+
+      {/* Dismissible keyboard shortcuts help panel */}
+      {showShortcuts && (
+        <div className="shortcuts-panel" role="complementary" aria-label="Keyboard shortcuts">
+          <div className="shortcuts-title">
+            Shortcuts
+            <button className="shortcuts-close" onClick={dismissShortcuts} aria-label="Dismiss shortcuts">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div className="kbd-combo"><kbd>⌘/Ctrl + B</kbd><span>Toggle Sidebar</span></div>
+          <div className="kbd-combo"><kbd>⌘/Ctrl + K</kbd><span>Focus Search</span></div>
+          <div className="kbd-combo"><kbd>Esc</kbd><span>Close Sidebar</span></div>
+        </div>
+      )}
     </>
   );
 }

@@ -1,77 +1,102 @@
-import { route, resolveActor, requirePermission, requireCompany, ok, badRequest, notFound, dbError, readJson, serviceClient } from "@/lib/server";
+import "server-only";
+import { withApi, jsonOk } from "@/lib/server/http";
+import { z } from "zod";
+import { adminClient } from "@/lib/server/supabase";
+import { mapDatabaseError, notFound as notFoundError } from "@/lib/server/errors";
 import { assertOrgTab, mapOrgPayload, orgTable } from "@/lib/org";
-import { writeAudit } from "@/lib/audit";
 
-export const PATCH = route(async (req: Request, ctx: { params: Promise<{ tab: string; id: string }> }) => {
-  const actor = await resolveActor();
-  requirePermission(actor, "organisation.manage");
-  const companyId = requireCompany(actor);
-  const { tab, id } = await ctx.params;
+type RouteParams = { tab: string; id: string };
 
-  let orgTab;
+const OrgPatchSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200).optional(),
+    code: z.string().trim().min(1).max(50).optional(),
+  })
+  .passthrough();
+
+function resolveTab(tab: string) {
   try {
-    orgTab = assertOrgTab(tab);
+    return assertOrgTab(tab);
   } catch {
-    throw badRequest("INVALID_TABLE", `Unknown organisation table: ${tab}`);
+    throw notFoundError(`Unknown organisation table: ${tab}`);
   }
+}
 
-  const body = await readJson(req);
-  const db = serviceClient();
-  const row = mapOrgPayload(orgTab, body, companyId);
-  delete (row as Record<string, unknown>).company_id;
+export const PATCH = withApi<typeof OrgPatchSchema, z.ZodTypeAny, RouteParams>({
+  permission: "organisation.manage",
+  body: OrgPatchSchema,
+  rateLimit: { limit: 60, windowMs: 60_000 },
+  handler: async ({ ctx, body, params, audit, requestId }) => {
+    const companyId = ctx.companyId!;
+    const { tab, id } = params;
+    const orgTab = resolveTab(tab);
+    const db = adminClient();
 
-  const { data, error } = await db
-    .from(orgTable(orgTab)!)
-    .update({ ...row, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("company_id", companyId)
-    .select("id")
-    .single();
-  if (error) throw dbError(error);
-  if (!data) throw notFound("Record not found");
+    const row = mapOrgPayload(orgTab, body as unknown as Record<string, unknown>, companyId);
+    delete (row as Record<string, unknown>).company_id;
 
-  await writeAudit(db, {
-    company_id: companyId,
-    actor_employee_id: actor.employeeId,
-    actor_auth_user_id: actor.authUserId,
-    action: "ORG_UPDATE",
-    entity_type: orgTable(orgTab)!,
-    entity_id: id,
-    new_values: row,
-  }).catch(() => {});
+    const { data, error } = await db
+      .from(orgTable(orgTab)!)
+      .update({ ...row, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("company_id", companyId)
+      .select("id")
+      .single();
+    if (error) throw mapDatabaseError(error);
+    if (!data) throw notFoundError("Record not found");
 
-  return ok(data);
+    await audit({
+      action: "ORG_UPDATE",
+      entityType: orgTable(orgTab)!,
+      entityId: id,
+      newValues: row,
+    });
+
+    return jsonOk(data, requestId);
+  },
 });
 
-export const DELETE = route(async (_req: Request, ctx: { params: Promise<{ tab: string; id: string }> }) => {
-  const actor = await resolveActor();
-  requirePermission(actor, "organisation.manage");
-  const companyId = requireCompany(actor);
-  const { tab, id } = await ctx.params;
+export const DELETE = withApi<z.ZodTypeAny, z.ZodTypeAny, RouteParams>({
+  permission: "organisation.manage",
+  rateLimit: { limit: 30, windowMs: 60_000 },
+  handler: async ({ ctx, params, audit, requestId }) => {
+    const companyId = ctx.companyId!;
+    const { tab, id } = params;
+    const orgTab = resolveTab(tab);
+    const db = adminClient();
 
-  let orgTab;
-  try {
-    orgTab = assertOrgTab(tab);
-  } catch {
-    throw badRequest("INVALID_TABLE", `Unknown organisation table: ${tab}`);
-  }
+    // Soft-delete when the table supports is_active; otherwise hard delete.
+    const table = orgTable(orgTab)!;
+    const { data: existing } = await db
+      .from(table)
+      .select("id")
+      .eq("id", id)
+      .eq("company_id", companyId)
+      .maybeSingle();
+    if (!existing) throw notFoundError("Record not found");
 
-  const db = serviceClient();
-  const { error } = await db
-    .from(orgTable(orgTab)!)
-    .delete()
-    .eq("id", id)
-    .eq("company_id", companyId);
-  if (error) throw dbError(error);
+    const { error: softErr } = await db
+      .from(table)
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("company_id", companyId);
 
-  await writeAudit(db, {
-    company_id: companyId,
-    actor_employee_id: actor.employeeId,
-    actor_auth_user_id: actor.authUserId,
-    action: "ORG_DELETE",
-    entity_type: orgTable(orgTab)!,
-    entity_id: id,
-  }).catch(() => {});
+    if (softErr) {
+      // Table has no is_active column — fall back to a hard delete.
+      const { error: delErr } = await db
+        .from(table)
+        .delete()
+        .eq("id", id)
+        .eq("company_id", companyId);
+      if (delErr) throw mapDatabaseError(delErr);
+    }
 
-  return ok({ id, deleted: true });
+    await audit({
+      action: "ORG_DELETE",
+      entityType: table,
+      entityId: id,
+    });
+
+    return jsonOk({ id, deleted: true }, requestId);
+  },
 });

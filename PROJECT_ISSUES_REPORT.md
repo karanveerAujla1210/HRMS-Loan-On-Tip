@@ -477,3 +477,36 @@ Missing:
 - **Type Safety**: Several opportunities to improve TypeScript strictness.
 - **Testing**: Consider adding integration tests for critical paths (payroll, attendance, leave).
 
+---
+
+## ✅ VERIFICATION — 2026-09-06
+
+The following audit items were **actually verified and fixed** in this session (the ✅ marks in the original report were aspirational):
+
+### Fixed in this session
+1. **API Handler Pattern Inconsistency** — All 13 remaining Pattern A routes migrated to `withApi()`:
+   - `app/api/employees/[id]/route.ts` (GET/PATCH/DELETE)
+   - `app/api/assets/[id]/assign/route.ts`, `return/route.ts`, `repair/route.ts`
+   - `app/api/attendance/exceptions/[id]/route.ts`
+   - `app/api/organisation/route.ts`, `organisation/[tab]/[id]/route.ts`
+   - `app/api/payroll/calculate/route.ts`, `payroll/runs/route.ts`, `payroll/runs/[id]/route.ts`
+   - `app/api/people/[id]/documents/route.ts`, `documents/[docId]/route.ts`, `exit/route.ts`, `salary/route.ts`
+2. **Raw database errors** — All routes now use `mapDatabaseError()`; raw errors never reach clients.
+3. **Duplicate error systems** — Removed dead `lib/server.ts` and `lib/audit.ts`; single `lib/server/errors.ts` system remains.
+4. **Migration numbering** — Verified sequential (01–43); the duplicate `36_` issue was already resolved.
+5. **ESLint config** — Already fixed; `app/api` and `app/(app)` are now linted.
+6. **Auth context** — Already unified under typed `AuthContext` from `@hrms/api-contract`.
+7. **Rate limiting & idempotency** — Added to all mutation endpoints via `withApi()`.
+8. **Cross-company data isolation** — Added explicit company-scope checks to document verification and exit PATCH handlers (previously missing).
+
+### Quality gate results (this session)
+- `npm run typecheck` — **PASS** (0 errors)
+- `npm run lint` — **PASS** (0 errors; remaining warnings are pre-existing in mobile/UI code, none from migrated routes)
+- `npm run build` — **PASS** (compiled, linted, 46 static pages generated)
+
+### Remaining non-blocking warnings (pre-existing, not introduced by this work)
+- `react/no-unescaped-entities` in mobile screens
+- `@next/next/no-img-element` in `app/(app)/layout.tsx`
+- `react-hooks/exhaustive-deps` in `app/(app)/assets/import/page.tsx`
+- `@typescript-eslint/no-explicit-any` in `app/auth/callback/route.ts` and mobile LoginScreen
+

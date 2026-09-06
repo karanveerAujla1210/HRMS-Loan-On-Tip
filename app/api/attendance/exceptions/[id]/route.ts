@@ -1,51 +1,58 @@
-import { route, resolveActor, requirePermission, requireCompany, ok, badRequest, notFound, dbError, readJson, serviceClient } from "@/lib/server";
-import { writeAudit } from "@/lib/audit";
+import "server-only";
+import { withApi, jsonOk } from "@/lib/server/http";
+import { z } from "zod";
+import { adminClient } from "@/lib/server/supabase";
+import { mapDatabaseError, notFound as notFoundError } from "@/lib/server/errors";
 
-export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
-  const actor = await resolveActor();
-  requirePermission(actor, "attendance.approve");
-  const companyId = requireCompany(actor);
-  const { id } = await ctx.params;
+type RouteParams = { id: string };
 
-  const body = await readJson(req);
-  const status = body.status ? String(body.status) : "RESOLVED";
-  const resolution_note = body.resolution_note ? String(body.resolution_note) : null;
+const ExceptionPatchSchema = z
+  .object({
+    status: z.enum(["RESOLVED", "REJECTED", "OPEN", "REVIEW"]).default("RESOLVED"),
+    resolution_note: z.string().max(2000).nullable().optional(),
+  })
+  .strict();
 
-  const db = serviceClient();
-  const { data: exception, error: exErr } = await db
-    .from("attendance_exceptions")
-    .select("id, employee_id, company_id")
-    .eq("id", id)
-    .maybeSingle();
-  if (exErr) throw dbError(exErr);
-  if (!exception) throw notFound("Exception not found");
-  if ((exception as { company_id: string }).company_id !== companyId) {
-    throw badRequest("FORBIDDEN", "Exception belongs to another company");
-  }
+export const PATCH = withApi<typeof ExceptionPatchSchema, z.ZodTypeAny, RouteParams>({
+  permission: "attendance.approve",
+  body: ExceptionPatchSchema,
+  rateLimit: { limit: 30, windowMs: 60_000 },
+  handler: async ({ ctx, body, params, audit, requestId }) => {
+    const companyId = ctx.companyId!;
+    const db = adminClient();
 
-  const { data, error } = await db
-    .from("attendance_exceptions")
-    .update({
-      status,
-      resolution_note,
-      resolved_by: actor.employeeId,
-      resolved_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id)
-    .select("id, status")
-    .single();
-  if (error) throw dbError(error);
+    const { data: exception, error: exErr } = await db
+      .from("attendance_exceptions")
+      .select("id, employee_id, company_id, status")
+      .eq("id", params.id)
+      .eq("company_id", companyId)
+      .maybeSingle();
+    if (exErr) throw mapDatabaseError(exErr);
+    if (!exception) throw notFoundError("Exception not found");
 
-  await writeAudit(db, {
-    company_id: companyId,
-    actor_employee_id: actor.employeeId,
-    actor_auth_user_id: actor.authUserId,
-    action: "ATTENDANCE_EXCEPTION_RESOLVE",
-    entity_type: "attendance_exceptions",
-    entity_id: id,
-    new_values: { status, resolution_note },
-  }).catch(() => {});
+    const { data, error } = await db
+      .from("attendance_exceptions")
+      .update({
+        status: body.status,
+        resolution_note: body.resolution_note ?? null,
+        resolved_by: ctx.employeeId,
+        resolved_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", params.id)
+      .eq("company_id", companyId)
+      .select("id, status")
+      .single();
+    if (error) throw mapDatabaseError(error);
 
-  return ok(data);
+    await audit({
+      action: "ATTENDANCE_EXCEPTION_RESOLVE",
+      entityType: "attendance_exceptions",
+      entityId: params.id,
+      oldValues: { status: (exception as { status: string }).status },
+      newValues: { status: body.status, resolution_note: body.resolution_note ?? null },
+    });
+
+    return jsonOk(data, requestId);
+  },
 });

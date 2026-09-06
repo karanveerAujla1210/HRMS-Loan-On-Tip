@@ -1,62 +1,81 @@
-import { route, resolveActor, requirePermission, requireCompany, ok, badRequest, notFound, dbError, readJson, serviceClient } from "@/lib/server";
-import { writeAudit } from "@/lib/audit";
+import "server-only";
+import { withApi, jsonOk } from "@/lib/server/http";
+import { z } from "zod";
+import { adminClient } from "@/lib/server/supabase";
+import { mapDatabaseError, notFound as notFoundError } from "@/lib/server/errors";
 
-export const POST = route(async (req: Request, ctx: { params: Promise<{ id: string }> }) => {
-  const actor = await resolveActor();
-  requirePermission(actor, "asset.repair");
-  const companyId = requireCompany(actor);
-  const { id: assetId } = await ctx.params;
+type RouteParams = { id: string };
 
-  const body = await readJson(req);
-  const maintenance_type = body.maintenance_type ? String(body.maintenance_type) : "Hardware Repair";
-  const description = body.description ? String(body.description) : null;
-  if (!description) throw badRequest("INVALID_INPUT", "description is required");
+const RepairSchema = z
+  .object({
+    maintenance_type: z.string().trim().min(1).max(200).default("Hardware Repair"),
+    description: z.string().trim().min(1).max(2000),
+    vendor: z.string().max(200).nullable().optional(),
+    cost: z.number().min(0).nullable().optional(),
+    idempotency_key: z.string().min(8).max(200).optional(),
+  })
+  .strict();
 
-  const db = serviceClient();
+export const POST = withApi<typeof RepairSchema, z.ZodTypeAny, RouteParams>({
+  permission: "asset.repair",
+  body: RepairSchema,
+  idempotencyEndpoint: "asset/repair",
+  idempotencyKey: (body) => body.idempotency_key,
+  rateLimit: { limit: 30, windowMs: 60_000 },
+  handler: async ({ ctx, body, params, audit, requestId }) => {
+    const companyId = ctx.companyId!;
+    const assetId = params.id;
+    const db = adminClient();
 
-  const { data: asset, error: assetErr } = await db
-    .from("assets")
-    .select("id, asset_code, company_id, status")
-    .eq("id", assetId)
-    .maybeSingle();
-  if (assetErr) throw dbError(assetErr);
-  if (!asset) throw notFound("Asset not found");
-  if ((asset as { company_id: string }).company_id !== companyId) throw badRequest("FORBIDDEN", "Asset belongs to another company");
-
-  const { data, error } = await db
-    .from("asset_maintenance")
-    .insert({
-      asset_id: assetId,
-      maintenance_type,
-      vendor: body.vendor ?? null,
-      cost: body.cost ?? null,
-      description,
-      status: "OPEN",
-      started_at: new Date().toISOString(),
-      created_by: actor.employeeId,
-    })
-    .select("id")
-    .single();
-  if (error) throw dbError(error);
-
-  // Mark the asset as under repair unless it is currently assigned to someone.
-  const currentStatus = (asset as { status: string }).status;
-  if (currentStatus === "AVAILABLE" || currentStatus === "DAMAGED") {
-    await db
+    const { data: asset, error: assetErr } = await db
       .from("assets")
-      .update({ status: "UNDER_REPAIR", updated_at: new Date().toISOString() })
-      .eq("id", assetId);
-  }
+      .select("id, asset_code, company_id, status")
+      .eq("id", assetId)
+      .eq("company_id", companyId)
+      .maybeSingle();
+    if (assetErr) throw mapDatabaseError(assetErr);
+    if (!asset) throw notFoundError("Asset not found");
 
-  await writeAudit(db, {
-    company_id: companyId,
-    actor_employee_id: actor.employeeId,
-    actor_auth_user_id: actor.authUserId,
-    action: "ASSET_MAINTENANCE",
-    entity_type: "assets",
-    entity_id: assetId,
-    new_values: { maintenance_type, vendor: body.vendor ?? null },
-  }).catch(() => {});
+    const { data, error } = await db
+      .from("asset_maintenance")
+      .insert({
+        asset_id: assetId,
+        maintenance_type: body.maintenance_type,
+        vendor: body.vendor ?? null,
+        cost: body.cost ?? null,
+        description: body.description,
+        status: "OPEN",
+        started_at: new Date().toISOString(),
+        created_by: ctx.employeeId,
+      })
+      .select("id")
+      .single();
+    if (error) throw mapDatabaseError(error);
 
-  return ok({ id: assetId, maintenance_id: (data as { id: string }).id, status: "UNDER_REPAIR" }, { status: 201 });
+    // Mark the asset as under repair unless it is currently assigned to someone.
+    const currentStatus = (asset as { status: string }).status;
+    let statusAfter = currentStatus;
+    if (currentStatus === "AVAILABLE" || currentStatus === "DAMAGED") {
+      const { error: updErr } = await db
+        .from("assets")
+        .update({ status: "UNDER_REPAIR", updated_at: new Date().toISOString() })
+        .eq("id", assetId)
+        .in("status", ["AVAILABLE", "DAMAGED"]); // conditional update
+      if (updErr) throw mapDatabaseError(updErr);
+      statusAfter = "UNDER_REPAIR";
+    }
+
+    await audit({
+      action: "ASSET_MAINTENANCE",
+      entityType: "assets",
+      entityId: assetId,
+      newValues: { maintenance_type: body.maintenance_type, vendor: body.vendor ?? null, status: statusAfter },
+    });
+
+    return jsonOk(
+      { id: assetId, maintenance_id: (data as { id: string }).id, status: statusAfter },
+      requestId,
+      201
+    );
+  },
 });

@@ -1,47 +1,66 @@
-import { route, resolveActor, requirePermission, requireCompany, ok, badRequest, notFound, dbError, readJson, serviceClient } from "@/lib/server";
-import { writeAudit } from "@/lib/audit";
+import "server-only";
+import { withApi, jsonOk } from "@/lib/server/http";
+import { z } from "zod";
+import { adminClient } from "@/lib/server/supabase";
+import { mapDatabaseError, notFound as notFoundError } from "@/lib/server/errors";
 
-export const PATCH = route(async (req: Request, ctx: { params: Promise<{ id: string; docId: string }> }) => {
-  const actor = await resolveActor();
-  requirePermission(actor, "employee.document.manage");
-  const companyId = requireCompany(actor);
-  const { id, docId } = await ctx.params;
-  const db = serviceClient();
+type RouteParams = { id: string; docId: string };
 
-  const { data: doc, error: docErr } = await db
-    .from("employee_documents")
-    .select("id, employee_id")
-    .eq("id", docId)
-    .maybeSingle();
-  if (docErr) throw dbError(docErr);
-  if (!doc) throw notFound("Document not found");
-  if ((doc as { employee_id: string }).employee_id !== id) throw badRequest("FORBIDDEN", "Document does not belong to this employee");
+const DocumentPatchSchema = z
+  .object({
+    is_verified: z.literal(true),
+  })
+  .strict();
 
-  const body = await readJson(req);
-  const update: Record<string, unknown> = {};
-  if (body.is_verified === true) {
-    update.status = "VERIFIED";
-    update.verified_by = actor.employeeId;
-    update.verified_at = new Date().toISOString();
-  }
-  if (Object.keys(update).length === 0) throw badRequest("INVALID_INPUT", "No supported fields provided");
+export const PATCH = withApi<typeof DocumentPatchSchema, z.ZodTypeAny, RouteParams>({
+  permission: "employee.document.manage",
+  body: DocumentPatchSchema,
+  rateLimit: { limit: 60, windowMs: 60_000 },
+  handler: async ({ ctx, params, audit, requestId }) => {
+    const companyId = ctx.companyId!;
+    const { id, docId } = params;
+    const db = adminClient();
 
-  const { data, error } = await db
-    .from("employee_documents")
-    .update(update)
-    .eq("id", docId)
-    .select("id, status")
-    .single();
-  if (error) throw dbError(error);
+    // The document's employee must exist within the caller's company — this
+    // prevents cross-company document access by guessing employee/doc ids.
+    const { data: emp, error: empErr } = await db
+      .from("employees")
+      .select("id")
+      .eq("id", id)
+      .eq("company_id", companyId)
+      .maybeSingle();
+    if (empErr) throw mapDatabaseError(empErr);
+    if (!emp) throw notFoundError("Employee not found");
 
-  await writeAudit(db, {
-    company_id: companyId,
-    actor_employee_id: actor.employeeId,
-    actor_auth_user_id: actor.authUserId,
-    action: "DOCUMENT_VERIFY",
-    entity_type: "employee_documents",
-    entity_id: docId,
-  }).catch(() => {});
+    const { data: doc, error: docErr } = await db
+      .from("employee_documents")
+      .select("id, employee_id, status")
+      .eq("id", docId)
+      .eq("employee_id", id)
+      .maybeSingle();
+    if (docErr) throw mapDatabaseError(docErr);
+    if (!doc) throw notFoundError("Document not found");
 
-  return ok(data);
+    const { data, error } = await db
+      .from("employee_documents")
+      .update({
+        status: "VERIFIED",
+        verified_by: ctx.employeeId,
+        verified_at: new Date().toISOString(),
+      })
+      .eq("id", docId)
+      .select("id, status")
+      .single();
+    if (error) throw mapDatabaseError(error);
+
+    await audit({
+      action: "DOCUMENT_VERIFY",
+      entityType: "employee_documents",
+      entityId: docId,
+      oldValues: { status: (doc as { status: string }).status },
+      newValues: { status: "VERIFIED" },
+    });
+
+    return jsonOk(data, requestId);
+  },
 });
