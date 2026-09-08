@@ -4,6 +4,8 @@ export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api/client";
+import { API } from "@/lib/api/endpoints";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 import SubNav from "@/components/SubNav";
@@ -67,13 +69,11 @@ export default function CorrectionsPage() {
 
   async function handleAction(row: Row, action: "APPROVED" | "REJECTED") {
     setMsg(null);
-    const res = await fetch("/api/attendance/correction", {
+    const res = await apiFetch(API.attendance.correction, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ adjustment_id: row.id, action }),
     });
-    const json = await res.json() as { error?: string };
-    if (json.error) { setMsg(`Error: ${json.error}`); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); return; }
     setMsg(`Correction ${action.toLowerCase()}.`);
     void load();
   }

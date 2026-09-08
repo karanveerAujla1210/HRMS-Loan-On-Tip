@@ -6,3 +6,4 @@ export { default as Modal, ConfirmModal } from "./Modal";
 export { ToastProvider, useToast } from "./Toast";
 export { useField, useForm, Input, Select, Textarea, FormRow } from "./Form";
 export { Skeleton, SkeletonText, SkeletonCard, SkeletonStatCard, SkeletonTable, SkeletonList, SkeletonDashboard, SkeletonPageHeader } from "./Skeleton";
+export { Spinner, LoadingLabel, CenterSpinner } from "./Spinner";

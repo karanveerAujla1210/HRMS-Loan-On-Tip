@@ -5,6 +5,8 @@ export const dynamic = "force-dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api/client";
+import { API } from "@/lib/api/endpoints";
 import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
 import { parseCsv } from "@/lib/csv";
@@ -120,18 +122,20 @@ export default function AssetImportPage() {
     setImporting(true);
 
     try {
-      const res = await fetch("/api/assets/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assets: rows }),
-      });
-      const json = await res.json().catch(() => null);
-      if (!res.ok || !json) {
-        setResult({ success: 0, failed: rows.length, failedRows: [`Server error (${res.status}). Please try again.`] });
+      const res = await apiFetch<{ success: number; failed: number; failedRows: string[] }>(
+        API.assets.import,
+        { method: "POST", body: JSON.stringify({ assets: rows }) }
+      );
+      if (res.error || !res.data) {
+        setResult({
+          success: 0,
+          failed: rows.length,
+          failedRows: [res.error?.message ?? `Server error. Please try again.`],
+        });
         return;
       }
-      setResult({ success: json.success, failed: json.failed, failedRows: json.failedRows });
-      if (json.failed === 0) setTimeout(() => router.push("/assets"), 2000);
+      setResult({ success: res.data.success, failed: res.data.failed, failedRows: res.data.failedRows });
+      if (res.data.failed === 0) setTimeout(() => router.push("/assets"), 2000);
     } catch {
       setResult({ success: 0, failed: rows.length, failedRows: ["Network error. Check your connection and try again."] });
     } finally {

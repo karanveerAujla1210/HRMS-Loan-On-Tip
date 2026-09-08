@@ -4,6 +4,8 @@ export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api/client";
+import { API } from "@/lib/api/endpoints";
 import { PageHeader, DataTable, SubNav, Modal, useToast, SkeletonTable, Skeleton } from "@/components";
 
 const ATTENDANCE_NAV = [
@@ -70,9 +72,8 @@ export default function AttendancePage() {
   const handleBulkMark = async () => {
     setBulkLoading(true);
     try {
-      const res = await fetch("/api/attendance/bulk-mark", {
+      const res = await apiFetch<{ message?: string; marked?: number }>(API.attendance.bulkMark, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...bulkForm,
           employee_ids: selectedRows.length > 0
@@ -84,13 +85,12 @@ export default function AttendancePage() {
             : undefined,
         }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to bulk mark attendance");
-      
-      showToast({ 
-        type: "success", 
-        title: "Attendance marked", 
-        message: json.message || `Successfully marked ${json.marked ?? 0} attendance records.`,
+      if (res.error) throw new Error(res.error.message || "Failed to bulk mark attendance");
+
+      showToast({
+        type: "success",
+        title: "Attendance marked",
+        message: res.data?.message || `Successfully marked ${res.data?.marked ?? 0} attendance records.`,
       });
       setShowBulkModal(false);
       void load();

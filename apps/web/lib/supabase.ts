@@ -23,7 +23,13 @@ function createClient(): BrowserClient {
     );
   }
 
-  return createBrowserClient(url, key);
+  return createBrowserClient(url, key, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+    },
+  });
 }
 
 let client: BrowserClient | null = null;

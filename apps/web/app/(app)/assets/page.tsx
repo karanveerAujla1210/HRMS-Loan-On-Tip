@@ -5,6 +5,8 @@ export const dynamic = "force-dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api/client";
+import { API } from "@/lib/api/endpoints";
 import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
@@ -119,9 +121,8 @@ export default function AssetsPage() {
 
     const cost = fd.get("purchase_cost") ? Number(fd.get("purchase_cost")) : null;
 
-    const res = await fetch("/api/assets", {
+    const res = await apiFetch<{ asset_code: string }>(API.assets.create, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         asset_category_id: category.id,
         location_id: fd.get("location_id") || null,
@@ -140,10 +141,9 @@ export default function AssetsPage() {
         notes: fd.get("notes") || null,
       }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); setSaving(false); return; }
     setShowAddForm(false);
-    setMsg(`Asset ${json.data?.asset_code} added to inventory successfully.`);
+    setMsg(`Asset ${res.data?.asset_code} added to inventory successfully.`);
     void load();
     setSaving(false);
   }
@@ -162,9 +162,8 @@ export default function AssetsPage() {
     const handoverCondition = String(fd.get("condition_at_handover") || "GOOD");
     const remarks = String(fd.get("remarks") || "");
 
-    const res = await fetch(`/api/assets/${assigning.id}/assign`, {
+    const res = await apiFetch(API.assets.assign(assigning.id), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         employee_id: targetEmployeeId,
         expected_return_date: expectedReturn,
@@ -172,8 +171,7 @@ export default function AssetsPage() {
         remarks: remarks || null,
       }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); setSaving(false); return; }
     setMsg(`Asset ${assigning.asset_code} assigned to employee successfully.`);
     setAssigning(null);
     void load();
@@ -194,9 +192,8 @@ export default function AssetsPage() {
     const recoveryAmount = fd.get("recovery_amount") ? Number(fd.get("recovery_amount")) : null;
     const remarks = fd.get("remarks") ? String(fd.get("remarks")) : null;
 
-    const res = await fetch(`/api/assets/${returning.id}/return`, {
+    const res = await apiFetch(API.assets.return(returning.id), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         condition,
         damage_description: damageDesc,
@@ -205,8 +202,7 @@ export default function AssetsPage() {
         remarks,
       }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); setSaving(false); return; }
     const newStatus = condition === "DAMAGED" ? "DAMAGED" : "AVAILABLE";
     setMsg(`Asset ${returning.asset_code} returned. Status: ${newStatus}.`);
     setReturning(null);
@@ -222,9 +218,8 @@ export default function AssetsPage() {
     setMsg(null);
     const fd = new FormData(e.currentTarget);
 
-    const res = await fetch(`/api/assets/${repairing.id}/repair`, {
+    const res = await apiFetch(API.assets.repair(repairing.id), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         maintenance_type: fd.get("maintenance_type") || "Hardware Repair",
         vendor: fd.get("vendor") || null,
@@ -232,8 +227,7 @@ export default function AssetsPage() {
         description: fd.get("description") || "Sent for repair",
       }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); setSaving(false); return; }
     setMsg(`Asset ${repairing.asset_code} sent for repair.`);
     setRepairing(null);
     void load();

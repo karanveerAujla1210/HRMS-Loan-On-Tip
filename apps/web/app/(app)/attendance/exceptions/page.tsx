@@ -4,6 +4,8 @@ export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api/client";
+import { API } from "@/lib/api/endpoints";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 import SubNav from "@/components/SubNav";
@@ -69,13 +71,11 @@ export default function ExceptionsPage() {
 
   async function resolve(row: Row, note: string) {
     setMsg(null);
-    const res = await fetch(`/api/attendance/exceptions/${String(row.id)}`, {
+    const res = await apiFetch(API.attendance.exceptions.resolve(String(row.id)), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: "RESOLVED", resolution_note: note }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); return; }
     setMsg("Exception resolved.");
     void load();
   }

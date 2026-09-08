@@ -3,19 +3,21 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_TIMEOUT_MS = 5000;
 
+type GetUserResult = {
+  data: { user: { id: string } | null };
+  error: { message: string } | null;
+};
+
 async function getSessionWithTimeout(supabase: ReturnType<typeof createServerClient>) {
-  const timeoutPromise = new Promise<{ data: { session: null }; error: { message: string } }>((_, reject) =>
+  const timeoutPromise = new Promise<GetUserResult>((_, reject) =>
     setTimeout(() => reject(new Error("Session check timed out")), SESSION_TIMEOUT_MS)
   );
   try {
-    const result = await Promise.race([
-      supabase.auth.getSession(),
-      timeoutPromise,
-    ]);
+    const result = await Promise.race([supabase.auth.getUser(), timeoutPromise]);
     return result;
   } catch (e) {
     if (e instanceof Error && e.message === "Session check timed out") {
-      return { data: { session: null }, error: { message: "Session check timed out" } };
+      return { data: { user: null }, error: { message: "Session check timed out" } } as GetUserResult;
     }
     throw e;
   }
@@ -51,24 +53,28 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Retrieve session
-  const { data: { session } } = await getSessionWithTimeout(supabase);
+  // Retrieve and verify the session. `auth.getUser()` performs a round-trip
+  // to the Supabase Auth server and validates the JWT, unlike `getSession()`
+  // which trusts the cookie payload without verification.
+  const { data: { user } } = await getSessionWithTimeout(supabase) as {
+    data: { user: { id: string } | null };
+  };
   const isAuthRoute = pathname.startsWith("/login");
 
-  if (!session && !isAuthRoute) {
+  if (!user && !isAuthRoute) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
-  if (session && isAuthRoute) {
+  if (user && isAuthRoute) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   // Determine effective roles
   let effectiveRoles: string[] = [];
-  if (session?.user?.id) {
+  if (user) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("employee_id")
-      .eq("auth_user_id", session.user.id)
+      .eq("auth_user_id", user.id)
       .single();
     if (profile?.employee_id) {
       const { data: roleRows } = await supabase

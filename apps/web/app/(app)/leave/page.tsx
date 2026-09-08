@@ -4,6 +4,8 @@ export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api/client";
+import { API } from "@/lib/api/endpoints";
 import { PageHeader, DataTable, useToast, ConfirmModal, SkeletonTable, Skeleton } from "@/components";
 
 type Row = Record<string, unknown>;
@@ -50,14 +52,12 @@ export default function LeavePage() {
     if (!confirmLeave) return;
     setActionLoading(true);
     try {
-      const res = await fetch(`/api/leaves/${confirmLeave.id}`, {
+      const res = await apiFetch(API.leaves.action(confirmLeave.id), {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: confirmLeave.action, comments: "" }),
       });
-      const json = await res.json();
-      if (json.error) {
-        showToast({ type: "error", title: "Action failed", message: json.message || json.error });
+      if (res.error) {
+        showToast({ type: "error", title: "Action failed", message: res.error.message });
         return;
       }
       showToast({ 

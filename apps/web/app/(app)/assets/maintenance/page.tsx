@@ -4,6 +4,8 @@ export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api/client";
+import { API } from "@/lib/api/endpoints";
 import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
@@ -114,9 +116,8 @@ export default function AssetMaintenancePage() {
 
     const costVal = fd.get("cost") ? Number(fd.get("cost")) : null;
 
-    const res = await fetch("/api/assets/maintenance", {
+    const res = await apiFetch(API.assets.maintenance, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         asset_id: assetId,
         maintenance_type: fd.get("maintenance_type"),
@@ -126,8 +127,7 @@ export default function AssetMaintenancePage() {
         description: fd.get("description") || null,
       }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); setSaving(false); return; }
 
     setShowLogModal(false);
     setMsg("Maintenance ticket logged and asset status marked as UNDER_REPAIR.");
@@ -146,9 +146,8 @@ export default function AssetMaintenancePage() {
     const resolutionNote = String(fd.get("resolution_note") || "");
     const condition = String(fd.get("condition") || "GOOD");
 
-    const res = await fetch(`/api/assets/maintenance/${completingRecord.id}`, {
+    const res = await apiFetch(API.assets.maintenanceComplete(completingRecord.id), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         cost: actualCost,
         completed_at: completedDate,
@@ -156,8 +155,7 @@ export default function AssetMaintenancePage() {
         condition: condition as "EXCELLENT" | "GOOD" | "FAIR",
       }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); setSaving(false); return; }
 
     setCompletingRecord(null);
     setMsg("Maintenance ticket completed. Asset returned to inventory as AVAILABLE.");
