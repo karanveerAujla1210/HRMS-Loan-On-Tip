@@ -6,20 +6,22 @@
     "node": ">=20.9.0"
   },
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/web",
+    "apps/mobile"
   ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "dev": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=apps/web",
+    "start": "npm run start --workspace=apps/web",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "vitest run",
     "test:watch": "vitest",
     "db:lint": "vitest run tests/db",
-    "mobile:start": "npm --prefix mobile start",
-    "mobile:android": "npm --prefix mobile run android",
-    "mobile:typecheck": "npm --prefix mobile run typecheck"
+    "mobile:start": "npm run start --workspace=apps/mobile",
+    "mobile:android": "npm run android --workspace=apps/mobile",
+    "mobile:typecheck": "npm run typecheck --workspace=apps/mobile"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

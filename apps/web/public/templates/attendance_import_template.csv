@@ -1,0 +1,4 @@
+employee_code,official_email,attendance_date,check_in_time,check_out_time,status,latitude,longitude,remarks
+EMP-000001,rahul.sharma@loanontip.com,2026-09-01,09:30:00,18:30:00,PRESENT,28.6139,77.2090,On time check-in
+EMP-000002,priya.verma@loanontip.com,2026-09-01,09:45:00,18:30:00,LATE,28.6139,77.2090,Traffic delay
+EMP-000003,rahul.verma@loanontip.com,2026-09-01,,,ON_LEAVE,,Approved Casual Leave

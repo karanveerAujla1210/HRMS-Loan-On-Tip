@@ -15,7 +15,7 @@
     "isolatedModules": true,
     "types": ["node"],
     "paths": {
-      "@/*": ["./*"],
+      "@/*": ["./apps/web/*"],
       "@hrms/api-contract": ["./packages/api-contract/src/index.ts"],
       "@hrms/domain": ["./packages/domain/src/index.ts"],
       "@hrms/config": ["./packages/config/src/index.ts"],
@@ -24,11 +24,12 @@
     "jsx": "preserve",
     "plugins": [{ "name": "next" }]
   },
-  "exclude": ["node_modules", ".next", "supabase", "mobile"],
+  "exclude": ["node_modules", ".next", "supabase", "apps/mobile"],
   "include": [
     "next-env.d.ts",
     ".next/types/**/*.ts",
-    "**/*.ts",
-    "**/*.tsx"
+    "apps/web/**/*.ts",
+    "apps/web/**/*.tsx",
+    "packages/**/*.ts"
   ]
 }

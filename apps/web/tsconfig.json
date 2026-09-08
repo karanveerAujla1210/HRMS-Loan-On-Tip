@@ -1,0 +1,27 @@
+﻿{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@hrms/api-contract": ["../../packages/api-contract/src/index.ts"],
+      "@hrms/domain": ["../../packages/domain/src/index.ts"],
+      "@hrms/config": ["../../packages/config/src/index.ts"],
+      "@hrms/ui-tokens": ["../../packages/ui-tokens/src/index.ts"]
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}
