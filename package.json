@@ -8,7 +8,7 @@
   "workspaces": [
     "packages/*",
     "apps/web",
-    "apps/mobile"
+    "mobile"
   ],
   "scripts": {
     "dev": "npm run dev --workspace=apps/web",
@@ -19,9 +19,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:lint": "vitest run tests/db",
-    "mobile:start": "npm run start --workspace=apps/mobile",
-    "mobile:android": "npm run android --workspace=apps/mobile",
-    "mobile:typecheck": "npm run typecheck --workspace=apps/mobile"
+    "mobile:start": "npm run start --workspace=mobile",
+    "mobile:android": "npm run android --workspace=mobile",
+    "mobile:typecheck": "npm run typecheck --workspace=mobile"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",

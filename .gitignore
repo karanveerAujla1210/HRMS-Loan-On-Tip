@@ -21,8 +21,8 @@ supabase/.branches/
 supabase/.temp/
 
 # Expo / React Native
-apps/mobile/.expo/
-apps/mobile/dist/
+mobile/.expo/
+mobile/dist/
 
 # OS
 .DS_Store

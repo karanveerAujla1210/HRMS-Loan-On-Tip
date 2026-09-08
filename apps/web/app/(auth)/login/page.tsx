@@ -6,19 +6,21 @@ import { supabase } from "@/lib/supabase";
 import { MOBILE_APP_DOWNLOAD_PATH, MOBILE_APP_VERSION } from "@/lib/mobile-app";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("admin@loanontip.com");
-  const [password, setPassword] = useState("LOT@123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [otpSent, setOtpSent] = useState(false);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError(null);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) {
-      setError(error.message);
+      setError("Sign in failed. Check your credentials and try again.");
       setLoading(false);
       return;
     }
@@ -26,20 +28,15 @@ export default function LoginPage() {
     window.location.href = "/dashboard";
   }
 
-  async function handleMagicLink(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleMagicLink() {
     if (!email) { setError("Enter your email first."); return; }
+    if (loading) return;
     setLoading(true);
     setError(null);
     const { error } = await supabase.auth.signInWithOtp({ email: email.trim() });
-    if (error) { setError(error.message); setLoading(false); return; }
+    if (error) { setError("Could not send the magic link. Please try again."); setLoading(false); return; }
     setOtpSent(true);
     setLoading(false);
-  }
-
-  function quickLogin(roleEmail: string) {
-    setEmail(roleEmail);
-    setPassword("LOT@123");
   }
 
   if (otpSent) {
@@ -47,17 +44,17 @@ export default function LoginPage() {
       <div className="login-page">
         <div className="login-card">
           <div className="login-brand">
-            <Image src="/logo.png" alt="Loan On Tip Logo" width={48} height={48} className="brand-logo" />
+            <div className="brand-mark">L</div>
             <div>
               <strong>Loan On Tip</strong>
               <span>ACG Leasing Limited</span>
             </div>
           </div>
-          <div className="alert alert-success">
+          <div className="alert alert-success" role="status">
             Magic link sent to <strong>{email}</strong>. Check your inbox and click the link to sign in.
           </div>
           <button className="btn btn-secondary" style={{ width: "100%" }} onClick={() => setOtpSent(false)}>
-            Back to login
+            Back to sign in
           </button>
         </div>
       </div>
@@ -68,7 +65,7 @@ export default function LoginPage() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-brand">
-          <div className="brand-mark">L</div>
+          <Image src="/logo.png" alt="Loan On Tip Logo" width={84} height={84} className="brand-logo" />
           <div>
             <strong>Loan On Tip</strong>
             <span>ACG Leasing Limited</span>
@@ -91,41 +88,40 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
+              autoFocus
             />
           </div>
           <div className="form-group">
-            <label htmlFor="password">Password (Default: LOT@123)</label>
-            <input
-              id="password"
-              type="password"
-              placeholder="LOT@123"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
+            <label htmlFor="password">Password</label>
+            <div className="input-with-action">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                className="input-action"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                tabIndex={-1}
+              >
+                {showPassword ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M2 6h20M2 18h20M6 6v12M18 6v12" /></svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 3v18" /><path d="M5 9a7 2.5 0 0 1 14 9" /></svg>
+                )}
+              </button>
+            </div>
           </div>
           <button className="btn btn-primary" style={{ width: "100%", marginTop: 4 }} type="submit" disabled={loading}>
-            {loading ? "Signing in…" : "Sign in with LOT@123"}
+            {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
-
-        <div style={{ marginTop: 16 }}>
-          <span style={{ fontSize: 11, color: "var(--text-4)", fontWeight: 600, textTransform: "uppercase" }}>
-            Quick Demo Credentials:
-          </span>
-          <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => quickLogin("admin@loanontip.com")}>
-              Admin
-            </button>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => quickLogin("deepak.kumar@loanontip.com")}>
-              Deepak Kumar
-            </button>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => quickLogin("naveen.bhilwara@loanontip.com")}>
-              Naveen Bhilwara
-            </button>
-          </div>
-        </div>
 
         <div style={{ textAlign: "center", margin: "16px 0", color: "var(--text-4)", fontSize: 12 }}>or</div>
 

@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { PageHeader, DataTable, useToast, ConfirmModal, SkeletonTable, Skeleton } from "@/components";

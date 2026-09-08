@@ -77,7 +77,10 @@ export async function middleware(request: NextRequest) {
         .eq("employee_id", profile.employee_id)
         .eq("is_active", true);
       if (Array.isArray(roleRows)) {
-        effectiveRoles = roleRows.map((r: any) => r.roles?.code).filter(Boolean);
+        effectiveRoles = roleRows
+          .flatMap((r) => r.roles ?? [])
+          .map((role) => role.code)
+          .filter((code): code is string => Boolean(code));
       }
     }
   }
