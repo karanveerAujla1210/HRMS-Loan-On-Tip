@@ -32,13 +32,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     const id = Math.random().toString(36).slice(2, 9);
     const newToast: Toast = { ...toast, id };
     setToasts((prev) => [...prev, newToast]);
-    
-    const duration = toast.duration ?? (toast.type === "error" ? 6000 : 4000);
-    if (duration > 0) {
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, duration);
-    }
+    // Auto-dismiss is handled by ToastItem; do not duplicate the timer here.
     return id;
   }, []);
 
@@ -102,10 +96,10 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: (id: string) => 
   };
 
   const colors: Record<ToastType, { bg: string; border: string; icon: string; text: string }> = {
-    success: { bg: "#f0fdf4", border: "#bbf7d0", icon: "#166534", text: "#166534" },
-    error: { bg: "#fef2f2", border: "#fecaca", icon: "#991b1b", text: "#991b1b" },
-    info: { bg: "#eff6ff", border: "#bfdbfe", icon: "#1e40af", text: "#1e40af" },
-    warning: { bg: "#fffbeb", border: "#fde68a", icon: "#92400e", text: "#92400e" },
+    success: { bg: "var(--success-light)", border: "var(--success)", icon: "var(--success-dark)", text: "var(--success-dark)" },
+    error: { bg: "var(--danger-light)", border: "var(--danger)", icon: "var(--danger-dark)", text: "var(--danger-dark)" },
+    info: { bg: "var(--info-light)", border: "var(--info)", icon: "var(--info-dark)", text: "var(--info-dark)" },
+    warning: { bg: "var(--warning-light)", border: "var(--warning)", icon: "var(--warning-dark)", text: "var(--warning-dark)" },
   };
 
   const style = colors[toast.type];

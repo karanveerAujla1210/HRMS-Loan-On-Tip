@@ -1,6 +1,23 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
-
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Accessibility: skip to content ── */
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 16px;
+  z-index: var(--z-tooltip);
+  padding: 10px 16px;
+  background: var(--brand);
+  color: var(--brand-contrast);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top var(--transition-fast);
+}
+.skip-link:focus-visible {
+  top: 12px;
+}
 
 :root {
   /* Brand Colors */
@@ -76,9 +93,9 @@
   --transition-base: 180ms ease;
   --transition-slow: 280ms ease;
 
-  /* Typography */
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-display: 'Manrope', system-ui, sans-serif;
+  /* Typography — families are injected by next/font as CSS variables on <html> */
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-manrope), system-ui, sans-serif;
   --text-xs: 11px;
   --text-sm: 12.5px;
   --text-base: 13.5px;
@@ -1845,6 +1862,98 @@ input:focus + svg, .input-with-icon:focus-within svg {
   }
 }
 
+/* ══════════════════════════════════════════════════════════
+   UI / UX polish — production hardening layer
+   ══════════════════════════════════════════════════════════ */
+
+/* Password visibility toggle (sign-in form) */
+.input-with-action { position: relative; display: flex; align-items: center; }
+.input-with-action input { padding-right: 42px; }
+.input-action {
+  position: absolute;
+  top: 2px; right: 2px; bottom: 2px;
+  width: 38px;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+.input-action:hover { color: var(--text); background: var(--surface-hover); }
+.input-action svg { width: 18px; height: 18px; }
+
+/* Login backdrop — subtle brand-tinted gradients for depth */
+.login-page {
+  background:
+    radial-gradient(circle at 15% 18%, rgba(232,85,52,.07), transparent 38%),
+    radial-gradient(circle at 85% 82%, rgba(59,130,246,.05), transparent 38%),
+    var(--bg);
+}
+
+/* Text selection in brand tone */
+::selection { background: var(--brand-light); color: var(--text); }
+
+/* Refined scrollbars */
+* { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--border); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Smooth in-page scrolling (disabled for reduced motion) */
+html { scroll-behavior: smooth; }
+
+/* Disabled interactive states */
+.btn:disabled, .btn[disabled] { opacity: .6; cursor: not-allowed; }
+
+/* Placeholder legibility */
+input::placeholder, textarea::placeholder { color: var(--text-subtle); opacity: 1; }
+
+/* Crisp focus ring on form controls (matches :focus-visible) */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--brand);
+  box-shadow: var(--shadow-focus);
+}
+
+/* Font rendering */
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Mobile-app download card should follow surfaces */
+.mobile-app-download { background: var(--surface-hover); }
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+  html { scroll-behavior: auto !important; }
+}
+
+/* –──── Dark-mode additions for the polish layer ───── */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .login-page {
+    background:
+      radial-gradient(circle at 15% 18%, rgba(249,112,82,.06), transparent 38%),
+      radial-gradient(circle at 85% 82%, rgba(96,165,250,.05), transparent 38%),
+      var(--bg);
+  }
+  :root:not([data-theme="light"]) ::selection { background: var(--brand-light); color: var(--text); }
+  :root:not([data-theme="light"]) * { scrollbar-color: #3d4a6b transparent; }
+  :root:not([data-theme="light"]) ::-webkit-scrollbar-thumb { background: #3d4a6b; }
+  :root:not([data-theme="light"]) ::-webkit-scrollbar-thumb:hover { background: #4d5c82; }
+  :root:not([data-theme="light"]) .input-action { color: var(--text-3); }
+  :root:not([data-theme="light"]) .input-action:hover { color: var(--text); background: var(--bg); }
+}
+
 /* ── Print Styles ── */
 @media print {
   .sidebar, .page-header, .header-actions, .subnav-tabs, .quick-actions-bar, .btn, .modal-backdrop {
@@ -1866,5 +1975,65 @@ input:focus + svg, .input-with-icon:focus-within svg {
   }
   table {
     min-width: 100%;
+  }
+}
+
+/* ── Error Boundary & 404 ── */
+.error-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 100vh;
+  padding: 48px 24px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.error-boundary svg {
+  width: 56px;
+  height: 56px;
+  color: var(--danger);
+  opacity: 0.7;
+  margin-bottom: 20px;
+}
+
+.error-boundary h1 {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.error-boundary p {
+  font-size: var(--text-base);
+  color: var(--text-muted);
+  max-width: 420px;
+  margin-bottom: 6px;
+}
+
+.error-boundary .error-digest {
+  font-size: var(--text-xs);
+  color: var(--text-subtle);
+  margin-bottom: 4px;
+}
+
+.error-boundary .error-digest code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 2px 6px;
+}
+
+.error-boundary .error-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+@media print {
+  .error-boundary svg {
+    display: none;
   }
 }

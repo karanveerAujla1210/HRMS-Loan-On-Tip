@@ -85,6 +85,8 @@ export default function AssetImportPage() {
       });
       if (row.category && !categories[row.category.toLowerCase().trim()])
         errs.push(`Row ${rowNum}: category "${row.category}" not found — check Organisation > Asset Categories`);
+      if (row.location && !locations[row.location.toLowerCase().trim()])
+        errs.push(`Row ${rowNum}: location "${row.location}" not found — check Organisation > Locations`);
       if (row.serial_number) {
         if (serials.has(row.serial_number.toLowerCase()))
           errs.push(`Row ${rowNum}: duplicate serial_number "${row.serial_number}"`);
@@ -114,19 +116,28 @@ export default function AssetImportPage() {
   }
 
   const handleImport = useCallback(async () => {
-    if (!rows.length || errors.length || !companyId) return;
+    if (!rows.length || errors.length || !companyId || importing) return;
     setImporting(true);
 
-    const res = await fetch("/api/assets/import", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ assets: rows }),
-    });
-    const json = await res.json();
-    setResult({ success: json.success, failed: json.failed, failedRows: json.failedRows });
-    setImporting(false);
-    if (json.failed === 0) setTimeout(() => router.push("/assets"), 2000);
-  }, [rows, errors, categories, locations, companyId, router]);
+    try {
+      const res = await fetch("/api/assets/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assets: rows }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json) {
+        setResult({ success: 0, failed: rows.length, failedRows: [`Server error (${res.status}). Please try again.`] });
+        return;
+      }
+      setResult({ success: json.success, failed: json.failed, failedRows: json.failedRows });
+      if (json.failed === 0) setTimeout(() => router.push("/assets"), 2000);
+    } catch {
+      setResult({ success: 0, failed: rows.length, failedRows: ["Network error. Check your connection and try again."] });
+    } finally {
+      setImporting(false);
+    }
+  }, [rows, errors, companyId, importing, router]);
 
   function downloadSample() {
     const header = HEADERS.join(",");

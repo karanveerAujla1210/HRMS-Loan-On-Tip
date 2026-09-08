@@ -5,6 +5,7 @@ export const dynamic = "force-dynamic";
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useSidebar } from "@/components/SidebarContext";
@@ -191,7 +192,18 @@ supabase.auth.getSession().then(async ({ data }) => {
   const effectiveRole = profile?.role ?? null;
   const effectiveRoles = profile?.roles ?? [];
 
-  const initials = user?.email?.slice(0, 2).toUpperCase() ?? "HR";
+  // Derive a friendly display name + initials from the account email.
+  const userEmail = user?.email ?? "";
+  const localPart = userEmail.split("@")[0] ?? "";
+  const displayName =
+    localPart
+      .replace(/[._-]+/g, " ")
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ") || "Admin";
+  const initials = (displayName.replace(/[^A-Za-z]/g, "").slice(0, 2) || "HR").toUpperCase();
   const roleLabel = effectiveRole
     ? effectiveRole.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
     : "Employee";
@@ -278,7 +290,7 @@ supabase.auth.getSession().then(async ({ data }) => {
 
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-brand">
-          <img src="/logo.png" alt="Loan On Tip Logo" className="brand-logo" />
+          <Image src="/logo.png" alt="Loan On Tip Logo" width={72} height={72} className="brand-logo" />
           <div className="brand-text">
             <strong>Loan On Tip</strong>
             <span>ACG Leasing Limited</span>
@@ -293,7 +305,7 @@ supabase.auth.getSession().then(async ({ data }) => {
           <div className="user-card">
             <div className="avatar">{initials}</div>
             <div className="user-info">
-              <strong>{user?.email?.split("@")[0] ?? "Admin"}</strong>
+              <strong title={userEmail}>{displayName}</strong>
               <span>{roleLabel}</span>
             </div>
             <div style={{ marginLeft: "auto", display: "flex", gap: 4, alignItems: "center" }}>
@@ -315,7 +327,7 @@ supabase.auth.getSession().then(async ({ data }) => {
         </div>
       </aside>
 
-      <div className="main-content">
+      <div className="main-content" id="main-content">
         {/* Mobile topbar with hamburger to open the sidebar */}
         <div className="mobile-topbar">
           <button
@@ -325,7 +337,7 @@ supabase.auth.getSession().then(async ({ data }) => {
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
-          <img src="/logo.png" alt="Loan On Tip" className="brand-logo" />
+          <Image src="/logo.png" alt="Loan On Tip" width={60} height={60} className="brand-logo" />
           <span className="mobile-topbar-title">Loan On Tip HRMS</span>
           {unread > 0 && (
             <Link href="/self-service" className="hamburger-btn" style={{ marginLeft: "auto", position: "relative" }} aria-label="Notifications">
