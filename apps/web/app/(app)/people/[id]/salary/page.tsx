@@ -5,6 +5,8 @@ export const dynamic = "force-dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api/client";
+import { API } from "@/lib/api/endpoints";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 import EmployeeSubNav from "@/components/EmployeeSubNav";
@@ -65,13 +67,11 @@ export default function EmployeeSalaryPage() {
     const structureId = fd.get("salary_structure_id") as string;
     const effectiveFrom = fd.get("effective_from") as string;
 
-    const res = await fetch(`/api/people/${id}/salary`, {
+    const res = await apiFetch(API.people.salary(id), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ salary_structure_id: structureId || null, annual_ctc: annualCtc, effective_from: effectiveFrom, reason: fd.get("reason") || null }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); setSaving(false); return; }
     setMsg("Salary assigned successfully.");
     setShowForm(false);
     void load();

@@ -57,11 +57,11 @@ export const POST = withApi<typeof ImportSchema, z.ZodTypeAny, Record<string, ne
     if (brandRes.error) throw mapDatabaseError(brandRes.error);
     if (locRes.error) throw mapDatabaseError(locRes.error);
 
-    const toMap = (rows: { name: string }[] | null) =>
-      new Map((rows ?? []).map((r) => [r.name.toLowerCase().trim(), r]));
-    const categories = toMap(catRes.data as { name: string }[]);
-    const brands = toMap(brandRes.data as { name: string }[]);
-    const locations = toMap(locRes.data as { name: string }[]);
+    const toMap = <T extends { name: string }>(rows: T[] | null) =>
+      new Map<string, T>((rows ?? []).map((r) => [r.name.toLowerCase().trim(), r]));
+    const categories = toMap(catRes.data as { id: string; name: string; prefix: string }[]);
+    const brands = toMap(brandRes.data as { id: string; name: string }[]);
+    const locations = toMap(locRes.data as { id: string; name: string }[]);
 
     let success = 0;
     let failed = 0;
@@ -86,7 +86,7 @@ export const POST = withApi<typeof ImportSchema, z.ZodTypeAny, Record<string, ne
         const locationId = location ? (locations.get(location.toLowerCase()) as { id: string } | undefined)?.id ?? null : null;
 
         const { data: codeRes, error: codeErr } = await db.rpc("next_asset_code", {
-          p_prefix: (category as { prefix: string }).prefix,
+          p_prefix: category.prefix,
         });
         if (codeErr) throw mapDatabaseError(codeErr);
 

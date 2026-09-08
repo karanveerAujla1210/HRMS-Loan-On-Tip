@@ -5,6 +5,8 @@ export const dynamic = "force-dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api/client";
+import { API } from "@/lib/api/endpoints";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 
@@ -96,26 +98,22 @@ export default function PayrollRunDetailPage() {
 
   async function approveRun() {
     setMsg(null);
-    const res = await fetch(`/api/payroll/runs/${id}`, {
+    const res = await apiFetch(API.payroll.run(id), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "APPROVED" }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); return; }
     setMsg("Payroll run approved successfully.");
     void load();
   }
 
   async function lockRun() {
     setMsg(null);
-    const res = await fetch(`/api/payroll/runs/${id}`, {
+    const res = await apiFetch(API.payroll.run(id), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "LOCKED" }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); return; }
     setMsg("Payroll run locked successfully.");
     void load();
   }

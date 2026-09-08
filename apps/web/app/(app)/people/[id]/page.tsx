@@ -6,6 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api/client";
+import { API } from "@/lib/api/endpoints";
 import PageHeader from "@/components/PageHeader";
 import EmployeeSubNav from "@/components/EmployeeSubNav";
 
@@ -82,9 +84,8 @@ export default function EmployeeDetailPage() {
     setMsg(null);
     const fd = new FormData(e.currentTarget);
 
-    const res = await fetch(`/api/employees/${id}`, {
+    const res = await apiFetch(API.employees.update(id), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         first_name: fd.get("first_name"),
         last_name: fd.get("last_name"),
@@ -104,8 +105,7 @@ export default function EmployeeDetailPage() {
         joining_date: fd.get("joining_date"),
       }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); setSaving(false); return; }
 
     const customUpserts = customFields.map(cf => {
       const val = fd.get(`cf_${cf.id}`);
@@ -131,12 +131,14 @@ export default function EmployeeDetailPage() {
   async function handleGenerateLogin() {
     setGeneratingLogin(true);
     setLoginMsg(null);
-    const res = await fetch(`/api/employees/${id}/generate-login`, { method: "POST" });
-    const json = await res.json();
-    if (json.error) {
-      setLoginMsg({ type: "error", text: json.error.message ?? "Failed to generate login" });
+    const res = await apiFetch<{ message: string; email: string; already_existed: boolean }>(
+      API.employees.generateLogin(id),
+      { method: "POST" }
+    );
+    if (res.error) {
+      setLoginMsg({ type: "error", text: res.error.message ?? "Failed to generate login" });
     } else {
-      const d = json.data as { message: string; email: string; already_existed: boolean };
+      const d = res.data!;
       setLoginMsg({
         type: "success",
         text: d.already_existed ? `Login already exists for ${d.email}` : `Invite email sent to ${d.email}`,

@@ -4,6 +4,8 @@ export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api/client";
+import { API } from "@/lib/api/endpoints";
 import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
@@ -74,15 +76,13 @@ export default function OrganisationPage() {
     };
 
     const method = editing ? "PATCH" : "POST";
-    const url = editing ? `/api/organisation/${tab}/${String(editing.id)}` : "/api/organisation";
+    const url = editing ? API.organisation.row(tab, String(editing.id)) : "/api/organisation";
 
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method,
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); setSaving(false); return; }
     setMsg(editing ? "Updated successfully." : "Created successfully.");
     setShowForm(false);
     setEditing(null);
@@ -92,19 +92,16 @@ export default function OrganisationPage() {
 
   async function toggleActive(row: Row) {
     if (tab === "holidays") {
-      const res = await fetch(`/api/organisation/${tab}/${String(row.id)}`, { method: "DELETE" });
-      const json = await res.json();
-      if (json.error) { setMsg(`Error: ${json.error}`); return; }
+      const res = await apiFetch(API.organisation.row(tab, String(row.id)), { method: "DELETE" });
+      if (res.error) { setMsg(`Error: ${res.error.message}`); return; }
       void load();
       return;
     }
-    const res = await fetch(`/api/organisation/${tab}/${String(row.id)}`, {
+    const res = await apiFetch(API.organisation.row(tab, String(row.id)), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ is_active: !row.is_active }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); return; }
     void load();
   }
 

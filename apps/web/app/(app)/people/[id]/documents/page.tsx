@@ -5,6 +5,8 @@ export const dynamic = "force-dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api/client";
+import { API } from "@/lib/api/endpoints";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 import EmployeeSubNav from "@/components/EmployeeSubNav";
@@ -52,9 +54,8 @@ export default function EmployeeDocumentsPage() {
     setMsg(null);
     const fd = new FormData(e.currentTarget);
 
-    const res = await fetch(`/api/people/${id}/documents`, {
+    const res = await apiFetch(API.people.documents(id), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         document_type_id: fd.get("document_type_id"),
         document_name: fd.get("file_name"),
@@ -63,8 +64,7 @@ export default function EmployeeDocumentsPage() {
         expiry_date: fd.get("expiry_date") || null,
       }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); setSaving(false); return; }
     setMsg("Document record added.");
     setShowForm(false);
     void load();
@@ -72,13 +72,11 @@ export default function EmployeeDocumentsPage() {
   }
 
   async function markVerified(row: Row) {
-    const res = await fetch(`/api/people/${id}/documents/${String(row.id)}`, {
+    const res = await apiFetch(API.people.document(id, String(row.id)), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ is_verified: true }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); return; }
     setMsg("Document verified.");
     void load();
   }

@@ -5,6 +5,8 @@ export const dynamic = "force-dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api/client";
+import { API } from "@/lib/api/endpoints";
 import { useProfile } from "@/lib/useProfile";
 import { PageHeader, DataTable, Modal, useForm, Input, Select, SkeletonTable, Skeleton } from "@/components";
 import { useToast } from "@/components/Toast";
@@ -120,9 +122,8 @@ export default function PeoplePage() {
   });
 
   async function handleSubmit(values: typeof form.values) {
-    const res = await fetch("/api/employees", {
+    const res = await apiFetch(API.employees.create, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         first_name: values.first_name,
         last_name: values.last_name,
@@ -134,9 +135,8 @@ export default function PeoplePage() {
         location_id: values.location || null,       // real UUID from DB
       }),
     });
-    const json = await res.json();
-    if (json.error) {
-      showToast({ type: "error", title: "Failed to add employee", message: json.message || json.error });
+    if (res.error) {
+      showToast({ type: "error", title: "Failed to add employee", message: res.error.message });
       return false;
     }
     showToast({ type: "success", title: "Employee added", message: `${values.first_name} ${values.last_name} has been added.` });

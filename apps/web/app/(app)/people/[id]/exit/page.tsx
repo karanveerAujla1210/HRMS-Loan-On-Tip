@@ -5,6 +5,8 @@ export const dynamic = "force-dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api/client";
+import { API } from "@/lib/api/endpoints";
 import PageHeader from "@/components/PageHeader";
 import EmployeeSubNav from "@/components/EmployeeSubNav";
 
@@ -44,13 +46,11 @@ export default function EmployeeExitPage() {
     const resDate = String(fd.get("resignation_date"));
     const lwd = String(fd.get("last_working_date"));
 
-    const res = await fetch(`/api/people/${id}/exit`, {
+    const res = await apiFetch(API.people.exit(id), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ resignation_date: resDate, last_working_date: lwd || null, reason: fd.get("reason") || null }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); setSaving(false); return; }
     setMsg("Resignation submitted and employee moved to ON_NOTICE status.");
     void load();
     setSaving(false);
@@ -65,13 +65,11 @@ export default function EmployeeExitPage() {
     const patch: Record<string, unknown> = {};
     patch[`${type}_cleared`] = !currentVal;
 
-    const res = await fetch(`/api/people/${id}/exit`, {
+    const res = await apiFetch(API.people.exit(id), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); setSaving(false); return; }
     setMsg(`${type.toUpperCase()} clearance updated.`);
     void load();
     setSaving(false);
@@ -86,13 +84,11 @@ export default function EmployeeExitPage() {
     const amount = Number(fd.get("ff_amount"));
     const notes = String(fd.get("ff_notes") || "");
 
-    const res = await fetch(`/api/people/${id}/exit`, {
+    const res = await apiFetch(API.people.exit(id), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ff_amount: amount, ff_notes: notes, status: "COMPLETED" }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); setSaving(false); return; }
     setMsg("Full & Final (FnF) settlement completed and employee exited successfully.");
     void load();
     setSaving(false);

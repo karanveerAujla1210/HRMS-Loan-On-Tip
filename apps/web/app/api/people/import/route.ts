@@ -52,12 +52,12 @@ export const POST = withApi<typeof ImportSchema, z.ZodTypeAny, Record<string, ne
       if (res.error) throw mapDatabaseError(res.error);
     }
 
-    const toMap = (rows: { name: string }[] | null) =>
-      new Map((rows ?? []).map((r) => [String(r.name).toLowerCase().trim(), r.id]));
-    const departments = toMap(deptRes.data as { name: string }[]);
-    const designations = toMap(desigRes.data as { name: string }[]);
-    const locations = toMap(locRes.data as { name: string }[]);
-    const employmentTypes = toMap(typeRes.data as { name: string }[]);
+    const toMap = <T extends { name: string; id: string }>(rows: T[] | null) =>
+      new Map<string, string>((rows ?? []).map((r) => [r.name.toLowerCase().trim(), r.id]));
+    const departments = toMap(deptRes.data as { name: string; id: string }[]);
+    const designations = toMap(desigRes.data as { name: string; id: string }[]);
+    const locations = toMap(locRes.data as { name: string; id: string }[]);
+    const employmentTypes = toMap(typeRes.data as { name: string; id: string }[]);
     const employeesByEmail = new Map(
       ((empRes.data ?? []) as { id: string; official_email: string }[]).map((e) => [
         e.official_email.toLowerCase().trim(),

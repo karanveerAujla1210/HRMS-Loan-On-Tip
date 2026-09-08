@@ -5,6 +5,8 @@ export const dynamic = "force-dynamic";
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api/client";
+import { API } from "@/lib/api/endpoints";
 import { useProfile } from "@/lib/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
@@ -45,39 +47,33 @@ export default function PayrollPage() {
 
   async function calculateRun(row: Row) {
     setMsg(null);
-    const res = await fetch("/api/payroll/calculate", {
+    const res = await apiFetch<{ employee_count: number; net_pay: number }>(API.payroll.calculate, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ payroll_run_id: row.id }),
     });
-    const json = await res.json() as { error?: string; data?: { employee_count: number; net_pay: number } };
-    if (json.error) { setMsg(`Error: ${json.error}`); return; }
-    setMsg(`Calculated: ${json.data?.employee_count} employees, net ₹${json.data?.net_pay?.toLocaleString("en-IN")}.`);
+    if (res.error) { setMsg(`Error: ${res.error.message}`); return; }
+    setMsg(`Calculated: ${res.data?.employee_count} employees, net ₹${res.data?.net_pay?.toLocaleString("en-IN")}.`);
     void load();
   }
 
   async function approveRun(row: Row) {
     setMsg(null);
-    const res = await fetch(`/api/payroll/runs/${String(row.id)}`, {
+    const res = await apiFetch(API.payroll.run(String(row.id)), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "APPROVED" }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); return; }
     setMsg("Payroll run approved.");
     void load();
   }
 
   async function lockRun(row: Row) {
     setMsg(null);
-    const res = await fetch(`/api/payroll/runs/${String(row.id)}`, {
+    const res = await apiFetch(API.payroll.run(String(row.id)), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "LOCKED" }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); return; }
     setMsg("Payroll run locked.");
     void load();
   }
@@ -90,13 +86,11 @@ export default function PayrollPage() {
     const month = Number(fd.get("month"));
     const year = Number(fd.get("year"));
 
-    const res = await fetch("/api/payroll/runs", {
+    const res = await apiFetch(API.payroll.runs, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ payroll_month: month, payroll_year: year }),
     });
-    const json = await res.json();
-    if (json.error) { setMsg(`Error: ${json.error}`); setSaving(false); return; }
+    if (res.error) { setMsg(`Error: ${res.error.message}`); setSaving(false); return; }
     setShowForm(false);
     setMsg("Payroll run created as draft.");
     void load();
