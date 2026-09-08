@@ -77,7 +77,7 @@ export const POST = withApi<typeof ImportSchema, z.ZodTypeAny, Record<string, ne
         if (!categoryName || !model) {
           throw new Error(`"category" and "model" are required`);
         }
-        const category = categories.get(categoryName.toLowerCase());
+        const category = categories.get(categoryName.toLowerCase()) as { id: string; prefix: string } | undefined;
         if (!category) throw new Error(`category "${categoryName}" not found`);
 
         const brand = nullable(row.brand);
