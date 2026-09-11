@@ -8,7 +8,6 @@ interface SidebarProps {
   sidebarOpen: boolean;
   isMobile: boolean;
   closeSidebar: () => void;
-  toggleSidebar: () => void;
   renderNav: () => React.ReactNode;
   unread: number;
   userEmail: string;
@@ -28,7 +27,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   sidebarOpen,
   isMobile,
   closeSidebar,
-  toggleSidebar,
   renderNav,
   unread,
   userEmail,
