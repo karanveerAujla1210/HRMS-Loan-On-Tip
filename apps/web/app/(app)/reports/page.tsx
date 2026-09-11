@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { useProfile } from "@/lib/useProfile";
+import { useProfile } from "@/hooks/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 
@@ -15,7 +15,7 @@ function today() { return new Date().toISOString().slice(0, 10); }
 function monthStart() { const d = new Date(); d.setDate(1); return d.toISOString().slice(0, 10); }
 
 export default function ReportsPage() {
-  const { companyId, loading: profileLoading } = useProfile();
+  const { activeCompanyId: companyId, loading: profileLoading } = useProfile();
   const [tab, setTab] = useState<Tab>("attendance");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(false);
@@ -53,10 +53,10 @@ export default function ReportsPage() {
         .order("submitted_at", { ascending: false })
         .limit(500);
       data = ((res.data ?? []) as Record<string, unknown>[]).map((r) => ({
-        employee_code: (r.employees as Record<string, unknown> | null)?.employee_code ?? "—",
-        display_name:  (r.employees as Record<string, unknown> | null)?.display_name ?? "—",
-        department:    ((r.employees as Record<string, unknown> | null)?.departments as Record<string, unknown> | null)?.name ?? "—",
-        leave_type:    (r.leave_types as Record<string, unknown> | null)?.name ?? "—",
+        employee_code: (r.employees as Record<string, unknown> | null)?.employee_code ?? "â€”",
+        display_name:  (r.employees as Record<string, unknown> | null)?.display_name ?? "â€”",
+        department:    ((r.employees as Record<string, unknown> | null)?.departments as Record<string, unknown> | null)?.name ?? "â€”",
+        leave_type:    (r.leave_types as Record<string, unknown> | null)?.name ?? "â€”",
         from_date: r.from_date, to_date: r.to_date, total_days: r.total_days, status: r.status,
       }));
       err = res.error;
@@ -157,7 +157,7 @@ export default function ReportsPage() {
         ]}
         actions={
           <button className="btn btn-secondary btn-sm" onClick={exportCSV} disabled={!rows.length}>
-            ⬇ Export CSV
+            â¬‡ Export CSV
           </button>
         }
       />
@@ -189,11 +189,11 @@ export default function ReportsPage() {
                   </div>
                 </>
               )}
-              <button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻ Run</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => void load()}>â†» Run</button>
             </div>
           </div>
           {loading ? (
-            <div className="loading-spinner"><div className="spinner" /> Loading…</div>
+            <div className="loading-spinner"><div className="spinner" /> Loadingâ€¦</div>
           ) : (
             <DataTable rows={rows} columns={colMap[tab]} />
           )}

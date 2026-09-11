@@ -7,6 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
+import { fetchActiveAssetAssignments } from "@/features/assets/queries";
 import PageHeader from "@/components/PageHeader";
 import EmployeeSubNav from "@/components/EmployeeSubNav";
 
@@ -24,15 +25,15 @@ export default function EmployeeExitPage() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [empRes, resignRes, assetsRes] = await Promise.all([
+    const [empRes, resignRes, assignedAssets] = await Promise.all([
       supabase.from("employees").select("id,display_name,employee_code,joining_date,employment_status,notice_period_days,last_working_date,company_id").eq("id", id).single(),
       supabase.from("resignations").select("*").eq("employee_id", id).maybeSingle(),
-      supabase.from("asset_assignments").select("id,assets(asset_code,model,serial_number)").eq("employee_id", id).eq("status", "ACTIVE"),
+      fetchActiveAssetAssignments(id),
     ]);
 
     setEmp(empRes.data as Row | null);
     setResignation(resignRes.data as Row | null);
-    setAssignedAssets((assetsRes.data ?? []) as Row[]);
+    setAssignedAssets(assignedAssets);
     setLoading(false);
   }, [id]);
 

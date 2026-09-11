@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
-import { useProfile } from "@/lib/useProfile";
+import { useProfile } from "@/hooks/useProfile";
+import { fetchOrgLookups } from "@/features/organization/queries";
 import { PageHeader, DataTable, Modal, useForm, Input, Select, SkeletonTable, Skeleton } from "@/components";
 import { useToast } from "@/components/Toast";
 
@@ -30,7 +31,7 @@ type Option = { id: string; name: string };
 
 export default function PeoplePage() {
   const router = useRouter();
-  const { companyId, loading: profileLoading } = useProfile();
+  const { activeCompanyId: companyId, loading: profileLoading } = useProfile();
   const { showToast } = useToast();
   const [employees, setEmployees] = useState<Row[]>([]);
   const [filtered, setFiltered] = useState<Row[]>([]);
@@ -65,14 +66,10 @@ export default function PeoplePage() {
     setDepartments(depts);
 
     // Load real department / designation / location options for the Add form
-    const [dRes, dgRes, lRes] = await Promise.all([
-      supabase.from("departments").select("id,name").eq("company_id", companyId).eq("is_active", true).order("name"),
-      supabase.from("designations").select("id,name").eq("company_id", companyId).eq("is_active", true).order("name"),
-      supabase.from("locations").select("id,name").eq("company_id", companyId).eq("is_active", true).order("name"),
-    ]);
-    setDeptOptions((dRes.data as Option[]) ?? []);
-    setDesigOptions((dgRes.data as Option[]) ?? []);
-    setLocOptions((lRes.data as Option[]) ?? []);
+    const lookups = await fetchOrgLookups(companyId, { onlyActive: true });
+    setDeptOptions(lookups.departments as Option[]);
+    setDesigOptions(lookups.designations as Option[]);
+    setLocOptions(lookups.locations as Option[]);
 
     setLoading(false);
   }, [companyId, profileLoading]);
@@ -196,7 +193,7 @@ export default function PeoplePage() {
         actions={
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button className="btn btn-secondary btn-sm" onClick={() => router.push("/people/import")}>
-              ⬆ Import CSV
+              â¬† Import CSV
             </button>
             <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>
               + Add Employee
@@ -212,7 +209,7 @@ export default function PeoplePage() {
           <div className="card-header" style={{ flexWrap: "wrap", gap: 10 }}>
             <div style={{ display: "flex", gap: 10, flex: 1, flexWrap: "wrap", alignItems: "center" }}>
               <input
-                placeholder="Search staff by name, code, email, dept…"
+                placeholder="Search staff by name, code, email, deptâ€¦"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{ maxWidth: 280 }}
@@ -235,7 +232,7 @@ export default function PeoplePage() {
               <span style={{ fontSize: 13, color: "var(--text-3)" }}>
                 Showing {paginatedRows.length} of {filtered.length} staff
               </span>
-              <button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => void load()}>â†»</button>
             </div>
           </div>
 
@@ -273,14 +270,14 @@ export default function PeoplePage() {
                   disabled={currentPage <= 1}
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 >
-                  ← Previous
+                  â† Previous
                 </button>
                 <button
                   className="btn btn-secondary btn-sm"
                   disabled={currentPage >= totalPages}
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 >
-                  Next →
+                  Next â†’
                 </button>
               </div>
             </div>
@@ -381,7 +378,7 @@ export default function PeoplePage() {
           </div>
           <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end", gap: 10 }}>
             <button type="submit" className="btn btn-primary" disabled={form.isSubmitting}>
-              {form.isSubmitting ? "Saving…" : "Add Employee"}
+              {form.isSubmitting ? "Savingâ€¦" : "Add Employee"}
             </button>
           </div>
         </form>

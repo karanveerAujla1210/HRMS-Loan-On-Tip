@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 export const dynamic = "force-dynamic";
 
@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
-import { useProfile } from "@/lib/useProfile";
+import { useProfile } from "@/hooks/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 
@@ -14,7 +14,7 @@ type Row = Record<string, unknown>;
 type Tab = "departments" | "designations" | "locations" | "shifts" | "leave_types" | "holidays" | "custom_fields";
 
 export default function OrganisationPage() {
-  const { companyId } = useProfile();
+  const { activeCompanyId: companyId } = useProfile();
   const [tab, setTab] = useState<Tab>("departments");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,10 +155,10 @@ export default function OrganisationPage() {
         <div className="card">
           <div className="card-header">
             <div><h2>{TABS.find(t => t.key === tab)?.label}</h2><p>{rows.length} records</p></div>
-            <button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => void load()}>â†»</button>
           </div>
           {loading ? (
-            <div className="loading-spinner"><div className="spinner" /> Loading…</div>
+            <div className="loading-spinner"><div className="spinner" /> Loadingâ€¦</div>
           ) : (
             <DataTable
               rows={rows}
@@ -185,7 +185,7 @@ export default function OrganisationPage() {
           <div className="modal" style={{ maxWidth: 520 }}>
             <div className="modal-header">
               <h2>{editing ? "Edit" : "Add"} {tab.replace("_", " ").replace(/s$/, "")}</h2>
-              <button className="btn btn-ghost btn-sm" onClick={() => { setShowForm(false); setEditing(null); }}>✕</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setShowForm(false); setEditing(null); }}>âœ•</button>
             </div>
             <form onSubmit={handleSave}>
               <div className="modal-body">
@@ -193,7 +193,7 @@ export default function OrganisationPage() {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => { setShowForm(false); setEditing(null); }}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Saving…" : "Save"}</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Savingâ€¦" : "Save"}</button>
               </div>
             </form>
           </div>

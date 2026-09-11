@@ -1,17 +1,17 @@
-"use client";
+﻿"use client";
 
 export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { useProfile } from "@/lib/useProfile";
+import { useProfile } from "@/hooks/useProfile";
 import { PageHeader, DataTable, SkeletonDashboard, SkeletonPageHeader } from "@/components";
 
 type Row = Record<string, unknown>;
 
 export default function DashboardPage() {
-  const { companyId, role } = useProfile();
+  const { activeCompanyId: companyId, role } = useProfile();
   const [metrics, setMetrics] = useState<Row>({});
   const [attendance, setAttendance] = useState<Row[]>([]);
   const [leaves, setLeaves] = useState<Row[]>([]);
@@ -65,9 +65,9 @@ export default function DashboardPage() {
         actions={
           <div style={{ display: "flex", gap: 8 }}>
             <Link href="/self-service" className="btn btn-secondary btn-sm">
-              👤 My Self-Service
+              ðŸ‘¤ My Self-Service
             </Link>
-            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>â†» Refresh</button>
           </div>
         }
       />
@@ -80,31 +80,31 @@ export default function DashboardPage() {
           <div className="quick-actions-title">Quick Actions:</div>
           <div className="quick-actions-list">
             <Link href="/people" className="quick-action-btn">
-              <span>👥</span> People Directory
+              <span>ðŸ‘¥</span> People Directory
             </Link>
             <Link href="/attendance" className="quick-action-btn">
-              <span>⏱️</span> Attendance Logs
+              <span>â±ï¸</span> Attendance Logs
             </Link>
             <Link href="/attendance/corrections" className="quick-action-btn">
-              <span>✏️</span> Corrections
+              <span>âœï¸</span> Corrections
             </Link>
             <Link href="/leave" className="quick-action-btn">
-              <span>🏖️</span> Leave Approvals
+              <span>ðŸ–ï¸</span> Leave Approvals
             </Link>
             <Link href="/payroll" className="quick-action-btn">
-              <span>💵</span> Payroll Runs
+              <span>ðŸ’µ</span> Payroll Runs
             </Link>
             <Link href="/assets" className="quick-action-btn">
-              <span>💻</span> Asset Inventory
+              <span>ðŸ’»</span> Asset Inventory
             </Link>
             <Link href="/organisation" className="quick-action-btn">
-              <span>🏢</span> Organisation Setup
+              <span>ðŸ¢</span> Organisation Setup
             </Link>
             <Link href="/reports" className="quick-action-btn">
-              <span>📊</span> Reports
+              <span>ðŸ“Š</span> Reports
             </Link>
             <Link href="/download-app" className="quick-action-btn">
-              <span>📱</span> Get Mobile App
+              <span>ðŸ“±</span> Get Mobile App
             </Link>
           </div>
         </div>
@@ -114,16 +114,16 @@ export default function DashboardPage() {
           <Link href="/people" className="stat-card stat-card-link">
             <div className="stat-card-header">
               <div className="stat-label">Active employees</div>
-              <span className="stat-arrow">→</span>
+              <span className="stat-arrow">â†’</span>
             </div>
             <div className="stat-value">{active}</div>
-            <div className="stat-sub">Total headcount · View directory</div>
+            <div className="stat-sub">Total headcount Â· View directory</div>
           </Link>
 
           <Link href="/attendance" className="stat-card stat-card-link">
             <div className="stat-card-header">
               <div className="stat-label">Present today</div>
-              <span className="stat-arrow">→</span>
+              <span className="stat-arrow">â†’</span>
             </div>
             <div className="stat-value" style={{ color: "var(--green)" }}>{present}</div>
             <div className="stat-sub">{rate}% attendance rate</div>
@@ -133,29 +133,29 @@ export default function DashboardPage() {
           <Link href="/attendance" className="stat-card stat-card-link">
             <div className="stat-card-header">
               <div className="stat-label">Absent today</div>
-              <span className="stat-arrow">→</span>
+              <span className="stat-arrow">â†’</span>
             </div>
             <div className="stat-value" style={{ color: "var(--red)" }}>{absent}</div>
-            <div className="stat-sub">{late} late · {halfDay} half-day</div>
+            <div className="stat-sub">{late} late Â· {halfDay} half-day</div>
           </Link>
 
           <Link href="/leave" className="stat-card stat-card-link">
             <div className="stat-card-header">
               <div className="stat-label">On leave today</div>
-              <span className="stat-arrow">→</span>
+              <span className="stat-arrow">â†’</span>
             </div>
             <div className="stat-value" style={{ color: "var(--purple)" }}>{onLeave}</div>
             <div className="stat-sub">{Number(metrics.pending_leaves ?? 0)} pending approvals</div>
           </Link>
         </div>
 
-        {/* Secondary stats — admin only */}
+        {/* Secondary stats â€” admin only */}
         {isAdmin && (
           <div className="stats-grid" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
             <Link href="/people" className="stat-card stat-card-link">
               <div className="stat-card-header">
                 <div className="stat-label">New joiners (30d)</div>
-                <span className="stat-arrow">→</span>
+                <span className="stat-arrow">â†’</span>
               </div>
               <div className="stat-value">{Number(metrics.new_joiners_30d ?? 0)}</div>
               <div className="stat-sub">{Number(metrics.on_notice ?? 0)} on notice period</div>
@@ -164,7 +164,7 @@ export default function DashboardPage() {
             <Link href="/attendance/corrections" className="stat-card stat-card-link">
               <div className="stat-card-header">
                 <div className="stat-label">Pending corrections</div>
-                <span className="stat-arrow">→</span>
+                <span className="stat-arrow">â†’</span>
               </div>
               <div className="stat-value" style={{ color: "var(--amber)" }}>{Number(metrics.pending_corrections ?? 0)}</div>
               <div className="stat-sub">{Number(metrics.open_exceptions ?? 0)} open exceptions</div>
@@ -173,7 +173,7 @@ export default function DashboardPage() {
             <Link href="/assets" className="stat-card stat-card-link">
               <div className="stat-card-header">
                 <div className="stat-label">Assets assigned</div>
-                <span className="stat-arrow">→</span>
+                <span className="stat-arrow">â†’</span>
               </div>
               <div className="stat-value">{Number(metrics.assigned_assets ?? 0)}</div>
               <div className="stat-sub">{Number(metrics.available_assets ?? 0)} available in stock</div>
@@ -182,7 +182,7 @@ export default function DashboardPage() {
             <Link href="/payroll" className="stat-card stat-card-link">
               <div className="stat-card-header">
                 <div className="stat-label">Payroll runs</div>
-                <span className="stat-arrow">→</span>
+                <span className="stat-arrow">â†’</span>
               </div>
               <div className="stat-value">{Number(metrics.draft_payroll_runs ?? 0)}</div>
               <div className="stat-sub">{Number(metrics.pending_payroll_approvals ?? 0)} pending approval</div>
@@ -199,7 +199,7 @@ export default function DashboardPage() {
                 <p>{attendance.length} records shown</p>
               </div>
               <Link href="/attendance" className="btn btn-secondary btn-sm">
-                View All Attendance →
+                View All Attendance â†’
               </Link>
             </div>
             <DataTable rows={attendance} columns={["display_name","department","status","check_in_at","check_out_at","worked_minutes"]} striped hoverable />
@@ -212,7 +212,7 @@ export default function DashboardPage() {
                 <p>{leaves.length} requests</p>
               </div>
               <Link href="/leave" className="btn btn-secondary btn-sm">
-                Manage Leaves →
+                Manage Leaves â†’
               </Link>
             </div>
             <DataTable rows={leaves} columns={["display_name","leave_type","from_date","to_date","total_days"]} striped hoverable />

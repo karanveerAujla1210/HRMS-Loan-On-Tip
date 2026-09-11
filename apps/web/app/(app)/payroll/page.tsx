@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +7,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
-import { useProfile } from "@/lib/useProfile";
+import { useProfile } from "@/hooks/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 type Row = Record<string, unknown>;
@@ -20,7 +20,7 @@ const MONTHS = [
 ];
 
 export default function PayrollPage() {
-  const { companyId, loading: profileLoading } = useProfile();
+  const { activeCompanyId: companyId, loading: profileLoading } = useProfile();
   const [runs, setRuns] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +52,7 @@ export default function PayrollPage() {
       body: JSON.stringify({ payroll_run_id: row.id }),
     });
     if (res.error) { setMsg(`Error: ${res.error.message}`); return; }
-    setMsg(`Calculated: ${res.data?.employee_count} employees, net ₹${res.data?.net_pay?.toLocaleString("en-IN")}.`);
+    setMsg(`Calculated: ${res.data?.employee_count} employees, net â‚¹${res.data?.net_pay?.toLocaleString("en-IN")}.`);
     void load();
   }
 
@@ -110,7 +110,7 @@ export default function PayrollPage() {
         ]}
         actions={
           <>
-            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>â†» Refresh</button>
             <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>+ New run</button>
           </>
         }
@@ -122,7 +122,7 @@ export default function PayrollPage() {
 
         <div className="card">
           {loading ? (
-            <div className="loading-spinner"><div className="spinner" /> Loading…</div>
+            <div className="loading-spinner"><div className="spinner" /> Loadingâ€¦</div>
           ) : (
             <DataTable
               rows={runs}
@@ -151,7 +151,7 @@ export default function PayrollPage() {
           <div className="modal">
             <div className="modal-header">
               <h2>Create payroll run</h2>
-              <button className="btn btn-ghost btn-sm" onClick={() => setShowForm(false)}>✕</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowForm(false)}>âœ•</button>
             </div>
             <form onSubmit={createRun}>
               <div className="modal-body">
@@ -178,7 +178,7 @@ export default function PayrollPage() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Creating…" : "Create draft"}
+                  {saving ? "Creatingâ€¦" : "Create draft"}
                 </button>
               </div>
             </form>

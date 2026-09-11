@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { useProfile } from "@/lib/useProfile";
+import { useProfile } from "@/hooks/useProfile";
 import PageHeader from "@/components/PageHeader";
 import SubNav from "@/components/SubNav";
 
@@ -22,7 +22,7 @@ function monthLabel(value: Date) {
 }
 
 export default function AttendanceCalendarPage() {
-  const { companyId } = useProfile();
+  const { activeCompanyId: companyId } = useProfile();
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [rows, setRows] = useState<AttendanceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,11 +75,11 @@ export default function AttendanceCalendarPage() {
         {error && <div className="alert alert-error">{error}</div>}
         <div className="card">
           <div className="card-header">
-            <button className="btn btn-secondary btn-sm" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>← Previous</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>â† Previous</button>
             <h2 style={{ margin: 0 }}>{monthLabel(month)}</h2>
-            <button className="btn btn-secondary btn-sm" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>Next →</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>Next â†’</button>
           </div>
-          {loading ? <div className="loading-spinner"><div className="spinner" /> Loading…</div> : (
+          {loading ? <div className="loading-spinner"><div className="spinner" /> Loadingâ€¦</div> : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 1, background: "var(--border)" }}>
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <div key={day} style={{ background: "var(--surface)", padding: 10, fontWeight: 600, fontSize: 12 }}>{day}</div>)}
               {cells.map((date, index) => {

@@ -15,6 +15,10 @@ export const API = {
     maintenance: "/api/assets/maintenance",
     maintenanceComplete: (id: string) => `/api/assets/maintenance/${id}`,
   },
+  auth: {
+    companyContext: "/api/auth/company-context",
+  },
+  companies: "/api/companies",
   attendance: {
     bulkMark: "/api/attendance/bulk-mark",
     checkIn: "/api/attendance/check-in",

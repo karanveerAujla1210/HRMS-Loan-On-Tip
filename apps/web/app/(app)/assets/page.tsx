@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
-import { useProfile } from "@/lib/useProfile";
+import { useProfile } from "@/hooks/useProfile";
+import { fetchAssetSetupLookups } from "@/features/assets/queries";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 import SubNav from "@/components/SubNav";
@@ -52,7 +53,7 @@ const COLS = [
 
 export default function AssetsPage() {
   const router = useRouter();
-  const { companyId, loading: profileLoading } = useProfile();
+  const { activeCompanyId: companyId, loading: profileLoading } = useProfile();
   const [assets, setAssets] = useState<Asset[]>([]);
   const [employees, setEmployees] = useState<Row[]>([]);
   const [categories, setCategories] = useState<Row[]>([]);
@@ -74,7 +75,7 @@ export default function AssetsPage() {
     if (!companyId) { if (!profileLoading) setLoading(false); return; }
     setLoading(true);
     setError(null);
-    const [assetsRes, empRes, catRes, locRes] = await Promise.all([
+    const [assetsRes, empRes, lookups] = await Promise.all([
       supabase.from("v_asset_inventory").select("*").eq("company_id", companyId).order("asset_code"),
       supabase
         .from("v_employee_directory")
@@ -83,15 +84,14 @@ export default function AssetsPage() {
         .eq("employment_status", "ACTIVE")
         .order("display_name")
         .limit(300),
-      supabase.from("asset_categories").select("id,name,prefix").eq("company_id", companyId).eq("is_active", true).order("name"),
-      supabase.from("locations").select("id,name").eq("company_id", companyId).eq("is_active", true).order("name"),
+      fetchAssetSetupLookups(companyId),
     ]);
 
     if (assetsRes.error) setError(assetsRes.error.message);
     setAssets((assetsRes.data as Asset[]) ?? []);
     setEmployees((empRes.data as Row[]) ?? []);
-    setCategories((catRes.data as Row[]) ?? []);
-    setLocations((locRes.data as Row[]) ?? []);
+    setCategories(lookups.categories as Row[]);
+    setLocations(lookups.locations as Row[]);
     setLoading(false);
   }, [companyId, profileLoading]);
 
@@ -250,7 +250,7 @@ export default function AssetsPage() {
         ]}
         actions={
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>â†» Refresh</button>
             <button className="btn btn-primary btn-sm" onClick={() => setShowAddForm(true)}>+ Add Asset</button>
           </div>
         }
@@ -288,11 +288,11 @@ export default function AssetsPage() {
           <div className="card-header" style={{ flexWrap: "wrap", gap: 10 }}>
             <div>
               <h2>Asset Inventory & Allocations</h2>
-              <p>{filtered.length} records{statusFilter !== "ALL" ? ` · Filter: ${statusFilter}` : ""}</p>
+              <p>{filtered.length} records{statusFilter !== "ALL" ? ` Â· Filter: ${statusFilter}` : ""}</p>
             </div>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <input
-                placeholder="Search asset, serial, employee…"
+                placeholder="Search asset, serial, employeeâ€¦"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{ width: 240 }}
@@ -304,7 +304,7 @@ export default function AssetsPage() {
           </div>
 
           {loading ? (
-            <div className="loading-spinner"><div className="spinner" /> Loading…</div>
+            <div className="loading-spinner"><div className="spinner" /> Loadingâ€¦</div>
           ) : (
             <DataTable
               rows={filtered}
@@ -341,13 +341,13 @@ export default function AssetsPage() {
           <div className="modal" style={{ maxWidth: 560 }}>
             <div className="modal-header">
               <h2>Add New Asset to Inventory</h2>
-              <button className="btn btn-ghost btn-sm" onClick={() => setShowAddForm(false)}>✕</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowAddForm(false)}>âœ•</button>
             </div>
             <form onSubmit={handleAddAsset}>
               <div className="modal-body">
                 {categories.length === 0 && (
                   <div className="alert alert-info" style={{ fontSize: 13, marginBottom: 16 }}>
-                    No asset categories found. Go to <strong>Organisation → Asset Categories</strong> to add categories first.
+                    No asset categories found. Go to <strong>Organisation â†’ Asset Categories</strong> to add categories first.
                   </div>
                 )}
                 <div className="form-row">
@@ -394,7 +394,7 @@ export default function AssetsPage() {
                     <input name="purchase_date" type="date" />
                   </div>
                   <div className="form-group">
-                    <label>Purchase Cost (₹)</label>
+                    <label>Purchase Cost (â‚¹)</label>
                     <input name="purchase_cost" type="number" min={0} placeholder="e.g. 58000" />
                   </div>
                 </div>
@@ -434,7 +434,7 @@ export default function AssetsPage() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAddForm(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Saving…" : "Add Asset"}
+                  {saving ? "Savingâ€¦" : "Add Asset"}
                 </button>
               </div>
             </form>
@@ -448,7 +448,7 @@ export default function AssetsPage() {
           <div className="modal" style={{ maxWidth: 500 }}>
             <div className="modal-header">
               <h2>Assign Asset {assigning.asset_code}</h2>
-              <button className="btn btn-ghost btn-sm" onClick={() => setAssigning(null)}>✕</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setAssigning(null)}>âœ•</button>
             </div>
             <form onSubmit={handleAssign}>
               <div className="modal-body">
@@ -463,7 +463,7 @@ export default function AssetsPage() {
                     <option value="" disabled>Select staff member</option>
                     {employees.map((emp) => (
                       <option key={String(emp.id)} value={String(emp.id)}>
-                        {String(emp.display_name)} · {String(emp.employee_code)} ({String(emp.department ?? "General")})
+                        {String(emp.display_name)} Â· {String(emp.employee_code)} ({String(emp.department ?? "General")})
                       </option>
                     ))}
                   </select>
@@ -496,7 +496,7 @@ export default function AssetsPage() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setAssigning(null)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Assigning…" : "Confirm Handover"}
+                  {saving ? "Assigningâ€¦" : "Confirm Handover"}
                 </button>
               </div>
             </form>
@@ -510,22 +510,22 @@ export default function AssetsPage() {
           <div className="modal" style={{ maxWidth: 520 }}>
             <div className="modal-header">
               <h2>Return & Inspect {returning.asset_code}</h2>
-              <button className="btn btn-ghost btn-sm" onClick={() => setReturning(null)}>✕</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setReturning(null)}>âœ•</button>
             </div>
             <form onSubmit={handleReturn}>
               <div className="modal-body">
                 <div style={{ background: "var(--bg)", padding: 12, borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
                   <div><strong>Item:</strong> {returning.model}</div>
-                  <div><strong>Assigned to:</strong> {returning.assigned_to ?? "—"}</div>
+                  <div><strong>Assigned to:</strong> {returning.assigned_to ?? "â€”"}</div>
                 </div>
 
                 <div className="form-group">
                   <label>Condition at Return *</label>
                   <select name="condition" defaultValue="GOOD">
-                    <option value="GOOD">Good — Normal wear & tear</option>
-                    <option value="FAIR">Fair — Minor scratches</option>
-                    <option value="POOR">Poor — Heavy usage</option>
-                    <option value="DAMAGED">Damaged — Requires repair/replacement</option>
+                    <option value="GOOD">Good â€” Normal wear & tear</option>
+                    <option value="FAIR">Fair â€” Minor scratches</option>
+                    <option value="POOR">Poor â€” Heavy usage</option>
+                    <option value="DAMAGED">Damaged â€” Requires repair/replacement</option>
                   </select>
                 </div>
 
@@ -535,7 +535,7 @@ export default function AssetsPage() {
                     <input name="missing_items" placeholder="e.g. Charger cable missing" />
                   </div>
                   <div className="form-group">
-                    <label>Damage Deduction / Recovery (₹)</label>
+                    <label>Damage Deduction / Recovery (â‚¹)</label>
                     <input name="recovery_amount" type="number" min={0} placeholder="e.g. 1500" />
                   </div>
                 </div>
@@ -552,7 +552,7 @@ export default function AssetsPage() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setReturning(null)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Processing…" : "Confirm Return to Stock"}
+                  {saving ? "Processingâ€¦" : "Confirm Return to Stock"}
                 </button>
               </div>
             </form>
@@ -566,7 +566,7 @@ export default function AssetsPage() {
           <div className="modal" style={{ maxWidth: 480 }}>
             <div className="modal-header">
               <h2>Send {repairing.asset_code} to Repair</h2>
-              <button className="btn btn-ghost btn-sm" onClick={() => setRepairing(null)}>✕</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setRepairing(null)}>âœ•</button>
             </div>
             <form onSubmit={handleSendToRepair}>
               <div className="modal-body">
@@ -580,7 +580,7 @@ export default function AssetsPage() {
                     <input name="vendor" placeholder="Vendor / service center" />
                   </div>
                   <div className="form-group">
-                    <label>Est. Cost (₹)</label>
+                    <label>Est. Cost (â‚¹)</label>
                     <input name="cost" type="number" min={0} placeholder="e.g. 2000" />
                   </div>
                 </div>
@@ -592,7 +592,7 @@ export default function AssetsPage() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setRepairing(null)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Sending…" : "Send to Repair"}
+                  {saving ? "Sendingâ€¦" : "Send to Repair"}
                 </button>
               </div>
             </form>

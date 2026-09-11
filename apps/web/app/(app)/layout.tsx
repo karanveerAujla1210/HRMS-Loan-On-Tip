@@ -9,6 +9,8 @@ import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { useSidebar } from "@/components/SidebarContext";
+import CompanySwitcher from "@/components/CompanySwitcher";
+import CompanyContextBanner from "@/components/CompanyContextBanner";
 
 type Profile = { employee_id: string | null; company_id: string | null; role: string | null; roles: string[] };
 
@@ -55,6 +57,8 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: "/organisation", label: "Organisation", roles: ["SUPER_ADMIN", "HR_ADMIN"], Icon: IconBuilding },
       { href: "/reports", label: "Reports", roles: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN", "OPERATIONS_ADMIN", "MANAGER"], Icon: IconChart },
+      { href: "/audit", label: "Audit Logs", roles: ["SUPER_ADMIN"], Icon: IconAudit },
+      { href: "/settings", label: "Settings", roles: ["SUPER_ADMIN"], Icon: IconSettings },
     ],
   },
 ];
@@ -299,6 +303,9 @@ supabase.auth.getSession().then(async ({ data }) => {
 
         <nav className="sidebar-nav" style={{ padding: "12px 10px", flex: 1 }}>
           {renderNav()}
+
+          {/* Super Admin organizational-context switcher */}
+          <CompanySwitcher />
         </nav>
 
         <div className="sidebar-footer">
@@ -352,6 +359,7 @@ supabase.auth.getSession().then(async ({ data }) => {
             </Link>
           )}
         </div>
+        <CompanyContextBanner />
         {children}
       </div>
 
@@ -383,4 +391,6 @@ function IconBuilding() { return <svg viewBox="0 0 24 24" fill="none" stroke="cu
 function IconChart()    { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>; }
 function IconPerson()   { return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>; }
 function IconBell()     { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>; }
+function IconAudit()    { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M4 6h16M4 12h16M12 4v16"/><circle cx="6" cy="9" r="1.5"/><circle cx="18" cy="15" r="1.5"/></svg>; }
+function IconSettings() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="8"/><path d="M17 6l1.5 1.5M17 18l1.5-1.5M7 6l-1.5 1.5M7 18l-1.5-1.5"/></svg>; }
 function IconLogout()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>; }

@@ -11,6 +11,8 @@ import { adminClient, createUserClient, hasAdminCredentials, type Db } from "./s
 import { ERROR_CODES } from "@hrms/api-contract";
 import { ApiError } from "./errors";
 
+const SWITCHED_COMPANY_COOKIE = "lot_super_admin_company";
+
 export type AuthContext = {
   /** Verified Supabase auth user id. Never taken from the request body. */
   authUserId: string;
@@ -115,16 +117,37 @@ export async function getAuthContext(request?: Request): Promise<AuthContext> {
     }
   }
 
+  const isSuperAdminRole = roles.includes("SUPER_ADMIN");
 
-  const companyId = profile?.company_id ?? employee?.company_id ?? null;
+  // Check for switched company cookie for SUPER_ADMIN
+  let effectiveCompanyId = profile?.company_id ?? employee?.company_id ?? null;
+  if (isSuperAdminRole && request) {
+    const cookieHeader = request.headers.get("cookie");
+    if (cookieHeader) {
+      const match = cookieHeader.match(new RegExp(`${SWITCHED_COMPANY_COOKIE}=([^;]+)`));
+      if (match && match[1]) {
+        const switchedCompanyId = decodeURIComponent(match[1]);
+        // Verify the company exists and is active
+        const { data: company } = await lookup
+          .from("companies")
+          .select("id")
+          .eq("id", switchedCompanyId)
+          .eq("is_active", true)
+          .maybeSingle();
+        if (company) {
+          effectiveCompanyId = switchedCompanyId;
+        }
+      }
+    }
+  }
 
   let companyName: string | null = null;
   let timezone = DEFAULT_TIMEZONE;
-  if (companyId) {
+  if (effectiveCompanyId) {
     const { data: company } = await lookup
       .from("companies")
       .select("display_name,timezone")
-      .eq("id", companyId)
+      .eq("id", effectiveCompanyId)
       .maybeSingle<{ display_name: string; timezone: string }>();
     companyName = company?.display_name ?? null;
     timezone = company?.timezone ?? DEFAULT_TIMEZONE;
@@ -139,7 +162,7 @@ export async function getAuthContext(request?: Request): Promise<AuthContext> {
     employeeId: employee?.id ?? null,
     employeeCode: employee?.employee_code ?? null,
     displayName: employee?.display_name ?? null,
-    companyId,
+    companyId: effectiveCompanyId,
     companyName,
     locationId: employee?.location_id ?? null,
     managerId: employee?.manager_id ?? null,
