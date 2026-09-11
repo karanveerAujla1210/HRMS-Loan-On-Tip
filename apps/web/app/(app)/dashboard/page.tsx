@@ -15,15 +15,15 @@ type Row = Record<string, unknown>;
 const ADMIN_ROLES = ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN", "ASSET_ADMIN", "OPERATIONS_ADMIN", "LOCATION_ADMIN", "MANAGER"];
 
 const QUICK_ACTIONS = [
-  { href: "/people",                 label: "People Directory",   Icon: IcUsers },
-  { href: "/attendance",             label: "Attendance Logs",    Icon: IcClock },
-  { href: "/attendance/corrections", label: "Corrections",        Icon: IcEdit },
-  { href: "/leave",                  label: "Leave Approvals",    Icon: IcCalendar },
-  { href: "/payroll",                label: "Payroll Runs",       Icon: IcCash },
-  { href: "/assets",                 label: "Asset Inventory",    Icon: IcBox },
-  { href: "/organisation",           label: "Organisation",       Icon: IcBuilding },
-  { href: "/reports",                label: "Reports",            Icon: IcChart },
-  { href: "/download-app",           label: "Mobile App",         Icon: IcPhone },
+  { href: "/people",                 label: "People Directory", Icon: IcUsers,    roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "MANAGER"] },
+  { href: "/attendance",             label: "Attendance Logs",  Icon: IcClock,    roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "LOCATION_ADMIN", "MANAGER"] },
+  { href: "/attendance/corrections", label: "Corrections",      Icon: IcEdit,     roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "LOCATION_ADMIN", "MANAGER"] },
+  { href: "/leave",                  label: "Leave Approvals",  Icon: IcCalendar, roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "LOCATION_ADMIN", "MANAGER"] },
+  { href: "/payroll",                label: "Payroll Runs",     Icon: IcCash,     roles: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN"] },
+  { href: "/assets",                 label: "Asset Inventory",  Icon: IcBox,      roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "ASSET_ADMIN"] },
+  { href: "/organisation",           label: "Organisation",     Icon: IcBuilding, roles: ["SUPER_ADMIN", "HR_ADMIN"] },
+  { href: "/reports",                label: "Reports",          Icon: IcChart,    roles: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN", "OPERATIONS_ADMIN", "MANAGER"] },
+  { href: "/download-app",           label: "Mobile App",       Icon: IcPhone,    roles: ADMIN_ROLES },
 ];
 
 export default function DashboardPage() {
@@ -76,6 +76,7 @@ export default function DashboardPage() {
   const onLeave = Number(metrics.on_leave_today ?? 0);
   const rate    = active ? Math.round((present / active) * 100) : 0;
   const isAdmin = Boolean(role && ADMIN_ROLES.includes(role));
+  const availableQuickActions = QUICK_ACTIONS.filter(({ roles }) => Boolean(role && roles.includes(role)));
 
   useEffect(() => {
     if (!profileLoading && role && !ADMIN_ROLES.includes(role)) {
@@ -210,7 +211,7 @@ export default function DashboardPage() {
         <div className="quick-actions-bar" style={{ marginBottom: 24 }}>
           <div className="quick-actions-title">Operational Shortcuts</div>
           <div className="quick-actions-list">
-            {QUICK_ACTIONS.map(({ href, label, Icon }) => (
+            {availableQuickActions.map(({ href, label, Icon }) => (
               <Link key={href} href={href} className="quick-action-btn">
                 <Icon />
                 <span>{label}</span>

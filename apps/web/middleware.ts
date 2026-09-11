@@ -3,6 +3,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_TIMEOUT_MS = 5000;
 
+type EmployeeRoleRow = { roles: { code: string } | null };
+
 async function getSessionWithTimeout(supabase: ReturnType<typeof createServerClient>) {
   const timeoutPromise = new Promise<{ data: { session: null }; error: { message: string } }>((_, reject) =>
     setTimeout(() => reject(new Error("Session check timed out")), SESSION_TIMEOUT_MS)
@@ -77,7 +79,9 @@ export async function middleware(request: NextRequest) {
         .eq("employee_id", profile.employee_id)
         .eq("is_active", true);
       if (Array.isArray(roleRows)) {
-        effectiveRoles = roleRows.map((r: any) => r.roles?.code).filter(Boolean);
+        effectiveRoles = (roleRows as unknown as EmployeeRoleRow[])
+          .map((row) => row.roles?.code)
+          .filter((code): code is string => Boolean(code));
       }
     }
   }

@@ -8,7 +8,7 @@ import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
 import { useProfile } from "@/hooks/useProfile";
 import { fetchOrgLookups } from "@/features/organization/queries";
-import { PageHeader, DataTable, Modal, useForm, Input, Select, SkeletonTable, Skeleton, StatusBadge } from "@/components";
+import { PageHeader, DataTable, Modal, useForm, Input, Select, SkeletonTable, Skeleton } from "@/components";
 import { useToast } from "@/components/Toast";
 
 type Row = Record<string, unknown>;

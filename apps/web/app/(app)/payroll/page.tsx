@@ -22,7 +22,7 @@ const MONTHS = [
 export default function PayrollPage() {
   const { activeCompanyId: companyId, loading: profileLoading } = useProfile();
   const [runs, setRuns] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);

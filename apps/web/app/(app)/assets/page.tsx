@@ -59,7 +59,7 @@ export default function AssetsPage() {
   const [employees, setEmployees] = useState<Row[]>([]);
   const [categories, setCategories] = useState<Row[]>([]);
   const [locations, setLocations] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [search, setSearch] = useState("");
