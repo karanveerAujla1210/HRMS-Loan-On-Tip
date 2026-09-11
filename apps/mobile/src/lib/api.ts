@@ -61,22 +61,6 @@ export async function dbGet<T = Record<string, unknown>>(table: string, query: s
   return Array.isArray(json) ? (json as T[]) : [];
 }
 
-export async function dbPost(table: string, token: string, body: unknown) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}`, {
-    method: "POST",
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation",
-    },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.message ?? json.details ?? "Failed to save");
-  return json;
-}
-
 /** Generates a unique idempotency key for a mutation. */
 export function newIdempotencyKey(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;

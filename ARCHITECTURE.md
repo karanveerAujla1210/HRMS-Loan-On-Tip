@@ -163,7 +163,7 @@ apps/
     app/(dashboard)/   pages and route handlers
     components/        presentational components
     features/          people, attendance, leave, payroll, assets
-  mobile/              Expo / React Native employee app
+  apps/mobile/         Expo / React Native employee app
     screens/           authentication and employee self-service flows
     services/          API client, auth, realtime, offline queue
 packages/
