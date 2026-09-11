@@ -26,7 +26,7 @@ export default function PayrollPage() {
     allowedRoles: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN"],
   });
   const [runs, setRuns] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);

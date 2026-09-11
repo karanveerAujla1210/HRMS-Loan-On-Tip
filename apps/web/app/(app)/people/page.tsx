@@ -11,7 +11,6 @@ import { fetchOrgLookups } from "@/features/organization/queries";
 import { PageHeader, DataTable, Modal, useForm, Input, Select, SkeletonTable, Skeleton } from "@/components";
 import { useToast } from "@/components/Toast";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
-import { SkeletonPageHeader } from "@/components/Skeleton";
 
 type Row = Record<string, unknown>;
 
@@ -34,7 +33,8 @@ export default function PeoplePage() {
   const router = useRouter();
   const { activeCompanyId: companyId, loading: profileLoading } = useProfile();
   const { showToast } = useToast();
-  const { allowed, loading: guardLoading } = useRoleGuard({
+  // The guard redirects unauthorized users to /self-service on its own.
+  useRoleGuard({
     allowedRoles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "MANAGER"],
   });
   const [employees, setEmployees] = useState<Row[]>([]);

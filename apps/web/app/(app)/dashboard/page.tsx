@@ -8,14 +8,14 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
 import { useProfile } from "@/hooks/useProfile";
-import { useRoleGuard } from "@/hooks/useRoleGuard";
+import { useRoleGuard, type RoleGuardRole } from "@/hooks/useRoleGuard";
 import { PageHeader, DataTable, SkeletonDashboard, SkeletonPageHeader, StatusBadge } from "@/components";
 
 type Row = Record<string, unknown>;
 
 import { supabase } from "@/lib/supabase";
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN", "ASSET_ADMIN", "OPERATIONS_ADMIN", "LOCATION_ADMIN", "MANAGER"];
+const ADMIN_ROLES: RoleGuardRole[] = ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN", "ASSET_ADMIN", "OPERATIONS_ADMIN", "LOCATION_ADMIN", "MANAGER"];
 
 const QUICK_ACTIONS = [
   { href: "/people",                 label: "People Directory", Icon: IcUsers,    roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "MANAGER"] },
@@ -73,13 +73,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!companyId) return;
     const channel = supabase.channel(`dashboard-metrics-${companyId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_records' }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_records' }, () => {
         // For simplicity we re-fetch metrics on any change
         void load();
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [companyId]);
+  }, [companyId, load]);
 
   const active  = Number(metrics.active_employees ?? 0);
   const present = Number(metrics.present_today ?? 0);
@@ -88,13 +88,13 @@ export default function DashboardPage() {
   const halfDay = Number(metrics.half_day_today ?? 0);
   const onLeave = Number(metrics.on_leave_today ?? 0);
   const rate    = active ? Math.round((present / active) * 100) : 0;
-  const isAdmin = Boolean(role && ADMIN_ROLES.includes(role));
+  const isAdmin = Boolean(role && ADMIN_ROLES.some(r => r === role));
   const availableQuickActions = QUICK_ACTIONS.filter(({ roles: required }) =>
     roles.includes("SUPER_ADMIN") || roles.some(r => required.includes(r))
   );
 
   useEffect(() => {
-    if (!profileLoading && role && !ADMIN_ROLES.includes(role)) {
+    if (!profileLoading && role && !ADMIN_ROLES.some(r => r === role)) {
       router.replace("/self-service");
     }
   }, [profileLoading, role, router]);
