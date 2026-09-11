@@ -33,7 +33,7 @@ export const GET = withApi({
 
     let q = db
       .from("attendance")
-      .select("*, employees(display_name, employee_code)", { count: "exact" })
+      .select("*, employees(display_name, employee_code, department:departments(name), location:locations(name))", { count: "exact" })
       .order("attendance_date", { ascending: false })
       .range(from, to);
 
