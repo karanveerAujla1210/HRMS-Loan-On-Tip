@@ -1,27 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const SESSION_TIMEOUT_MS = 5000;
-
 type EmployeeRoleRow = { roles: { code: string } | null };
-
-async function getSessionWithTimeout(supabase: ReturnType<typeof createServerClient>) {
-  const timeoutPromise = new Promise<{ data: { session: null }; error: { message: string } }>((_, reject) =>
-    setTimeout(() => reject(new Error("Session check timed out")), SESSION_TIMEOUT_MS)
-  );
-  try {
-    const result = await Promise.race([
-      supabase.auth.getSession(),
-      timeoutPromise,
-    ]);
-    return result;
-  } catch (e) {
-    if (e instanceof Error && e.message === "Session check timed out") {
-      return { data: { session: null }, error: { message: "Session check timed out" } };
-    }
-    throw e;
-  }
-}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -53,8 +33,14 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Retrieve session
-  const { data: { session } } = await getSessionWithTimeout(supabase);
+  // Retrieve session — no artificial timeout.
+  // A short timeout (e.g. 5 s) causes false "no session" results under
+  // normal latency, which makes the middleware redirect to /login while the
+  // client still holds a valid session. The client then sees a session on
+  // /login and gets redirected back to /dashboard — a redirect loop.
+  // getSession() validates the JWT locally and only hits the network when a
+  // refresh is needed, so it completes in well under a second in practice.
+  const { data: { session } } = await supabase.auth.getSession();
   const isAuthRoute = pathname.startsWith("/login");
 
   if (!session && !isAuthRoute) {

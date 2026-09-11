@@ -9,6 +9,8 @@ import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
 import { useProfile } from "@/hooks/useProfile";
 import { PageHeader, DataTable, StatusBadge, Modal } from "@/components";
+import { useRoleGuard } from "@/hooks/useRoleGuard";
+import { SkeletonPageHeader, SkeletonTable } from "@/components/Skeleton";
 
 type Row = Record<string, unknown>;
 
@@ -21,6 +23,9 @@ const MONTHS = [
 
 export default function PayrollPage() {
   const { activeCompanyId: companyId, loading: profileLoading } = useProfile();
+  const { allowed, loading: guardLoading } = useRoleGuard({
+    allowedRoles: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN"],
+  });
   const [runs, setRuns] = useState<Row[]>([]);
   const [_loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +111,13 @@ export default function PayrollPage() {
   // Summary figures
   const totalNet = runs.reduce((sum, r) => sum + (Number(r.net_pay) || 0), 0);
   const activeEmployeesCovered = runs[0] ? Number(runs[0].employee_count || 0) : 0;
+
+
+  // Guard: show skeleton while loading, redirect fires automatically if unauthorized
+  if (guardLoading || profileLoading) {
+    return (<><SkeletonPageHeader /><SkeletonTable rows={6} /></>);
+  }
+  if (!allowed) return null;
 
   return (
     <>

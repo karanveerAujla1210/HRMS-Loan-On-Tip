@@ -189,7 +189,11 @@ export function useProfile(): ProfileCtx {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT" && !cancelled) setCtx(IDLE);
       if (event === "SIGNED_IN" && !cancelled) {
-        setCtx(EMPTY);
+        // Re-fetch profile/roles without resetting to EMPTY first.
+        // Resetting to EMPTY causes role to briefly become null, which
+        // triggers every useEffect that depends on `role` or `profileLoading`
+        // and can cause redirect loops when combined with role guards.
+        // load() already handles the no-session case by setting IDLE.
         void load();
       }
     });

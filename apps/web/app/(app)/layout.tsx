@@ -137,9 +137,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       setChecking(false);
     });
 
+    // Keep the user menu in sync when the session changes in another tab.
+    // Redirects on session loss are handled by:
+    // - useProfile() setting IDLE on SIGNED_OUT (pages react to loading/role state)
+    // - signOut() calling router.replace explicitly
+    // Do NOT redirect here — onAuthStateChange fires on TOKEN_REFRESHED and other
+    // events where the session is momentarily null, which would cause redirect loops.
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) router.replace("/login");
-      else setUser(session.user);
+      if (session) setUser(session.user);
     });
 
     return () => listener.subscription.unsubscribe();

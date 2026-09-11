@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { MOBILE_APP_DOWNLOAD_PATH, MOBILE_APP_VERSION } from "@/lib/mobile-app";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -24,8 +26,9 @@ export default function LoginPage() {
       setLoading(false);
       return;
     }
-    // Hard refresh navigation ensures @supabase/ssr session cookies are sent to Next.js middleware
-    window.location.href = "/dashboard";
+    // Client-side navigation preserves the Supabase browser client instance
+    // and its persisted session cookies. No hard reload needed.
+    router.push("/dashboard");
   }
 
   async function handleMagicLink() {
