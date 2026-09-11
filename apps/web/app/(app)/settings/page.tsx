@@ -12,7 +12,7 @@ import { useProfile } from "@/hooks/useProfile";
 type Row = Record<string, unknown>;
 
 export default function SettingsPage() {
-  const { companyId } = useProfile();
+  const { activeCompanyId } = useProfile();
   const [rows, setRows] = useState<Row[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +20,7 @@ export default function SettingsPage() {
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!companyId) return;
+    if (!activeCompanyId) return;
     setError(null);
     const res = await apiFetch(API.settings);
     if (res.error) { setError(res.error.message); setRows([]); }
@@ -31,7 +31,7 @@ export default function SettingsPage() {
       for (const r of list) initial[String(r.setting_key)] = String(r.setting_value ?? "");
       setValues(initial);
     }
-  }, [companyId]);
+  }, [activeCompanyId]);
 
   useEffect(() => { void load(); }, [load]);
 

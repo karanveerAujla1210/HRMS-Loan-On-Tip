@@ -4,14 +4,18 @@ export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/hooks/useProfile";
 import { PageHeader, DataTable, SkeletonDashboard, SkeletonPageHeader } from "@/components";
 
 type Row = Record<string, unknown>;
 
+const ADMIN_ROLES = ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN", "ASSET_ADMIN", "OPERATIONS_ADMIN", "LOCATION_ADMIN", "MANAGER"];
+
 export default function DashboardPage() {
-  const { activeCompanyId: companyId, role } = useProfile();
+  const router = useRouter();
+  const { activeCompanyId: companyId, role, loading: profileLoading } = useProfile();
   const [metrics, setMetrics] = useState<Row>({});
   const [attendance, setAttendance] = useState<Row[]>([]);
   const [leaves, setLeaves] = useState<Row[]>([]);
@@ -46,9 +50,16 @@ export default function DashboardPage() {
   const onLeave  = Number(metrics.on_leave_today ?? 0);
   const rate     = active ? Math.round((present / active) * 100) : 0;
 
-  const isAdmin = Boolean(role && ["SUPER_ADMIN","HR_ADMIN","FINANCE_ADMIN","OPERATIONS_ADMIN","MANAGER"].includes(role));
+  const isAdmin = Boolean(role && ADMIN_ROLES.includes(role));
 
-  if (loading) {
+  // Redirect plain employees to self-service — they have no admin dashboard content
+  useEffect(() => {
+    if (!profileLoading && role && !ADMIN_ROLES.includes(role)) {
+      router.replace("/self-service");
+    }
+  }, [profileLoading, role, router]);
+
+  if (loading || profileLoading) {
     return (
       <>
         <SkeletonPageHeader />

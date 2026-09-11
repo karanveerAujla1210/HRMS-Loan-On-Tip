@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
+import { useProfile } from "@/hooks/useProfile";
 import { PageHeader, DataTable, SubNav, Modal, useToast, SkeletonTable, Skeleton } from "@/components";
 
 const ATTENDANCE_NAV = [
@@ -23,8 +24,11 @@ function today() {
   return new Date().toISOString().slice(0, 10);
 }
 
+const ADMIN_ROLES = ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "LOCATION_ADMIN", "MANAGER"];
+
 export default function AttendancePage() {
   const { showToast } = useToast();
+  const { activeCompanyId: companyId, role, loading: profileLoading } = useProfile();
   const [rows, setRows] = useState<Row[]>([]);
   const [selectedRows, setSelectedRows] = useState<Row[]>([]);
   const [from, setFrom] = useState(today());
@@ -40,13 +44,21 @@ export default function AttendancePage() {
     status: "PRESENT" as "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY" | "ON_LEAVE" | "HOLIDAY" | "WEEKLY_OFF",
   });
 
+  useEffect(() => {
+    if (!profileLoading && role && !ADMIN_ROLES.includes(role)) {
+      window.location.replace("/self-service");
+    }
+  }, [profileLoading, role]);
+
   const load = useCallback(async () => {
+    if (!companyId) { if (!profileLoading) setLoading(false); return; }
     setLoading(true);
     setError(null);
 
     let query = supabase
       .from("v_attendance")
       .select("*")
+      .eq("company_id", companyId)
       .gte("attendance_date", from)
       .lte("attendance_date", to)
       .order("attendance_date", { ascending: false })
@@ -59,7 +71,7 @@ export default function AttendancePage() {
     if (error) setError(error.message);
     setRows((data as Row[]) ?? []);
     setLoading(false);
-  }, [from, to, statusFilter]);
+  }, [companyId, profileLoading, from, to, statusFilter]);
 
   useEffect(() => { void load(); }, [load]);
 

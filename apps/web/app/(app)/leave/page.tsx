@@ -7,14 +7,18 @@ import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
 import { PageHeader, DataTable, useToast, ConfirmModal, SkeletonTable, Skeleton } from "@/components";
+import { useProfile } from "@/hooks/useProfile";
 
 type Row = Record<string, unknown>;
 
 const PENDING_COLS = ["display_name", "leave_type", "from_date", "to_date", "total_days", "reason", "submitted_at"];
 const ALL_COLS = ["display_name", "leave_type", "from_date", "to_date", "total_days", "status", "submitted_at"];
 
+const ADMIN_ROLES = ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "LOCATION_ADMIN", "MANAGER"];
+
 export default function LeavePage() {
   const { showToast } = useToast();
+  const { activeCompanyId: companyId, role, loading: profileLoading } = useProfile();
   const [pending, setPending] = useState<Row[]>([]);
   const [all, setAll] = useState<Row[]>([]);
   const [tab, setTab] = useState<"pending" | "all">("pending");
@@ -23,12 +27,19 @@ export default function LeavePage() {
   const [confirmLeave, setConfirmLeave] = useState<{ id: string; action: "APPROVED" | "REJECTED" } | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  useEffect(() => {
+    if (!profileLoading && role && !ADMIN_ROLES.includes(role)) {
+      window.location.replace("/self-service");
+    }
+  }, [profileLoading, role]);
+
   const load = useCallback(async () => {
+    if (!companyId) { if (!profileLoading) setLoading(false); return; }
     setLoading(true);
     setError(null);
     const [pendingRes, allRes] = await Promise.all([
-      supabase.from("v_pending_leave_approvals").select("*").order("submitted_at", { ascending: false }).limit(100),
-      supabase.from("leave_requests").select("id,from_date,to_date,total_days,status,submitted_at,employees(display_name),leave_types(name)").order("submitted_at", { ascending: false }).limit(200),
+      supabase.from("v_pending_leave_approvals").select("*").eq("company_id", companyId).order("submitted_at", { ascending: false }).limit(100),
+      supabase.from("leave_requests").select("id,from_date,to_date,total_days,status,submitted_at,employees(display_name,company_id),leave_types(name)").eq("employees.company_id", companyId).order("submitted_at", { ascending: false }).limit(200),
     ]);
     if (pendingRes.error) setError(pendingRes.error.message);
     setPending((pendingRes.data as Row[]) ?? []);
@@ -39,7 +50,7 @@ export default function LeavePage() {
     }));
     setAll(allMapped as Row[]);
     setLoading(false);
-  }, []);
+  }, [companyId, profileLoading]);
 
   useEffect(() => { void load(); }, [load]);
 

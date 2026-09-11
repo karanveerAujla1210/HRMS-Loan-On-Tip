@@ -93,8 +93,12 @@ export async function middleware(request: NextRequest) {
 
   const routeRoleMap: Record<string, string[]> = {
     "/admin": ["SUPER_ADMIN"],
-    "/people": ["HR_ADMIN", "HR_MANAGER"],
-    "/payroll": ["PAYROLL_ADMIN"],
+    "/people": ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "MANAGER"],
+    "/payroll": ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN"],
+    "/audit": ["SUPER_ADMIN"],
+    "/settings": ["SUPER_ADMIN"],
+    "/organisation": ["SUPER_ADMIN", "HR_ADMIN"],
+    "/reports": ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN", "OPERATIONS_ADMIN", "MANAGER"],
   };
 
   for (const [prefix, required] of Object.entries(routeRoleMap)) {

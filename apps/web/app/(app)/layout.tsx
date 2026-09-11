@@ -7,12 +7,10 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
-import type { User } from "@supabase/supabase-js";
+import { useProfile } from "@/hooks/useProfile";
 import { useSidebar } from "@/components/SidebarContext";
 import CompanySwitcher from "@/components/CompanySwitcher";
 import CompanyContextBanner from "@/components/CompanyContextBanner";
-
-type Profile = { employee_id: string | null; company_id: string | null; role: string | null; roles: string[] };
 
 interface NavItem {
   href: string;
@@ -67,8 +65,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { isOpen: sidebarOpen, close: closeSidebar, toggle: toggleSidebar } = useSidebar();
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const { role: effectiveRole, roles: effectiveRoles, employeeId, loading: profileLoading } = useProfile();
+  const [user, setUser] = useState<import("@supabase/supabase-js").User | null>(null);
   const [checking, setChecking] = useState(true);
   const [unread, setUnread] = useState(0);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
@@ -133,44 +131,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [pathname, closeSidebar]);
 
   useEffect(() => {
-supabase.auth.getSession().then(async ({ data }) => {
-        if (!data.session) { router.replace("/login"); setChecking(false); return; }
-        setUser(data.session.user);
-
-        const { data: prof } = await supabase
-          .from("profiles")
-          .select("employee_id,company_id")
-          .eq("auth_user_id", data.session.user.id)
-          .single();
-
-        const roles: string[] = [];
-        if (prof?.employee_id) {
-          const { data: roleRows } = await supabase
-            .from("employee_roles")
-            .select("roles(code)")
-            .eq("employee_id", prof.employee_id)
-            .eq("is_active", true);
-          
-          if (roleRows) {
-            for (const row of roleRows as unknown as { roles: { code: string } | null }[]) {
-              if (row.roles?.code && !roles.includes(row.roles.code)) {
-                roles.push(row.roles.code);
-              }
-            }
-          }
-
-          const { count } = await supabase
-            .from("notifications")
-            .select("id", { count: "exact", head: true })
-            .eq("recipient_employee_id", prof.employee_id)
-            .is("read_at", null);
-          setUnread(count ?? 0);
-        }
-
-        const primaryRole = roles.length > 0 ? (roles[0] ?? null) : null;
-        setProfile({ employee_id: prof?.employee_id ?? null, company_id: prof?.company_id ?? null, role: primaryRole ?? null, roles });
-        setChecking(false);
-      });
+    supabase.auth.getSession().then(async ({ data }) => {
+      if (!data.session) { router.replace("/login"); setChecking(false); return; }
+      setUser(data.session.user);
+      setChecking(false);
+    });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) router.replace("/login");
@@ -180,21 +145,29 @@ supabase.auth.getSession().then(async ({ data }) => {
     return () => listener.subscription.unsubscribe();
   }, [router]);
 
+  // Fetch unread notification count once employeeId is known
+  useEffect(() => {
+    if (!employeeId) return;
+    supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("recipient_employee_id", employeeId)
+      .is("read_at", null)
+      .then(({ count }) => setUnread(count ?? 0));
+  }, [employeeId]);
+
   async function signOut() {
     await supabase.auth.signOut();
     router.replace("/login");
   }
 
-  if (checking) {
+  if (checking || profileLoading) {
     return (
       <div className="loading-spinner" style={{ minHeight: "100vh" }}>
         <div className="spinner" /> Loading…
       </div>
     );
   }
-
-  const effectiveRole = profile?.role ?? null;
-  const effectiveRoles = profile?.roles ?? [];
 
   // Derive a friendly display name + initials from the account email.
   const userEmail = user?.email ?? "";

@@ -14,7 +14,7 @@ type Row = Record<string, unknown>;
 const ACTIONS = ["", "SETTINGS_UPDATE", "SETTLEMENT", "EMPLOYEE_CREATE", "EMPLOYEE_UPDATE", "ASSET_ASSIGN", "ASSET_RETURN", "LEAVE_APPROVE", "PAYROLL_APPROVE"];
 
 export default function AuditPage() {
-  const { companyId } = useProfile();
+  const { activeCompanyId } = useProfile();
   const [rows, setRows] = useState<Row[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -22,7 +22,7 @@ export default function AuditPage() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!companyId) return;
+    if (!activeCompanyId) return;
     setError(null);
     const res = await apiFetch(
       `${API.audit}?page=${page}&pageSize=50${action ? `&action=${encodeURIComponent(action)}` : ""}`
@@ -30,7 +30,6 @@ export default function AuditPage() {
     if (res.error) { setError(res.error.message); setRows([]); }
     else {
       const body = res.data as { data: Row[]; pagination?: { total_pages?: number } } | null;
-      // Flatten the `employees` join into an `actor` column for display.
       const mapped = (body?.data ?? []).map((r) => {
         const emp = r.employees as Record<string, unknown> | null;
         return { ...r, actor: emp?.display_name ?? "—" };
@@ -38,7 +37,7 @@ export default function AuditPage() {
       setRows(mapped);
       setTotalPages(body?.pagination?.total_pages ?? 1);
     }
-  }, [companyId, page, action]);
+  }, [activeCompanyId, page, action]);
 
   useEffect(() => { void load(); }, [load]);
 
