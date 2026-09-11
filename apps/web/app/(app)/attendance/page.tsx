@@ -3,16 +3,15 @@
 export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
 import { useProfile } from "@/hooks/useProfile";
-import { PageHeader, DataTable, SubNav, Modal, useToast, SkeletonTable, Skeleton } from "@/components";
+import { PageHeader, DataTable, SubNav, Modal, useToast, SkeletonTable, Skeleton, StatusBadge } from "@/components";
 
 const ATTENDANCE_NAV = [
   { href: "/attendance", label: "Daily Attendance", exact: true },
-  { href: "/attendance/calendar", label: "Calendar" },
-  { href: "/attendance/corrections", label: "Corrections" },
+  { href: "/attendance/calendar", label: "Calendar View" },
+  { href: "/attendance/corrections", label: "Corrections & Approvals" },
   { href: "/attendance/exceptions", label: "Exceptions & Geofence" },
 ];
 
@@ -55,21 +54,21 @@ export default function AttendancePage() {
     setLoading(true);
     setError(null);
 
-    let query = supabase
-      .from("v_attendance")
-      .select("*")
-      .eq("company_id", companyId)
-      .gte("attendance_date", from)
-      .lte("attendance_date", to)
-      .order("attendance_date", { ascending: false })
-      .order("display_name")
-      .limit(500);
+    const params = new URLSearchParams({
+      from: from,
+      to: to,
+      scope: "company",
+      pageSize: "500",
+    });
+    if (statusFilter !== "ALL") params.set("status", statusFilter);
 
-    if (statusFilter !== "ALL") query = query.eq("status", statusFilter);
-
-    const { data, error } = await query;
-    if (error) setError(error.message);
-    setRows((data as Row[]) ?? []);
+    const res = await apiFetch<{ data: Row[]; pagination: unknown }>(`/api/attendance?${params.toString()}`);
+    if (res.error) setError(res.error.message);
+    const list = res.data?.data ?? [];
+    setRows(list.map((r: Row) => ({
+      ...r,
+      display_name: (r.employees as { display_name?: string } | null)?.display_name ?? r.display_name ?? "",
+    })));
     setLoading(false);
   }, [companyId, profileLoading, from, to, statusFilter]);
 
@@ -115,21 +114,21 @@ export default function AttendancePage() {
   };
 
   const statusOptions = [
-    { value: "PRESENT", label: "Present", color: "var(--green)" },
-    { value: "ABSENT", label: "Absent", color: "var(--red)" },
-    { value: "LATE", label: "Late", color: "var(--amber)" },
-    { value: "HALF_DAY", label: "Half Day", color: "var(--purple)" },
-    { value: "ON_LEAVE", label: "On Leave", color: "var(--blue)" },
-    { value: "HOLIDAY", label: "Holiday", color: "var(--purple)" },
-    { value: "WEEKLY_OFF", label: "Weekly Off", color: "var(--gray)" },
+    { value: "PRESENT", label: "Present" },
+    { value: "ABSENT", label: "Absent" },
+    { value: "LATE", label: "Late" },
+    { value: "HALF_DAY", label: "Half Day" },
+    { value: "ON_LEAVE", label: "On Leave" },
+    { value: "HOLIDAY", label: "Holiday" },
+    { value: "WEEKLY_OFF", label: "Weekly Off" },
   ];
 
   if (loading) {
     return (
       <>
         <PageHeader
-          title="Attendance"
-          subtitle="Daily check-in and check-out records"
+          title="Attendance Management"
+          subtitle="Daily check-in and check-out logs"
           breadcrumbs={[
             { label: "Dashboard", href: "/dashboard" },
             { label: "Attendance Logs" },
@@ -143,22 +142,14 @@ export default function AttendancePage() {
         />
         <SubNav items={ATTENDANCE_NAV} />
         <div className="page-body">
-          <div className="stats-grid" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: 20 }}>
+          <div className="stats-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", marginBottom: 20 }}>
             <Skeleton variant="stat" />
             <Skeleton variant="stat" />
             <Skeleton variant="stat" />
             <Skeleton variant="stat" />
           </div>
           <div className="card">
-            <div className="card-header" style={{ flexWrap: "wrap", gap: 10 }}>
-              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                <Skeleton variant="text" width="100px" />
-                <Skeleton variant="text" width="100px" />
-                <Skeleton variant="text" width="120px" />
-              </div>
-              <Skeleton variant="text" width="100px" />
-            </div>
-            <SkeletonTable rows={5} columns={7} />
+            <SkeletonTable rows={6} columns={7} />
           </div>
         </div>
       </>
@@ -168,17 +159,19 @@ export default function AttendancePage() {
   return (
     <>
       <PageHeader
-        title="Attendance"
-        subtitle="Daily check-in and check-out records"
+        title="Attendance Management"
+        subtitle="Daily punch logs, shift timings and work duration records"
+        badge={<StatusBadge status="PRESENT" customLabel={`${rows.length} Logs`} size="sm" />}
         breadcrumbs={[
           { label: "Dashboard", href: "/dashboard" },
           { label: "Attendance Logs" },
         ]}
         actions={
-          <div style={{ display: "flex", gap: 8 }}>
-            <button 
-              className="btn btn-primary btn-sm" 
-              onClick={() => { 
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => {
                 const now = new Date();
                 setBulkForm({
                   from_date: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`,
@@ -191,7 +184,13 @@ export default function AttendancePage() {
             >
               📅 Bulk Mark Attendance
             </button>
-            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => void load()}
+            >
+              ↻ Refresh
+            </button>
           </div>
         }
       />
@@ -201,73 +200,123 @@ export default function AttendancePage() {
       <div className="page-body">
         {error && <div className="alert alert-error">{error}</div>}
 
-        <div className="stats-grid" style={{ gridTemplateColumns: "repeat(4,1fr)", marginBottom: 20 }}>
-          {[
-            { label: "Present", key: "PRESENT", color: "var(--green)" },
-            { label: "Late", key: "LATE", color: "var(--amber)" },
-            { label: "Absent", key: "ABSENT", color: "var(--red)" },
-            { label: "Half day", key: "HALF_DAY", color: "var(--purple)" },
-          ].map(({ label, key, color }) => (
-            <div className="stat-card" key={key}>
-              <div className="stat-label">{label}</div>
-              <div className="stat-value" style={{ color }}>{counts[key] ?? 0}</div>
+        {/* Attendance Summary Stat Cards */}
+        <div className="stats-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", marginBottom: 20 }}>
+          <div className="metric-kpi-card">
+            <div className="metric-header">
+              <span className="metric-title">Present Count</span>
+              <span className="status-badge badge-green status-badge-sm">Active</span>
             </div>
-          ))}
-        </div>
-
-        <div className="card">
-          <div className="card-header" style={{ flexWrap: "wrap", gap: 10 }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <label style={{ margin: 0, whiteSpace: "nowrap", fontSize: 12, fontWeight: 600, color: "var(--text-2)" }}>From</label>
-                <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={{ width: "auto", padding: "8px 12px" }} />
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <label style={{ margin: 0, whiteSpace: "nowrap", fontSize: 12, fontWeight: 600, color: "var(--text-2)" }}>To</label>
-                <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: "auto", padding: "8px 12px" }} />
-              </div>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ width: "auto", padding: "8px 12px" }}>
-                <option value="ALL">All statuses</option>
-                <option value="PRESENT">Present</option>
-                <option value="LATE">Late</option>
-                <option value="ABSENT">Absent</option>
-                <option value="HALF_DAY">Half day</option>
-                <option value="ON_LEAVE">On leave</option>
-              </select>
+            <div className="metric-value-row">
+              <span className="metric-number tabular-num">{counts.PRESENT ?? 0}</span>
             </div>
-            <span style={{ fontSize: 12, color: "var(--text-3)", marginLeft: "auto" }}>{rows.length} records</span>
+            <span className="metric-sub">Punched on time</span>
           </div>
 
-          <>
-            {selectedRows.length > 0 && (
-              <div style={{ 
-                padding: "10px 15px", 
-                background: "var(--brand-light)", 
-                borderBottom: "1px solid var(--border)", 
-                display: "flex", 
-                alignItems: "center", 
-                gap: 10,
-                color: "var(--brand-dark)",
-                fontWeight: 500,
-              }}>
-                <span>{selectedRows.length} record{selectedRows.length > 1 ? "s" : ""} selected</span>
-                <button className="btn btn-secondary btn-sm" onClick={() => setSelectedRows([])}>
-                  Clear Selection
-                </button>
-              </div>
-            )}
-            <DataTable 
-              rows={rows} 
-              columns={COLUMNS} 
-              selectable 
-              onSelectionChange={setSelectedRows}
-              striped
-              hoverable
-            />
-          </>
+          <div className="metric-kpi-card">
+            <div className="metric-header">
+              <span className="metric-title">Late Arrivals</span>
+              <span className="status-badge badge-amber status-badge-sm">Delayed</span>
+            </div>
+            <div className="metric-value-row">
+              <span className="metric-number tabular-num" style={{ color: "var(--warning)" }}>{counts.LATE ?? 0}</span>
+            </div>
+            <span className="metric-sub">Marked after grace period</span>
+          </div>
+
+          <div className="metric-kpi-card">
+            <div className="metric-header">
+              <span className="metric-title">Absent / Unmarked</span>
+              <span className="status-badge badge-red status-badge-sm">Absent</span>
+            </div>
+            <div className="metric-value-row">
+              <span className="metric-number tabular-num" style={{ color: "var(--danger)" }}>{counts.ABSENT ?? 0}</span>
+            </div>
+            <span className="metric-sub">No check-in recorded</span>
+          </div>
+
+          <div className="metric-kpi-card">
+            <div className="metric-header">
+              <span className="metric-title">Half Day / Leave</span>
+              <span className="status-badge badge-purple status-badge-sm">Partial</span>
+            </div>
+            <div className="metric-value-row">
+              <span className="metric-number tabular-num" style={{ color: "var(--purple)" }}>
+                {(counts.HALF_DAY ?? 0) + (counts.ON_LEAVE ?? 0)}
+              </span>
+            </div>
+            <span className="metric-sub">{counts.HALF_DAY ?? 0} half-day · {counts.ON_LEAVE ?? 0} on leave</span>
+          </div>
         </div>
+
+        {/* Filter Toolbar */}
+        <div className="filter-toolbar">
+          <div className="filter-group">
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <label style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>From</label>
+              <input
+                type="date"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+                style={{ height: 36, padding: "0 10px", fontSize: 13 }}
+              />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <label style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--text-muted)" }}>To</label>
+              <input
+                type="date"
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                style={{ height: 36, padding: "0 10px", fontSize: 13 }}
+              />
+            </div>
+            <select
+              className="filter-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              aria-label="Filter by punch status"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="PRESENT">Present</option>
+              <option value="LATE">Late</option>
+              <option value="ABSENT">Absent</option>
+              <option value="HALF_DAY">Half Day</option>
+              <option value="ON_LEAVE">On Leave</option>
+            </select>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                setFrom(today());
+                setTo(today());
+                setStatusFilter("ALL");
+              }}
+            >
+              Today
+            </button>
+            <span style={{ fontSize: 12.5, color: "var(--text-muted)", fontWeight: 500 }}>
+              {rows.length} records logged
+            </span>
+          </div>
+        </div>
+
+        {/* Attendance Records Table */}
+        <DataTable
+          rows={rows}
+          columns={COLUMNS}
+          selectable
+          onSelectionChange={setSelectedRows}
+          striped
+          hoverable
+          emptyTitle="No attendance punches found"
+          emptyMessage="No attendance activity logged for the selected dates."
+        />
       </div>
 
+      {/* Bulk Attendance Modal */}
       <Modal
         isOpen={showBulkModal}
         onClose={() => setShowBulkModal(false)}
@@ -275,62 +324,65 @@ export default function AttendancePage() {
         size="md"
         footer={
           <>
-            <button className="btn btn-secondary" onClick={() => setShowBulkModal(false)} disabled={bulkLoading}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setShowBulkModal(false)}
+              disabled={bulkLoading}
+            >
               Cancel
             </button>
-            <button className="btn btn-primary" onClick={handleBulkMark} disabled={bulkLoading}>
-              {bulkLoading ? "Processing..." : "Mark Attendance"}
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleBulkMark}
+              disabled={bulkLoading}
+            >
+              {bulkLoading ? "Processing…" : "Mark Attendance"}
             </button>
           </>
         }
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div className="alert alert-info" style={{ fontSize: 13 }}>
-            <strong>Note:</strong> {selectedRows.length > 0
-              ? `This will mark attendance for ${new Set(selectedRows.map((row) => String(row.employee_id ?? "")).filter(Boolean)).size} selected staff member(s).`
-              : "This will mark attendance for all active employees in the selected date range."} Existing records will be overwritten.
+            <strong>Scope:</strong> {selectedRows.length > 0
+              ? `Marking attendance for ${new Set(selectedRows.map((row) => String(row.employee_id ?? "")).filter(Boolean)).size} selected employee(s).`
+              : "Marking attendance for all active employees across the company."}
           </div>
-          
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
             <div className="form-group">
               <label>From Date *</label>
-              <input 
-                type="date" 
-                value={bulkForm.from_date} 
-                onChange={(e) => setBulkForm(prev => ({ ...prev, from_date: e.target.value }))}
-                style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: "6px" }}
+              <input
+                type="date"
+                value={bulkForm.from_date}
+                onChange={(e) => setBulkForm((prev) => ({ ...prev, from_date: e.target.value }))}
                 required
               />
             </div>
             <div className="form-group">
               <label>To Date *</label>
-              <input 
-                type="date" 
-                value={bulkForm.to_date} 
-                onChange={(e) => setBulkForm(prev => ({ ...prev, to_date: e.target.value }))}
-                style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: "6px" }}
+              <input
+                type="date"
+                value={bulkForm.to_date}
+                onChange={(e) => setBulkForm((prev) => ({ ...prev, to_date: e.target.value }))}
                 required
               />
             </div>
           </div>
-          
+
           <div className="form-group">
-            <label>Status *</label>
-            <select 
-              value={bulkForm.status} 
-              onChange={(e) => setBulkForm(prev => ({ ...prev, status: e.target.value as typeof bulkForm.status }))}
-              style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: "6px" }}
+            <label>Attendance Status *</label>
+            <select
+              value={bulkForm.status}
+              onChange={(e) => setBulkForm((prev) => ({ ...prev, status: e.target.value as typeof bulkForm.status }))}
             >
-              {statusOptions.map(opt => (
-                <option key={opt.value} value={opt.value} style={{ color: opt.color }}>
+              {statusOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
               ))}
             </select>
-          </div>
-          
-          <div style={{ padding: "12px", background: "var(--bg)", borderRadius: "8px", fontSize: 13, color: "var(--text-2)" }}>
-            <strong>Date Range:</strong> {bulkForm.from_date} to {bulkForm.to_date}
           </div>
         </div>
       </Modal>

@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { useProfile } from "@/hooks/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
+import { Tabs } from "@/components/Tabs";
 
 type Row = Record<string, unknown>;
 type Tab = "attendance" | "leave" | "headcount" | "payroll" | "assets" | "audit";
@@ -53,10 +54,10 @@ export default function ReportsPage() {
         .order("submitted_at", { ascending: false })
         .limit(500);
       data = ((res.data ?? []) as Record<string, unknown>[]).map((r) => ({
-        employee_code: (r.employees as Record<string, unknown> | null)?.employee_code ?? "â€”",
-        display_name:  (r.employees as Record<string, unknown> | null)?.display_name ?? "â€”",
-        department:    ((r.employees as Record<string, unknown> | null)?.departments as Record<string, unknown> | null)?.name ?? "â€”",
-        leave_type:    (r.leave_types as Record<string, unknown> | null)?.name ?? "â€”",
+        employee_code: (r.employees as Record<string, unknown> | null)?.employee_code ?? "—",
+        display_name:  (r.employees as Record<string, unknown> | null)?.display_name ?? "—",
+        department:    ((r.employees as Record<string, unknown> | null)?.departments as Record<string, unknown> | null)?.name ?? "—",
+        leave_type:    (r.leave_types as Record<string, unknown> | null)?.name ?? "—",
         from_date: r.from_date, to_date: r.to_date, total_days: r.total_days, status: r.status,
       }));
       err = res.error;
@@ -157,7 +158,7 @@ export default function ReportsPage() {
         ]}
         actions={
           <button className="btn btn-secondary btn-sm" onClick={exportCSV} disabled={!rows.length}>
-            â¬‡ Export CSV
+            ⬇ Export CSV
           </button>
         }
       />
@@ -165,13 +166,12 @@ export default function ReportsPage() {
       <div className="page-body">
         {error && <div className="alert alert-error">{error}</div>}
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-          {TABS.map(({ key, label }) => (
-            <button key={key} className={`btn btn-sm ${tab === key ? "btn-primary" : "btn-secondary"}`} onClick={() => setTab(key)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          items={TABS}
+          active={tab}
+          onChange={(key) => setTab(key)}
+          ariaLabel="Report type"
+        />
 
         <div className="card">
           <div className="card-header" style={{ flexWrap: "wrap", gap: 10 }}>
@@ -189,11 +189,11 @@ export default function ReportsPage() {
                   </div>
                 </>
               )}
-              <button className="btn btn-ghost btn-sm" onClick={() => void load()}>â†» Run</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻ Run</button>
             </div>
           </div>
           {loading ? (
-            <div className="loading-spinner"><div className="spinner" /> Loadingâ€¦</div>
+            <div className="loading-spinner"><div className="spinner" /> Loading…</div>
           ) : (
             <DataTable rows={rows} columns={colMap[tab]} />
           )}

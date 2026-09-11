@@ -68,30 +68,41 @@ export default function CheckInOutCard({ employeeId, onChanged }: { employeeId: 
   const isError = message?.startsWith("Error") || message?.startsWith("Location error");
 
   return (
-    <div className="card" style={{ marginBottom: 20, padding: 20 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+    <div className="checkin-card">
+      <div className="checkin-card-main">
+        <span className="checkin-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+        </span>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>Today — {todayISO()}</div>
-          <div style={{ fontSize: 13, color: "var(--text-3)", marginTop: 4 }}>
+          <div className="checkin-eyebrow">Today&apos;s Attendance</div>
+          <div className="checkin-date">{todayISO()}</div>
+          <div className="checkin-status">
             {hasCheckedIn
               ? `Checked in at ${new Date(String(todayAtt?.check_in_at)).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}${hasCheckedOut ? ` · Checked out at ${new Date(String(todayAtt?.check_out_at)).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}` : ""}`
               : "Not checked in yet"}
           </div>
-          {message && <div style={{ marginTop: 8, fontSize: 13, color: isError ? "var(--red)" : "var(--green)" }}>{message}</div>}
-        </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          {!hasCheckedIn && (
-            <button className="btn btn-primary" onClick={() => punch("in")} disabled={checkingIn}>
-              {checkingIn ? "Getting location…" : "✓ Check In"}
-            </button>
+          {message && (
+            <div className="checkin-message" style={{ color: isError ? "var(--danger)" : "var(--success)" }}>
+              {message}
+            </div>
           )}
-          {hasCheckedIn && !hasCheckedOut && (
-            <button className="btn btn-secondary" onClick={() => punch("out")} disabled={checkingOut}>
-              {checkingOut ? "Getting location…" : "✗ Check Out"}
-            </button>
-          )}
-          {hasCheckedOut && <span className="pill pill-green">Day complete</span>}
         </div>
+      </div>
+      <div className="checkin-actions">
+        {!hasCheckedIn && (
+          <button className="btn btn-primary" onClick={() => punch("in")} disabled={checkingIn}>
+            {checkingIn ? "Getting location…" : "Check In"}
+          </button>
+        )}
+        {hasCheckedIn && !hasCheckedOut && (
+          <button className="btn btn-secondary" onClick={() => punch("out")} disabled={checkingOut}>
+            {checkingOut ? "Getting location…" : "Check Out"}
+          </button>
+        )}
+        {hasCheckedOut && <span className="pill pill-green">Day complete</span>}
       </div>
     </div>
   );

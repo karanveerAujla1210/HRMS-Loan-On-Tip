@@ -39,15 +39,15 @@ const NAV_SECTIONS: NavSection[] = [
     label: "People Operations",
     items: [
       { href: "/people", label: "People", roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "MANAGER"], Icon: IconUsers },
-      { href: "/attendance", label: "Attendance", roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "MANAGER"], Icon: IconClock },
-      { href: "/leave", label: "Leave", roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "MANAGER"], Icon: IconCalendar },
+      { href: "/attendance", label: "Attendance", roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "LOCATION_ADMIN", "MANAGER"], Icon: IconClock },
+      { href: "/leave", label: "Leave", roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "LOCATION_ADMIN", "MANAGER"], Icon: IconCalendar },
     ],
   },
   {
     label: "Finance & Assets",
     items: [
       { href: "/payroll", label: "Payroll", roles: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN"], Icon: IconCash },
-      { href: "/assets", label: "Assets", roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN"], Icon: IconBox },
+      { href: "/assets", label: "Assets", roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "ASSET_ADMIN"], Icon: IconBox },
     ],
   },
   {
@@ -208,8 +208,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       const isCollapsed = collapsedSections.has(section.label);
 
       return (
-        <div key={section.label} className="nav-section">
+        <div key={section.label} className="nav-section" style={{ marginBottom: 12 }}>
           <button
+            type="button"
             className="nav-section-header"
             onClick={() => toggleSection(section.label)}
             aria-expanded={!isCollapsed}
@@ -218,37 +219,83 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               display: "flex",
               alignItems: "center",
               gap: 8,
-              padding: "10px 8px 6px",
-              fontSize: 10,
+              padding: "8px 10px 6px",
+              fontSize: 10.5,
               fontWeight: 700,
-              color: "var(--text-4)",
-              letterSpacing: "1px",
+              color: "var(--text-muted)",
+              letterSpacing: "0.08em",
               textTransform: "uppercase",
               border: "none",
               background: "transparent",
               cursor: "pointer",
               width: "100%",
               textAlign: "left",
+              borderRadius: "var(--radius-sm)",
+              transition: "color var(--transition-fast)",
             }}
           >
-            <span style={{ transition: "transform 0.2s", transform: isCollapsed ? "rotate(-90deg)" : "rotate(0)" }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="6 9 12 15 18 9"/></svg>
+            <span style={{ display: "inline-flex", transition: "transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)", transform: isCollapsed ? "rotate(-90deg)" : "rotate(0)" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9"/>
+              </svg>
             </span>
-            {section.label}
-            <span style={{ marginLeft: "auto", fontSize: 11, opacity: 0.6 }}>{visibleItems.length}</span>
+            <span>{section.label}</span>
+            <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 600, color: "var(--text-subtle)", background: "var(--bg)", padding: "1px 6px", borderRadius: "10px" }}>
+              {visibleItems.length}
+            </span>
           </button>
-          <div id={`nav-section-${section.label}`} style={{ overflow: "hidden", transition: "max-height 0.25s ease-out", maxHeight: isCollapsed ? 0 : "500px" }}>
-            {visibleItems.map(({ href, label, Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className={`nav-item${pathname === href || pathname.startsWith(href + "/") ? " active" : ""}`}
-                onClick={() => closeSidebar()}
-              >
-                <Icon />
-                {label}
-              </Link>
-            ))}
+          <div
+            id={`nav-section-${section.label}`}
+            style={{
+              overflow: "hidden",
+              transition: "max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease",
+              maxHeight: isCollapsed ? 0 : "600px",
+              opacity: isCollapsed ? 0 : 1,
+            }}
+          >
+            {visibleItems.map(({ href, label, Icon }) => {
+              const isActive = pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={`nav-item${isActive ? " active" : ""}`}
+                  onClick={() => closeSidebar()}
+                  style={{
+                    position: "relative",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 11,
+                    padding: "9px 12px",
+                    borderRadius: "var(--radius-md)",
+                    fontSize: 13,
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive ? "var(--brand)" : "var(--text-base)",
+                    background: isActive ? "var(--brand-light)" : "transparent",
+                    textDecoration: "none",
+                    marginBottom: 2,
+                    transition: "all var(--transition-fast)",
+                  }}
+                >
+                  {isActive && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        left: 0,
+                        top: 6,
+                        bottom: 6,
+                        width: 3,
+                        backgroundColor: "var(--brand)",
+                        borderRadius: "0 3px 3px 0",
+                      }}
+                      aria-hidden="true"
+                    />
+                  )}
+                  <Icon />
+                  <span style={{ flex: 1 }}>{label}</span>
+                </Link>
+              );
+            })}
           </div>
         </div>
       );
@@ -267,7 +314,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
         <div className="sidebar-brand">
-          <Image src="/logo.png" alt="Loan On Tip Logo" width={72} height={72} className="brand-logo" />
+          <Image src="/logo.png" alt="Loan On Tip Logo" width={38} height={38} className="brand-logo" priority />
           <div className="brand-text">
             <strong>Loan On Tip</strong>
             <span>ACG Leasing Limited</span>
@@ -283,25 +330,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         <div className="sidebar-footer">
           <div className="user-card">
-            <div className="avatar">{initials}</div>
-            <div className="user-info">
-              <strong title={userEmail}>{displayName}</strong>
-              <span>{roleLabel}</span>
+            <div className="avatar" aria-hidden="true">{initials}</div>
+            <div className="user-info" style={{ overflow: "hidden", minWidth: 0 }}>
+              <strong title={userEmail} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayName}</strong>
+              <span style={{ fontSize: 11, color: "var(--text-muted)", display: "block" }}>{roleLabel}</span>
             </div>
-            <div style={{ marginLeft: "auto", display: "flex", gap: 4, alignItems: "center" }}>
+            <div style={{ marginLeft: "auto", display: "flex", gap: 4, alignItems: "center", flexShrink: 0 }}>
               {unread > 0 && (
-                <Link href="/self-service" style={{ position: "relative", display: "grid", placeItems: "center" }}>
+                <Link href="/self-service" style={{ position: "relative", display: "grid", placeItems: "center", padding: 6, borderRadius: "var(--radius-sm)", color: "var(--text-muted)" }} title={`${unread} unread notifications`}>
                   <span style={{
-                    position: "absolute", top: -6, right: -6,
-                    background: "var(--red)", color: "#fff",
+                    position: "absolute", top: 1, right: 1,
+                    background: "var(--danger)", color: "#fff",
                     fontSize: 9, fontWeight: 700,
-                    borderRadius: "50%", width: 16, height: 16,
+                    borderRadius: "50%", width: 15, height: 15,
                     display: "grid", placeItems: "center",
                   }}>{unread > 9 ? "9+" : unread}</span>
                   <IconBell />
                 </Link>
               )}
-              <button className="btn-signout" onClick={signOut} title="Sign out"><IconLogout /></button>
+              <button className="btn-signout" onClick={signOut} title="Sign out" aria-label="Sign out"><IconLogout /></button>
             </div>
           </div>
         </div>

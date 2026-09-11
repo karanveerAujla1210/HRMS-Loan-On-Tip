@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +12,7 @@ import { fetchAssetSetupLookups } from "@/features/assets/queries";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 import SubNav from "@/components/SubNav";
+import StatusBadge from "@/components/StatusBadge";
 
 const ASSETS_NAV = [
   { href: "/assets", label: "Asset Inventory", exact: true },
@@ -242,16 +243,29 @@ export default function AssetsPage() {
   return (
     <>
       <PageHeader
-        title="Assets"
-        subtitle={`${assets.length} items registered across company`}
+        title="Asset Inventory & Equipment"
+        subtitle="Hardware, mobile devices and enterprise asset allocations"
+        badge={<StatusBadge status="AVAILABLE" customLabel={`${assets.length} Assets Registered`} size="sm" />}
         breadcrumbs={[
           { label: "Dashboard", href: "/dashboard" },
           { label: "Asset Inventory" },
         ]}
         actions={
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>â†» Refresh</button>
-            <button className="btn btn-primary btn-sm" onClick={() => setShowAddForm(true)}>+ Add Asset</button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => void load()}
+            >
+              ↻ Refresh
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => setShowAddForm(true)}
+            >
+              + Add Asset
+            </button>
           </div>
         }
       />
@@ -263,75 +277,146 @@ export default function AssetsPage() {
         {msg && <div className={`alert ${msg.startsWith("Error") ? "alert-error" : "alert-success"}`}>{msg}</div>}
 
         {/* Stats Grid */}
-        <div className="stats-grid" style={{ gridTemplateColumns: "repeat(5,1fr)", marginBottom: 20 }}>
+        <div className="stats-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", marginBottom: 20 }}>
           {[
-            { label: "Total Assets", key: "ALL", count: assets.length },
-            { label: "Available (In Stock)", key: "AVAILABLE", count: counts["AVAILABLE"] ?? 0 },
-            { label: "Assigned (In Use)", key: "ASSIGNED", count: counts["ASSIGNED"] ?? 0 },
-            { label: "Under Repair", key: "UNDER_REPAIR", count: counts["UNDER_REPAIR"] ?? 0 },
-            { label: "Damaged / Lost", key: "DAMAGED", count: (counts["DAMAGED"] ?? 0) + (counts["LOST"] ?? 0) },
-          ].map(({ label, key, count }) => (
-            <div
-              className={`stat-card${statusFilter === key ? " active-stat" : ""}`}
-              key={key}
-              style={{ cursor: "pointer", borderColor: statusFilter === key ? "var(--brand)" : undefined }}
-              onClick={() => setStatusFilter(key)}
-            >
-              <div className="stat-label">{label}</div>
-              <div className="stat-value">{count}</div>
+            { label: "Total Assets", key: "ALL", count: assets.length, badgeClass: "badge-gray", sub: "All registered units" },
+            { label: "In Stock (Available)", key: "AVAILABLE", count: counts["AVAILABLE"] ?? 0, badgeClass: "badge-green", sub: "Ready for deployment" },
+            { label: "Assigned (In Use)", key: "ASSIGNED", count: counts["ASSIGNED"] ?? 0, badgeClass: "badge-blue", sub: "Currently with employees" },
+            { label: "Under Maintenance", key: "UNDER_REPAIR", count: counts["UNDER_REPAIR"] ?? 0, badgeClass: "badge-amber", sub: "In service or repair" },
+            { label: "Damaged / Lost", key: "DAMAGED", count: (counts["DAMAGED"] ?? 0) + (counts["LOST"] ?? 0), badgeClass: "badge-red", sub: "Requires replacement" },
+          ].map(({ label, key, count, badgeClass, sub }) => {
+            const isSelected = statusFilter === key;
+            return (
+              <div
+                className="metric-kpi-card"
+                key={key}
+                style={{
+                  cursor: "pointer",
+                  borderColor: isSelected ? "var(--brand)" : undefined,
+                  boxShadow: isSelected ? "var(--shadow-md)" : undefined,
+                  background: isSelected ? "var(--surface-hover)" : "var(--surface)",
+                }}
+                onClick={() => setStatusFilter(key)}
+              >
+                <div className="metric-header">
+                  <span className="metric-title">{label}</span>
+                  <span className={`status-badge ${badgeClass} status-badge-sm`}>
+                    {isSelected ? "Filtered" : "Filter"}
+                  </span>
+                </div>
+                <div className="metric-value-row">
+                  <span className="metric-number tabular-num">{count}</span>
+                </div>
+                <span className="metric-sub">{sub}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Inventory Filter Toolbar */}
+        <div className="filter-toolbar">
+          <div className="filter-group">
+            <div className="search-input-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                placeholder="Search by asset tag, model, serial, employee…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Search asset inventory"
+              />
             </div>
-          ))}
+
+            <select
+              className="filter-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              aria-label="Filter by asset status"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="AVAILABLE">Available (In Stock)</option>
+              <option value="ASSIGNED">Assigned (In Use)</option>
+              <option value="UNDER_REPAIR">Under Repair</option>
+              <option value="DAMAGED">Damaged</option>
+              <option value="LOST">Lost</option>
+            </select>
+
+            {(search.trim() !== "" || statusFilter !== "ALL") && (
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  setSearch("");
+                  setStatusFilter("ALL");
+                }}
+              >
+                Clear Filters
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 12.5, color: "var(--text-muted)", fontWeight: 500 }}>
+              Showing {filtered.length} of {assets.length} assets
+            </span>
+          </div>
         </div>
 
         {/* Inventory Card */}
         <div className="card">
-          <div className="card-header" style={{ flexWrap: "wrap", gap: 10 }}>
-            <div>
-              <h2>Asset Inventory & Allocations</h2>
-              <p>{filtered.length} records{statusFilter !== "ALL" ? ` Â· Filter: ${statusFilter}` : ""}</p>
-            </div>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <input
-                placeholder="Search asset, serial, employeeâ€¦"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{ width: 240 }}
-              />
-              {statusFilter !== "ALL" && (
-                <button className="btn btn-ghost btn-sm" onClick={() => setStatusFilter("ALL")}>Clear filter</button>
-              )}
-            </div>
-          </div>
-
-          {loading ? (
-            <div className="loading-spinner"><div className="spinner" /> Loadingâ€¦</div>
-          ) : (
-            <DataTable
-              rows={filtered}
-              columns={COLS}
-              action={(row) => {
-                const a = row as Asset;
-                return (
-                  <div style={{ display: "flex", gap: 6, flexWrap: "nowrap" }}>
-                    {a.status === "AVAILABLE" && (
-                      <>
-                        <button className="btn btn-sm btn-primary" onClick={() => setAssigning(a)}>Assign</button>
-                        <button className="btn btn-sm btn-secondary" onClick={() => setRepairing(a)}>Repair</button>
-                      </>
-                    )}
-                    {a.status === "ASSIGNED" && (
-                      <button className="btn btn-sm btn-secondary" onClick={() => setReturning(a)}>Return</button>
-                    )}
-                    {a.status === "UNDER_REPAIR" && (
-                      <button className="btn btn-sm btn-secondary" onClick={() => router.push("/assets/maintenance")}>
-                        View Fix
+          <DataTable
+            rows={filtered}
+            columns={COLS}
+            action={(row) => {
+              const a = row as Asset;
+              return (
+                <div style={{ display: "flex", gap: 6, flexWrap: "nowrap" }}>
+                  {a.status === "AVAILABLE" && (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-primary"
+                        onClick={() => setAssigning(a)}
+                      >
+                        Assign
                       </button>
-                    )}
-                  </div>
-                );
-              }}
-            />
-          )}
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-secondary"
+                        onClick={() => setRepairing(a)}
+                      >
+                        Repair
+                      </button>
+                    </>
+                  )}
+                  {a.status === "ASSIGNED" && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-secondary"
+                      onClick={() => setReturning(a)}
+                    >
+                      Return
+                    </button>
+                  )}
+                  {a.status === "UNDER_REPAIR" && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-secondary"
+                      onClick={() => router.push("/assets/maintenance")}
+                    >
+                      View Fix
+                    </button>
+                  )}
+                </div>
+              );
+            }}
+            striped
+            hoverable
+            emptyTitle="No equipment matching criteria"
+            emptyMessage="Try adjusting your search query or selecting a different status filter."
+          />
         </div>
       </div>
 
@@ -341,13 +426,13 @@ export default function AssetsPage() {
           <div className="modal" style={{ maxWidth: 560 }}>
             <div className="modal-header">
               <h2>Add New Asset to Inventory</h2>
-              <button className="btn btn-ghost btn-sm" onClick={() => setShowAddForm(false)}>âœ•</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowAddForm(false)}>✕</button>
             </div>
             <form onSubmit={handleAddAsset}>
               <div className="modal-body">
                 {categories.length === 0 && (
                   <div className="alert alert-info" style={{ fontSize: 13, marginBottom: 16 }}>
-                    No asset categories found. Go to <strong>Organisation â†’ Asset Categories</strong> to add categories first.
+                    No asset categories found. Go to <strong>Organisation → Asset Categories</strong> to add categories first.
                   </div>
                 )}
                 <div className="form-row">
@@ -394,7 +479,7 @@ export default function AssetsPage() {
                     <input name="purchase_date" type="date" />
                   </div>
                   <div className="form-group">
-                    <label>Purchase Cost (â‚¹)</label>
+                    <label>Purchase Cost (₹)</label>
                     <input name="purchase_cost" type="number" min={0} placeholder="e.g. 58000" />
                   </div>
                 </div>
@@ -434,7 +519,7 @@ export default function AssetsPage() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowAddForm(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Savingâ€¦" : "Add Asset"}
+                  {saving ? "Saving…" : "Add Asset"}
                 </button>
               </div>
             </form>
@@ -448,7 +533,7 @@ export default function AssetsPage() {
           <div className="modal" style={{ maxWidth: 500 }}>
             <div className="modal-header">
               <h2>Assign Asset {assigning.asset_code}</h2>
-              <button className="btn btn-ghost btn-sm" onClick={() => setAssigning(null)}>âœ•</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setAssigning(null)}>✕</button>
             </div>
             <form onSubmit={handleAssign}>
               <div className="modal-body">
@@ -463,7 +548,7 @@ export default function AssetsPage() {
                     <option value="" disabled>Select staff member</option>
                     {employees.map((emp) => (
                       <option key={String(emp.id)} value={String(emp.id)}>
-                        {String(emp.display_name)} Â· {String(emp.employee_code)} ({String(emp.department ?? "General")})
+                        {String(emp.display_name)} · {String(emp.employee_code)} ({String(emp.department ?? "General")})
                       </option>
                     ))}
                   </select>
@@ -496,7 +581,7 @@ export default function AssetsPage() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setAssigning(null)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Assigningâ€¦" : "Confirm Handover"}
+                  {saving ? "Assigning…" : "Confirm Handover"}
                 </button>
               </div>
             </form>
@@ -510,22 +595,22 @@ export default function AssetsPage() {
           <div className="modal" style={{ maxWidth: 520 }}>
             <div className="modal-header">
               <h2>Return & Inspect {returning.asset_code}</h2>
-              <button className="btn btn-ghost btn-sm" onClick={() => setReturning(null)}>âœ•</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setReturning(null)}>✕</button>
             </div>
             <form onSubmit={handleReturn}>
               <div className="modal-body">
                 <div style={{ background: "var(--bg)", padding: 12, borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
                   <div><strong>Item:</strong> {returning.model}</div>
-                  <div><strong>Assigned to:</strong> {returning.assigned_to ?? "â€”"}</div>
+                  <div><strong>Assigned to:</strong> {returning.assigned_to ?? "—"}</div>
                 </div>
 
                 <div className="form-group">
                   <label>Condition at Return *</label>
                   <select name="condition" defaultValue="GOOD">
-                    <option value="GOOD">Good â€” Normal wear & tear</option>
-                    <option value="FAIR">Fair â€” Minor scratches</option>
-                    <option value="POOR">Poor â€” Heavy usage</option>
-                    <option value="DAMAGED">Damaged â€” Requires repair/replacement</option>
+                    <option value="GOOD">Good — Normal wear & tear</option>
+                    <option value="FAIR">Fair — Minor scratches</option>
+                    <option value="POOR">Poor — Heavy usage</option>
+                    <option value="DAMAGED">Damaged — Requires repair/replacement</option>
                   </select>
                 </div>
 
@@ -535,7 +620,7 @@ export default function AssetsPage() {
                     <input name="missing_items" placeholder="e.g. Charger cable missing" />
                   </div>
                   <div className="form-group">
-                    <label>Damage Deduction / Recovery (â‚¹)</label>
+                    <label>Damage Deduction / Recovery (₹)</label>
                     <input name="recovery_amount" type="number" min={0} placeholder="e.g. 1500" />
                   </div>
                 </div>
@@ -552,7 +637,7 @@ export default function AssetsPage() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setReturning(null)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Processingâ€¦" : "Confirm Return to Stock"}
+                  {saving ? "Processing…" : "Confirm Return to Stock"}
                 </button>
               </div>
             </form>
@@ -566,7 +651,7 @@ export default function AssetsPage() {
           <div className="modal" style={{ maxWidth: 480 }}>
             <div className="modal-header">
               <h2>Send {repairing.asset_code} to Repair</h2>
-              <button className="btn btn-ghost btn-sm" onClick={() => setRepairing(null)}>âœ•</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setRepairing(null)}>✕</button>
             </div>
             <form onSubmit={handleSendToRepair}>
               <div className="modal-body">
@@ -580,7 +665,7 @@ export default function AssetsPage() {
                     <input name="vendor" placeholder="Vendor / service center" />
                   </div>
                   <div className="form-group">
-                    <label>Est. Cost (â‚¹)</label>
+                    <label>Est. Cost (₹)</label>
                     <input name="cost" type="number" min={0} placeholder="e.g. 2000" />
                   </div>
                 </div>
@@ -592,7 +677,7 @@ export default function AssetsPage() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setRepairing(null)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Sendingâ€¦" : "Send to Repair"}
+                  {saving ? "Sending…" : "Send to Repair"}
                 </button>
               </div>
             </form>

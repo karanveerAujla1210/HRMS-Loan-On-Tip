@@ -6,7 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
-import { PageHeader, DataTable, useToast, ConfirmModal, SkeletonTable, Skeleton } from "@/components";
+import { PageHeader, DataTable, useToast, ConfirmModal, SkeletonTable, Skeleton, StatusBadge } from "@/components";
 import { useProfile } from "@/hooks/useProfile";
 
 type Row = Record<string, unknown>;
@@ -86,6 +86,9 @@ export default function LeavePage() {
     }
   };
 
+  const approvedCount = all.filter((r) => String(r.status).toUpperCase() === "APPROVED").length;
+  const rejectedCount = all.filter((r) => String(r.status).toUpperCase() === "REJECTED").length;
+
   const rows = tab === "pending" ? pending : all;
   const cols = tab === "pending" ? PENDING_COLS : ALL_COLS;
 
@@ -93,20 +96,19 @@ export default function LeavePage() {
     return (
       <>
         <PageHeader
-          title="Leave"
-          subtitle="Leave applications, team quotas and approval workflows"
+          title="Leave Approvals"
+          subtitle="Review applications, approvals and balances"
           breadcrumbs={[
             { label: "Dashboard", href: "/dashboard" },
-            { label: "Leave Approvals" },
+            { label: "Leave Management" },
           ]}
-          actions={
-            <Skeleton variant="rectangular" width={100} height={36} />
-          }
+          actions={<Skeleton variant="rectangular" width={100} height={36} />}
         />
         <div className="page-body">
-          <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-            <Skeleton variant="rectangular" width={120} height={36} />
-            <Skeleton variant="rectangular" width={100} height={36} />
+          <div className="stats-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", marginBottom: 20 }}>
+            <Skeleton variant="stat" />
+            <Skeleton variant="stat" />
+            <Skeleton variant="stat" />
           </div>
           <div className="card">
             <SkeletonTable rows={5} columns={7} />
@@ -119,56 +121,131 @@ export default function LeavePage() {
   return (
     <>
       <PageHeader
-        title="Leave"
-        subtitle="Leave applications, team quotas and approval workflows"
+        title="Leave Management"
+        subtitle="Manage employee leave requests, quotas and manager approvals"
+        badge={
+          pending.length > 0 ? (
+            <StatusBadge status="PENDING" customLabel={`${pending.length} Pending`} size="sm" />
+          ) : (
+            <StatusBadge status="APPROVED" customLabel="All Clear" size="sm" />
+          )
+        }
         breadcrumbs={[
           { label: "Dashboard", href: "/dashboard" },
-          { label: "Leave Approvals" },
+          { label: "Leave Management" },
         ]}
         actions={
-          <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => void load()}
+          >
+            ↻ Refresh
+          </button>
         }
       />
 
       <div className="page-body">
         {error && <div className="alert alert-error">{error}</div>}
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-          <button
-            className={`btn ${tab === "pending" ? "btn-primary" : "btn-secondary"} btn-sm`}
-            onClick={() => setTab("pending")}
-          >
-            Pending ({pending.length})
-          </button>
-          <button
-            className={`btn ${tab === "all" ? "btn-primary" : "btn-secondary"} btn-sm`}
-            onClick={() => setTab("all")}
-          >
-            All requests
-          </button>
+        {/* Leave KPI Metrics */}
+        <div className="stats-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", marginBottom: 20 }}>
+          <div className="metric-kpi-card">
+            <div className="metric-header">
+              <span className="metric-title">Pending Action</span>
+              <span className="status-badge badge-amber status-badge-sm">Requires Review</span>
+            </div>
+            <div className="metric-value-row">
+              <span className="metric-number tabular-num" style={{ color: pending.length > 0 ? "var(--warning)" : "var(--text-strong)" }}>
+                {pending.length}
+              </span>
+            </div>
+            <span className="metric-sub">Awaiting manager/admin decision</span>
+          </div>
+
+          <div className="metric-kpi-card">
+            <div className="metric-header">
+              <span className="metric-title">Approved Leaves</span>
+              <span className="status-badge badge-green status-badge-sm">Approved</span>
+            </div>
+            <div className="metric-value-row">
+              <span className="metric-number tabular-num">{approvedCount}</span>
+            </div>
+            <span className="metric-sub">Granted this cycle</span>
+          </div>
+
+          <div className="metric-kpi-card">
+            <div className="metric-header">
+              <span className="metric-title">Total Processed</span>
+              <span className="status-badge badge-gray status-badge-sm">History</span>
+            </div>
+            <div className="metric-value-row">
+              <span className="metric-number tabular-num">{all.length}</span>
+            </div>
+            <span className="metric-sub">{rejectedCount} applications rejected</span>
+          </div>
         </div>
 
+        {/* Tab Controls & Records */}
         <div className="card">
+          <div
+            className="card-header"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: 12,
+            }}
+          >
+            <div className="segmented-tabs">
+              <button
+                type="button"
+                className={`segmented-tab ${tab === "pending" ? "active" : ""}`}
+                onClick={() => setTab("pending")}
+              >
+                Pending Approvals ({pending.length})
+              </button>
+              <button
+                type="button"
+                className={`segmented-tab ${tab === "all" ? "active" : ""}`}
+                onClick={() => setTab("all")}
+              >
+                All Applications ({all.length})
+              </button>
+            </div>
+
+            <span style={{ fontSize: 12.5, color: "var(--text-muted)", fontWeight: 500 }}>
+              Showing {rows.length} record{rows.length === 1 ? "" : "s"}
+            </span>
+          </div>
+
           <DataTable
             rows={rows}
             columns={cols}
             action={
               tab === "pending"
                 ? (row) => (
-                    <div style={{ display: "flex", gap: 6 }}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                       <button 
-                        className="btn btn-sm btn-primary" 
+                        type="button"
+                        className="btn btn-primary btn-sm"
+                        style={{ background: "#10b981", borderColor: "#10b981", padding: "4px 10px" }}
                         onClick={() => handleActionClick(row, "APPROVED")}
                         disabled={actionLoading}
+                        title="Approve leave request"
                       >
-                        Approve
+                        ✓ Approve
                       </button>
                       <button 
-                        className="btn btn-sm btn-danger" 
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        style={{ color: "var(--danger)", padding: "4px 10px" }}
                         onClick={() => handleActionClick(row, "REJECTED")}
                         disabled={actionLoading}
+                        title="Reject leave request"
                       >
-                        Reject
+                        ✕ Reject
                       </button>
                     </div>
                   )
@@ -176,6 +253,8 @@ export default function LeavePage() {
             }
             striped
             hoverable
+            emptyTitle={tab === "pending" ? "No pending leave requests" : "No leave history found"}
+            emptyMessage={tab === "pending" ? "All employee leave applications have been reviewed." : "No leave records match the company scope."}
           />
         </div>
       </div>
@@ -185,10 +264,12 @@ export default function LeavePage() {
         onClose={() => setConfirmLeave(null)}
         onConfirm={handleConfirm}
         title={confirmLeave?.action === "APPROVED" ? "Approve Leave Request" : "Reject Leave Request"}
-        message={confirmLeave?.action === "APPROVED" 
-          ? "Are you sure you want to approve this leave request? The employee's leave balance will be deducted." 
-          : "Are you sure you want to reject this leave request? The employee will be notified."}
-        confirmLabel={confirmLeave?.action === "APPROVED" ? "Approve" : "Reject"}
+        message={
+          confirmLeave?.action === "APPROVED" 
+            ? "Are you sure you want to approve this leave request? The employee's leave balance will be updated automatically." 
+            : "Are you sure you want to reject this leave request? The employee will receive notification."
+        }
+        confirmLabel={confirmLeave?.action === "APPROVED" ? "Approve Leave" : "Reject Leave"}
         cancelLabel="Cancel"
         variant={confirmLeave?.action === "APPROVED" ? "primary" : "danger"}
         loading={actionLoading}

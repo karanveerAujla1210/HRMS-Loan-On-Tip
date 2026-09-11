@@ -11,6 +11,7 @@ import MyExpensesPanel from "@/features/self-service/components/MyExpensesPanel"
 import MyHelpdeskPanel from "@/features/self-service/components/MyHelpdeskPanel";
 import MyLeavePanel from "@/features/self-service/components/MyLeavePanel";
 import MyPayslipsPanel from "@/features/self-service/components/MyPayslipsPanel";
+import { Tabs } from "@/components/Tabs";
 import { useProfile } from "@/hooks/useProfile";
 
 type Tab = "attendance" | "leave" | "payslips" | "assets" | "expenses" | "helpdesk";
@@ -35,6 +36,9 @@ export default function SelfServicePage() {
       <PageHeader
         title="Self Service"
         subtitle="Your attendance, leave, payslips, assets, expense claims and support"
+        icon={
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        }
         breadcrumbs={[
           { label: "Dashboard", href: "/dashboard" },
           { label: "My Self-Service" },
@@ -46,18 +50,7 @@ export default function SelfServicePage() {
           <CheckInOutCard employeeId={employeeId} onChanged={() => setAttendanceRefreshKey((k) => k + 1)} />
         )}
 
-        {/* Tabs */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-          {TABS.map(({ key, label }) => (
-            <button
-              key={key}
-              className={`btn btn-sm ${tab === key ? "btn-primary" : "btn-secondary"}`}
-              onClick={() => setTab(key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <Tabs items={TABS} active={tab} onChange={(key) => setTab(key)} ariaLabel="Self-service sections" />
 
         {employeeId && companyId && (
           <>

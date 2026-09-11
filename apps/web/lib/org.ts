@@ -105,15 +105,16 @@ export function mapOrgPayload(
         ...base,
         name: body.name,
         holiday_date: body.holiday_date,
+        holiday_type: body.holiday_type ?? "NATIONAL",
         is_optional: body.is_optional ?? false,
-        description: body.description ?? null,
       };
     case "salary_structures":
       return {
         ...base,
-        code: body.code,
         name: body.name,
-        annual_ctc: body.annual_ctc ?? null,
+        description: body.description ?? null,
+        effective_from: body.effective_from ?? new Date().toISOString().slice(0, 10),
+        effective_to: body.effective_to ?? null,
         is_active: body.is_active ?? true,
       };
     default:

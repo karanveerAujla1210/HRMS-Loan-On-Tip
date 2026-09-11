@@ -46,12 +46,12 @@ export const GET = withApi({
 
     let q = db
       .from("leave_requests")
-      .select("*, employees(display_name), leave_types(name)", { count: "exact" })
+      .select("*, employees!inner(display_name, company_id), leave_types(name)", { count: "exact" })
       .order("submitted_at", { ascending: false })
       .range(from, to);
 
     if (scope === "company") {
-      q = q.eq("company_id", companyId);
+      q = q.eq("employees.company_id", companyId);
     } else if (Array.isArray(employeeIdFilter)) {
       q = q.in("employee_id", employeeIdFilter);
     } else if (employeeIdFilter) {

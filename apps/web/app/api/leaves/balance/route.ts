@@ -17,8 +17,8 @@ export const GET = withApi({
     const year = query.year ?? new Date().getFullYear();
 
     const { data, error } = await db
-      .from("v_leave_balances")
-      .select("*")
+      .from("leave_balances")
+      .select("*, leave_types(name, code)")
       .eq("employee_id", employeeId)
       .eq("year", year);
     if (error) throw mapDatabaseError(error);

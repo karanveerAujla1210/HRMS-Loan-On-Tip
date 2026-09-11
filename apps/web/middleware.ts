@@ -3,21 +3,19 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_TIMEOUT_MS = 5000;
 
-type GetUserResult = {
-  data: { user: { id: string } | null };
-  error: { message: string } | null;
-};
-
 async function getSessionWithTimeout(supabase: ReturnType<typeof createServerClient>) {
-  const timeoutPromise = new Promise<GetUserResult>((_, reject) =>
+  const timeoutPromise = new Promise<{ data: { session: null }; error: { message: string } }>((_, reject) =>
     setTimeout(() => reject(new Error("Session check timed out")), SESSION_TIMEOUT_MS)
   );
   try {
-    const result = await Promise.race([supabase.auth.getUser(), timeoutPromise]);
+    const result = await Promise.race([
+      supabase.auth.getSession(),
+      timeoutPromise,
+    ]);
     return result;
   } catch (e) {
     if (e instanceof Error && e.message === "Session check timed out") {
-      return { data: { user: null }, error: { message: "Session check timed out" } } as GetUserResult;
+      return { data: { session: null }, error: { message: "Session check timed out" } };
     }
     throw e;
   }
@@ -53,28 +51,24 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Retrieve and verify the session. `auth.getUser()` performs a round-trip
-  // to the Supabase Auth server and validates the JWT, unlike `getSession()`
-  // which trusts the cookie payload without verification.
-  const { data: { user } } = await getSessionWithTimeout(supabase) as {
-    data: { user: { id: string } | null };
-  };
+  // Retrieve session
+  const { data: { session } } = await getSessionWithTimeout(supabase);
   const isAuthRoute = pathname.startsWith("/login");
 
-  if (!user && !isAuthRoute) {
+  if (!session && !isAuthRoute) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
-  if (user && isAuthRoute) {
+  if (session && isAuthRoute) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   // Determine effective roles
   let effectiveRoles: string[] = [];
-  if (user) {
+  if (session?.user?.id) {
     const { data: profile } = await supabase
       .from("profiles")
       .select("employee_id")
-      .eq("auth_user_id", user.id)
+      .eq("auth_user_id", session.user.id)
       .single();
     if (profile?.employee_id) {
       const { data: roleRows } = await supabase
@@ -83,22 +77,17 @@ export async function middleware(request: NextRequest) {
         .eq("employee_id", profile.employee_id)
         .eq("is_active", true);
       if (Array.isArray(roleRows)) {
-        effectiveRoles = roleRows
-          .flatMap((r) => r.roles ?? [])
-          .map((role) => role.code)
-          .filter((code): code is string => Boolean(code));
+        effectiveRoles = roleRows.map((r: any) => r.roles?.code).filter(Boolean);
       }
     }
   }
 
   const routeRoleMap: Record<string, string[]> = {
-    "/admin": ["SUPER_ADMIN"],
     "/people": ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "MANAGER"],
     "/payroll": ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN"],
+    "/organisation": ["SUPER_ADMIN", "HR_ADMIN"],
     "/audit": ["SUPER_ADMIN"],
     "/settings": ["SUPER_ADMIN"],
-    "/organisation": ["SUPER_ADMIN", "HR_ADMIN"],
-    "/reports": ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN", "OPERATIONS_ADMIN", "MANAGER"],
   };
 
   for (const [prefix, required] of Object.entries(routeRoleMap)) {

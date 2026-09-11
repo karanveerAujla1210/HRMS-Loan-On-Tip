@@ -8,7 +8,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
-import PageHeader from "@/components/PageHeader";
+import { PageHeader, StatusBadge } from "@/components";
 import EmployeeSubNav from "@/components/EmployeeSubNav";
 
 type Emp = Record<string, unknown>;
@@ -107,22 +107,22 @@ export default function EmployeeDetailPage() {
     });
     if (res.error) { setMsg(`Error: ${res.error.message}`); setSaving(false); return; }
 
-    const customUpserts = customFields.map(cf => {
+    const customUpserts = customFields.map((cf) => {
       const val = fd.get(`cf_${cf.id}`);
       return {
         employee_id: id,
         custom_field_id: cf.id,
-        field_value: val ? String(val) : null
+        field_value: val ? String(val) : null,
       };
-    }).filter(cu => cu.field_value !== null);
-    
+    }).filter((cu) => cu.field_value !== null);
+
     if (customUpserts.length > 0) {
       const { error: upsertError } = await supabase
         .from("employee_custom_data")
         .upsert(customUpserts, { onConflict: "employee_id, custom_field_id" });
       if (upsertError) { setMsg(`Error: ${upsertError.message}`); setSaving(false); return; }
     }
-    setMsg("Profile updated.");
+    setMsg("Employee profile updated successfully.");
     setEditing(false);
     void load();
     setSaving(false);
@@ -136,52 +136,75 @@ export default function EmployeeDetailPage() {
       { method: "POST" }
     );
     if (res.error) {
-      setLoginMsg({ type: "error", text: res.error.message ?? "Failed to generate login" });
+      setLoginMsg({ type: "error", text: res.error.message ?? "Failed to generate login credentials" });
     } else {
       const d = res.data!;
       setLoginMsg({
         type: "success",
-        text: d.already_existed ? `Login already exists for ${d.email}` : `Invite email sent to ${d.email}`,
+        text: d.already_existed ? `Account already exists for ${d.email}` : `Portal invitation email sent to ${d.email}`,
       });
       setLoginStatus({ hasLogin: true, checked: true });
     }
     setGeneratingLogin(false);
   }
 
-  if (loading) return <div className="loading-spinner" style={{ minHeight: "60vh" }}><div className="spinner" /> Loading…</div>;
-  if (!emp) return <div className="page-body"><div className="alert alert-error">{error ?? "Employee not found."}</div></div>;
+  if (loading) return <div className="loading-spinner" style={{ minHeight: "60vh" }}><div className="spinner" /> Loading employee profile…</div>;
+  if (!emp) return <div className="page-body"><div className="alert alert-error">{error ?? "Employee record not found."}</div></div>;
 
   const name = String(emp.display_name ?? `${emp.first_name} ${emp.last_name}`);
+  const initials = (name.replace(/[^A-Za-z]/g, "").slice(0, 2) || "EM").toUpperCase();
+
+  const deptName = depts.find((d) => String(d.id) === String(emp.department_id))?.name ?? emp.department_id ?? "—";
+  const desigName = desigs.find((d) => String(d.id) === String(emp.designation_id))?.name ?? emp.designation_id ?? "—";
+  const locName = locs.find((l) => String(l.id) === String(emp.location_id))?.name ?? emp.location_id ?? "—";
 
   return (
     <>
       <PageHeader
         title={name}
-        subtitle={String(emp.employee_code ?? "")}
+        subtitle={`Employee ID: ${String(emp.employee_code ?? "—")}`}
+        badge={<StatusBadge status={String(emp.employment_status ?? "ACTIVE")} size="sm" />}
         breadcrumbs={[
           { label: "Dashboard", href: "/dashboard" },
           { label: "People", href: "/people" },
-          { label: name, href: `/people/${id}` },
-          { label: "Profile Details" },
+          { label: name, active: true },
         ]}
         actions={
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => router.push("/people")}>← People Directory</button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => router.push("/people")}
+            >
+              ← Back to Directory
+            </button>
             {loginStatus.checked && !loginStatus.hasLogin && !!emp.official_email && (
               <button
-                className="btn btn-warning btn-sm"
+                type="button"
+                className="btn btn-secondary btn-sm"
                 onClick={() => void handleGenerateLogin()}
                 disabled={generatingLogin}
               >
-                {generatingLogin ? "Generating…" : "🔑 Generate Login"}
+                {generatingLogin ? "Generating…" : "🔑 Send Portal Invite"}
               </button>
             )}
             {loginStatus.checked && loginStatus.hasLogin && (
-              <span style={{ fontSize: 12, color: "var(--success)", display: "flex", alignItems: "center", gap: 4, padding: "0 8px" }}>
-                ✓ Login Active
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--success)", display: "flex", alignItems: "center", gap: 4, padding: "0 8px" }}>
+                ✓ Portal Active
               </span>
             )}
-            <Link href={`/people/${id}/id-card`} className="btn btn-primary btn-sm">🖨 ID Card</Link>
+            <Link href={`/people/${id}/id-card`} className="btn btn-secondary btn-sm">
+              🖨 ID Card
+            </Link>
+            {!editing && (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setEditing(true)}
+              >
+                Edit Profile
+              </button>
+            )}
           </div>
         }
       />
@@ -196,16 +219,94 @@ export default function EmployeeDetailPage() {
           </div>
         )}
 
+        {/* 360 Profile Hero Card */}
+        <div
+          style={{
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: "var(--radius-lg)",
+            padding: "24px",
+            marginBottom: 24,
+            display: "flex",
+            alignItems: "center",
+            gap: 20,
+            flexWrap: "wrap",
+            boxShadow: "var(--shadow-xs)",
+          }}
+        >
+          <div
+            style={{
+              width: 68,
+              height: 68,
+              borderRadius: "var(--radius-xl)",
+              background: "linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%)",
+              color: "#ffffff",
+              display: "grid",
+              placeItems: "center",
+              fontSize: 22,
+              fontWeight: 800,
+              fontFamily: "var(--font-display)",
+              flexShrink: 0,
+              boxShadow: "0 4px 12px rgba(232, 85, 52, 0.25)",
+            }}
+          >
+            {initials}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 240 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+              <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>{name}</h2>
+              <span className="code-badge">{String(emp.employee_code ?? "EMP")}</span>
+              <StatusBadge status={String(emp.employment_status ?? "ACTIVE")} size="sm" />
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", fontSize: 13, color: "var(--text-muted)", marginTop: 4 }}>
+              <span>{String(desigName)}</span>
+              <span>·</span>
+              <span>{String(deptName)}</span>
+              <span>·</span>
+              <span>{String(locName)}</span>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {Boolean(emp.official_email) && (
+              <a
+                href={`mailto:${String(emp.official_email)}`}
+                className="btn btn-secondary btn-sm"
+                title={String(emp.official_email)}
+              >
+                ✉ Email
+              </a>
+            )}
+            {Boolean(emp.official_mobile) && (
+              <a
+                href={`tel:${String(emp.official_mobile)}`}
+                className="btn btn-secondary btn-sm"
+                title={String(emp.official_mobile)}
+              >
+                📞 Call
+              </a>
+            )}
+          </div>
+        </div>
+
+        {/* Profile Details or Edit Form */}
         <div className="card">
           <div className="card-header">
-            <div><h2>Profile</h2><p>Personal and employment details</p></div>
-            {!editing && <button className="btn btn-secondary btn-sm" onClick={() => setEditing(true)}>Edit</button>}
+            <div>
+              <h2>{editing ? "Edit Employee Details" : "Personal & Employment Profile"}</h2>
+              <p>{editing ? "Update official and personal records" : "Comprehensive 360-degree employment overview"}</p>
+            </div>
           </div>
 
           {editing ? (
             <form onSubmit={handleSave}>
-              <div className="modal-body">
-                <div className="form-row">
+              <div style={{ padding: "24px" }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 16 }}>
+                  Personal Information
+                </h3>
+                <div className="form-row" style={{ marginBottom: 16 }}>
                   <div className="form-group">
                     <label>First name *</label>
                     <input name="first_name" required defaultValue={String(emp.first_name ?? "")} />
@@ -215,84 +316,82 @@ export default function EmployeeDetailPage() {
                     <input name="last_name" required defaultValue={String(emp.last_name ?? "")} />
                   </div>
                 </div>
-                <div className="form-row">
+
+                <div className="form-row" style={{ marginBottom: 16 }}>
                   <div className="form-group">
-                    <label>Work email</label>
-                    <input name="official_email" type="email" defaultValue={String(emp.official_email ?? "")} />
+                    <label>Date of birth</label>
+                    <input name="date_of_birth" type="date" defaultValue={String(emp.date_of_birth ?? "")} />
                   </div>
-                  <div className="form-group">
-                    <label>Work mobile</label>
-                    <input name="official_mobile" defaultValue={String(emp.official_mobile ?? "")} />
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Personal email</label>
-                    <input name="personal_email" type="email" defaultValue={String(emp.personal_email ?? "")} />
-                  </div>
-                  <div className="form-group">
-                    <label>Personal mobile</label>
-                    <input name="personal_mobile" defaultValue={String(emp.personal_mobile ?? "")} />
-                  </div>
-                </div>
-                <div className="form-row">
                   <div className="form-group">
                     <label>Gender</label>
                     <select name="gender" defaultValue={String(emp.gender ?? "")}>
-                      <option value="">Select</option>
+                      <option value="">Select Gender</option>
                       <option value="Male">Male</option>
                       <option value="Female">Female</option>
                       <option value="Other">Other</option>
                     </select>
                   </div>
-                  <div className="form-group">
-                    <label>Date of birth</label>
-                    <input name="date_of_birth" type="date" defaultValue={String(emp.date_of_birth ?? "")} />
-                  </div>
                 </div>
-                <div className="form-row">
+
+                <div className="form-row" style={{ marginBottom: 24 }}>
                   <div className="form-group">
                     <label>Blood group</label>
                     <select name="blood_group" defaultValue={String(emp.blood_group ?? "")}>
-                      <option value="">Select</option>
-                      {["A+","A-","B+","B-","O+","O-","AB+","AB-"].map(g => <option key={g} value={g}>{g}</option>)}
+                      <option value="">Select Blood Group</option>
+                      {["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"].map((g) => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="form-group">
                     <label>Marital status</label>
                     <select name="marital_status" defaultValue={String(emp.marital_status ?? "")}>
-                      <option value="">Select</option>
+                      <option value="">Select Status</option>
                       <option value="Single">Single</option>
                       <option value="Married">Married</option>
                     </select>
                   </div>
                 </div>
-                <div className="form-row">
+
+                <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "24px 0" }} />
+
+                <h3 style={{ fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 16 }}>
+                  Employment & Placement
+                </h3>
+
+                <div className="form-row" style={{ marginBottom: 16 }}>
                   <div className="form-group">
                     <label>Department</label>
                     <select name="department_id" defaultValue={String(emp.department_id ?? "")}>
-                      <option value="">None</option>
-                      {depts.map(d => <option key={String(d.id)} value={String(d.id)}>{String(d.name)}</option>)}
+                      <option value="">Select Department</option>
+                      {depts.map((d) => (
+                        <option key={String(d.id)} value={String(d.id)}>{String(d.name)}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="form-group">
                     <label>Designation</label>
                     <select name="designation_id" defaultValue={String(emp.designation_id ?? "")}>
-                      <option value="">None</option>
-                      {desigs.map(d => <option key={String(d.id)} value={String(d.id)}>{String(d.name)}</option>)}
+                      <option value="">Select Designation</option>
+                      {desigs.map((d) => (
+                        <option key={String(d.id)} value={String(d.id)}>{String(d.name)}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
-                <div className="form-row">
+
+                <div className="form-row" style={{ marginBottom: 16 }}>
                   <div className="form-group">
                     <label>Location</label>
                     <select name="location_id" defaultValue={String(emp.location_id ?? "")}>
-                      <option value="">None</option>
-                      {locs.map(l => <option key={String(l.id)} value={String(l.id)}>{String(l.name)}</option>)}
+                      <option value="">Select Location</option>
+                      {locs.map((l) => (
+                        <option key={String(l.id)} value={String(l.id)}>{String(l.name)}</option>
+                      ))}
                     </select>
                   </div>
                   <div className="form-group">
-                    <label>Status</label>
+                    <label>Employment Status</label>
                     <select name="employment_status" defaultValue={String(emp.employment_status ?? "ACTIVE")}>
                       <option value="ACTIVE">Active</option>
                       <option value="INACTIVE">Inactive</option>
@@ -301,7 +400,8 @@ export default function EmployeeDetailPage() {
                     </select>
                   </div>
                 </div>
-                <div className="form-row">
+
+                <div className="form-row" style={{ marginBottom: 24 }}>
                   <div className="form-group">
                     <label>Joining date *</label>
                     <input name="joining_date" type="date" required defaultValue={String(emp.joining_date ?? "")} />
@@ -312,18 +412,50 @@ export default function EmployeeDetailPage() {
                   </div>
                 </div>
 
+                <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "24px 0" }} />
+
+                <h3 style={{ fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 16 }}>
+                  Contact Details
+                </h3>
+
+                <div className="form-row" style={{ marginBottom: 16 }}>
+                  <div className="form-group">
+                    <label>Official Work Email</label>
+                    <input name="official_email" type="email" defaultValue={String(emp.official_email ?? "")} />
+                  </div>
+                  <div className="form-group">
+                    <label>Official Mobile</label>
+                    <input name="official_mobile" defaultValue={String(emp.official_mobile ?? "")} />
+                  </div>
+                </div>
+
+                <div className="form-row" style={{ marginBottom: 24 }}>
+                  <div className="form-group">
+                    <label>Personal Email</label>
+                    <input name="personal_email" type="email" defaultValue={String(emp.personal_email ?? "")} />
+                  </div>
+                  <div className="form-group">
+                    <label>Personal Mobile</label>
+                    <input name="personal_mobile" defaultValue={String(emp.personal_mobile ?? "")} />
+                  </div>
+                </div>
+
                 {customFields.length > 0 && (
                   <>
-                    <hr style={{ margin: "20px 0", borderTop: "1px solid var(--border)" }} />
-                    <h3 style={{ marginBottom: 12, fontSize: 14 }}>Additional Information</h3>
+                    <hr style={{ border: "none", borderTop: "1px solid var(--border)", margin: "24px 0" }} />
+                    <h3 style={{ fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 16 }}>
+                      Organization Custom Attributes
+                    </h3>
                     <div className="form-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                      {customFields.map(cf => (
+                      {customFields.map((cf) => (
                         <div className="form-group" key={cf.id}>
                           <label>{cf.name}</label>
                           {cf.field_type === "DROPDOWN" || cf.field_type === "MULTI_SELECT" ? (
                             <select name={`cf_${cf.id}`} defaultValue={String(customData[cf.id] ?? "")}>
                               <option value="">Select</option>
-                              {Array.isArray(cf.options) && cf.options.map((opt: string) => <option key={opt} value={opt}>{opt}</option>)}
+                              {Array.isArray(cf.options) && (cf.options as string[]).map((opt) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                              ))}
                             </select>
                           ) : cf.field_type === "BOOLEAN" ? (
                             <select name={`cf_${cf.id}`} defaultValue={String(customData[cf.id] ?? "")}>
@@ -345,49 +477,148 @@ export default function EmployeeDetailPage() {
                   </>
                 )}
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setEditing(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Saving…" : "Save changes"}</button>
+
+              <div
+                style={{
+                  padding: "16px 24px",
+                  background: "var(--bg)",
+                  borderTop: "1px solid var(--border)",
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: 10,
+                  borderRadius: "0 0 var(--radius-lg) var(--radius-lg)",
+                }}
+              >
+                <button type="button" className="btn btn-secondary" onClick={() => setEditing(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>
+                  {saving ? "Saving Changes…" : "Save Changes"}
+                </button>
               </div>
             </form>
           ) : (
-            <div style={{ padding: 20, display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 32px" }}>
-              {[
-                ["Employee code", emp.employee_code],
-                ["Status", emp.employment_status],
-                ["Work email", emp.official_email],
-                ["Work mobile", emp.official_mobile],
-                ["Personal email", emp.personal_email],
-                ["Personal mobile", emp.personal_mobile],
-                ["Department", emp.department_id],
-                ["Designation", emp.designation_id],
-                ["Location", emp.location_id],
-                ["Joining date", emp.joining_date],
-                ["Date of birth", emp.date_of_birth],
-                ["Gender", emp.gender],
-                ["Blood group", emp.blood_group],
-                ["Marital status", emp.marital_status],
-                ["Nationality", emp.nationality],
-              ].map(([label, val]) => (
-                <div key={String(label)}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".5px" }}>{String(label)}</div>
-                  <div style={{ fontSize: 13, color: "var(--text)", marginTop: 3 }}>{val != null && val !== "" ? String(val) : <span style={{ color: "var(--text-4)" }}>—</span>}</div>
+            <div style={{ padding: 24 }}>
+              {/* Profile grid sections */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 24 }}>
+                {/* Employment placement */}
+                <div style={{ background: "var(--bg)", borderRadius: "var(--radius-md)", padding: 18, border: "1px solid var(--border)" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 14 }}>
+                    Employment Details
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Employee Code</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", marginTop: 2 }}>{String(emp.employee_code ?? "—")}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Department</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", marginTop: 2 }}>{String(deptName)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Designation</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", marginTop: 2 }}>{String(desigName)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Branch / Location</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", marginTop: 2 }}>{String(locName)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Joining Date</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", marginTop: 2 }}>
+                        {emp.joining_date ? new Intl.DateTimeFormat("en-IN", { dateStyle: "long" }).format(new Date(String(emp.joining_date))) : "—"}
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              ))}
-              
+
+                {/* Contact information */}
+                <div style={{ background: "var(--bg)", borderRadius: "var(--radius-md)", padding: 18, border: "1px solid var(--border)" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 14 }}>
+                    Contact & Portal
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Official Work Email</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", marginTop: 2 }}>
+                        {emp.official_email ? String(emp.official_email) : <span style={{ color: "var(--text-subtle)" }}>Not configured</span>}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Official Mobile</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", marginTop: 2 }}>
+                        {emp.official_mobile ? String(emp.official_mobile) : <span style={{ color: "var(--text-subtle)" }}>Not configured</span>}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Personal Email</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", marginTop: 2 }}>
+                        {emp.personal_email ? String(emp.personal_email) : <span style={{ color: "var(--text-subtle)" }}>—</span>}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Personal Mobile</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", marginTop: 2 }}>
+                        {emp.personal_mobile ? String(emp.personal_mobile) : <span style={{ color: "var(--text-subtle)" }}>—</span>}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Portal Access Status</div>
+                      <div style={{ marginTop: 2 }}>
+                        <StatusBadge
+                          status={loginStatus.hasLogin ? "ACTIVE" : "INACTIVE"}
+                          customLabel={loginStatus.hasLogin ? "Login Active" : "No Login"}
+                          size="sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Personal particulars */}
+                <div style={{ background: "var(--bg)", borderRadius: "var(--radius-md)", padding: 18, border: "1px solid var(--border)" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 14 }}>
+                    Personal Details
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Date of Birth</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", marginTop: 2 }}>
+                        {emp.date_of_birth ? new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(String(emp.date_of_birth))) : "—"}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Gender</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", marginTop: 2 }}>{String(emp.gender ?? "—")}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Blood Group</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", marginTop: 2 }}>{String(emp.blood_group ?? "—")}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Marital Status</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", marginTop: 2 }}>{String(emp.marital_status ?? "—")}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>Nationality</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", marginTop: 2 }}>{String(emp.nationality ?? "Indian")}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Custom fields display if any */}
               {customFields.length > 0 && (
-                <div style={{ gridColumn: "1 / -1" }}>
-                  <hr style={{ margin: "8px 0", borderTop: "1px solid var(--border)" }} />
-                  <h3 style={{ marginBottom: 12, fontSize: 14, color: "var(--text-2)" }}>Additional Information</h3>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px 32px" }}>
-                    {customFields.map(cf => (
+                <div style={{ marginTop: 24, background: "var(--bg)", borderRadius: "var(--radius-md)", padding: 18, border: "1px solid var(--border)" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)", marginBottom: 14 }}>
+                    Additional Organization Attributes
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+                    {customFields.map((cf) => (
                       <div key={cf.id}>
-                        <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".5px" }}>{cf.name}</div>
-                        <div style={{ fontSize: 13, color: "var(--text)", marginTop: 3 }}>
-                          {customData[cf.id] ? (
-                            cf.field_type === "BOOLEAN" ? (customData[cf.id] === "true" ? "Yes" : "No")
-                            : String(customData[cf.id])
-                          ) : <span style={{ color: "var(--text-4)" }}>—</span>}
+                        <div style={{ fontSize: 11, color: "var(--text-muted)" }}>{cf.name}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-strong)", marginTop: 2 }}>
+                          {customData[cf.id] != null && customData[cf.id] !== "" ? String(customData[cf.id]) : <span style={{ color: "var(--text-subtle)" }}>—</span>}
                         </div>
                       </div>
                     ))}

@@ -44,14 +44,18 @@ export default function SetPasswordPage() {
   if (!ready) {
     return (
       <div className="login-page">
-        <div className="login-card">
-          <div className="login-brand">
-            <div className="brand-mark">L</div>
-            <div><strong>Loan On Tip</strong><span>ACG Leasing Limited</span></div>
-          </div>
-          <div className="loading-spinner" style={{ minHeight: 80 }}>
-            <div className="spinner" /> Verifying invite link…
-          </div>
+        <div className="login-shell login-shell--compact">
+          <main className="login-panel">
+            <div className="login-card">
+              <div className="login-brand">
+                <div className="brand-mark">L</div>
+                <div><strong>Loan On Tip</strong><span>ACG Leasing Limited</span></div>
+              </div>
+              <div className="loading-spinner" style={{ minHeight: 80 }}>
+                <div className="spinner" /> Verifying invite link…
+              </div>
+            </div>
+          </main>
         </div>
       </div>
     );
@@ -59,52 +63,56 @@ export default function SetPasswordPage() {
 
   return (
     <div className="login-page">
-      <div className="login-card">
-        <div className="login-brand">
-          <div className="brand-mark">L</div>
-          <div><strong>Loan On Tip</strong><span>ACG Leasing Limited</span></div>
-        </div>
+      <div className="login-shell login-shell--compact">
+        <main className="login-panel">
+          <div className="login-card">
+            <div className="login-brand">
+              <div className="brand-mark">L</div>
+              <div><strong>Loan On Tip</strong><span>ACG Leasing Limited</span></div>
+            </div>
 
-        <h2>Set your password</h2>
-        <p>Choose a password to activate your HRMS account.</p>
+            <h2>Set your password</h2>
+            <p>Choose a password to activate your HRMS account.</p>
 
-        {error && <div className="alert alert-error">{error}</div>}
+            {error && <div className="alert alert-error">{error}</div>}
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="password">New password</label>
-            <input
-              id="password"
-              type="password"
-              placeholder="Min. 8 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="new-password"
-              autoFocus
-            />
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label htmlFor="password">New password</label>
+                <input
+                  id="password"
+                  type="password"
+                  placeholder="Min. 8 characters"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  autoFocus
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="confirm">Confirm password</label>
+                <input
+                  id="confirm"
+                  type="password"
+                  placeholder="Repeat password"
+                  value={confirm}
+                  onChange={(e) => setConfirm(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                />
+              </div>
+              <button
+                className="btn btn-primary btn-lg"
+                style={{ width: "100%", marginTop: 4 }}
+                type="submit"
+                disabled={loading}
+              >
+                {loading ? "Saving…" : "Set password & sign in"}
+              </button>
+            </form>
           </div>
-          <div className="form-group">
-            <label htmlFor="confirm">Confirm password</label>
-            <input
-              id="confirm"
-              type="password"
-              placeholder="Repeat password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              required
-              autoComplete="new-password"
-            />
-          </div>
-          <button
-            className="btn btn-primary"
-            style={{ width: "100%", marginTop: 4 }}
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? "Saving…" : "Set password & sign in"}
-          </button>
-        </form>
+        </main>
       </div>
     </div>
   );

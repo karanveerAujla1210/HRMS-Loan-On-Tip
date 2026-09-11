@@ -9,6 +9,7 @@ import { API } from "@/lib/api/endpoints";
 import { useProfile } from "@/hooks/useProfile";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
+import { Tabs } from "@/components/Tabs";
 
 type Row = Record<string, unknown>;
 type Tab = "departments" | "designations" | "locations" | "shifts" | "leave_types" | "holidays" | "custom_fields";
@@ -35,7 +36,7 @@ export default function OrganisationPage() {
     else if (tab === "shifts") q = supabase.from("shifts").select("id,shift_code,name,start_time,end_time,grace_minutes,is_active").eq("company_id", companyId).order("name");
     else if (tab === "leave_types") q = supabase.from("leave_types").select("id,code,name,is_paid,allows_half_day,requires_document,is_active").eq("company_id", companyId).order("name");
     else if (tab === "custom_fields") q = supabase.from("custom_fields").select("id,name,field_type,options,is_active").eq("company_id", companyId).order("name");
-    else q = supabase.from("holidays").select("id,name,holiday_date,is_optional,description").eq("company_id", companyId).order("holiday_date");
+    else q = supabase.from("holidays").select("id,name,holiday_date,holiday_type,is_optional").eq("company_id", companyId).order("holiday_date");
 
     const { data, error } = await q;
     if (error) setMsg(error.message);
@@ -121,7 +122,7 @@ export default function OrganisationPage() {
     locations:    ["location_code", "name", "city", "state", "attendance_radius_meters", "is_active"],
     shifts:       ["shift_code", "name", "start_time", "end_time", "grace_minutes", "is_active"],
     leave_types:  ["code", "name", "is_paid", "allows_half_day", "is_active"],
-    holidays:     ["name", "holiday_date", "is_optional", "description"],
+    holidays:     ["name", "holiday_date", "holiday_type", "is_optional"],
     custom_fields:["name", "field_type", "is_active"],
   };
 
@@ -144,21 +145,20 @@ export default function OrganisationPage() {
       <div className="page-body">
         {msg && <div className={`alert ${msg.startsWith("Error") ? "alert-error" : "alert-success"}`}>{msg}</div>}
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-          {TABS.map(({ key, label }) => (
-            <button key={key} className={`btn btn-sm ${tab === key ? "btn-primary" : "btn-secondary"}`} onClick={() => setTab(key)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          items={TABS}
+          active={tab}
+          onChange={(key) => setTab(key)}
+          ariaLabel="Organisation section"
+        />
 
         <div className="card">
           <div className="card-header">
             <div><h2>{TABS.find(t => t.key === tab)?.label}</h2><p>{rows.length} records</p></div>
-            <button className="btn btn-ghost btn-sm" onClick={() => void load()}>â†»</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => void load()}>↻</button>
           </div>
           {loading ? (
-            <div className="loading-spinner"><div className="spinner" /> Loadingâ€¦</div>
+            <div className="loading-spinner"><div className="spinner" /> Loading…</div>
           ) : (
             <DataTable
               rows={rows}
@@ -185,7 +185,7 @@ export default function OrganisationPage() {
           <div className="modal" style={{ maxWidth: 520 }}>
             <div className="modal-header">
               <h2>{editing ? "Edit" : "Add"} {tab.replace("_", " ").replace(/s$/, "")}</h2>
-              <button className="btn btn-ghost btn-sm" onClick={() => { setShowForm(false); setEditing(null); }}>âœ•</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setShowForm(false); setEditing(null); }}>✕</button>
             </div>
             <form onSubmit={handleSave}>
               <div className="modal-body">
@@ -193,7 +193,7 @@ export default function OrganisationPage() {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => { setShowForm(false); setEditing(null); }}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Savingâ€¦" : "Save"}</button>
+                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? "Saving…" : "Save"}</button>
               </div>
             </form>
           </div>
@@ -324,16 +324,23 @@ function FormFields({ tab, editing }: { tab: Tab; editing: Row | null }) {
           <input name="holiday_date" type="date" required defaultValue={v("holiday_date")} />
         </div>
       </div>
-      <div className="form-group">
-        <label>Optional / Restricted Holiday?</label>
-        <select name="is_optional" defaultValue={v("is_optional") || "false"}>
-          <option value="false">No (Gazetted / Mandatory)</option>
-          <option value="true">Yes (Optional / Restricted)</option>
-        </select>
-      </div>
-      <div className="form-group">
-        <label>Description</label>
-        <input name="description" defaultValue={v("description")} placeholder="e.g. National Holiday / Festival" />
+      <div className="form-row">
+        <div className="form-group">
+          <label>Holiday Type</label>
+          <select name="holiday_type" defaultValue={v("holiday_type") || "NATIONAL"}>
+            <option value="NATIONAL">National</option>
+            <option value="REGIONAL">Regional</option>
+            <option value="OPTIONAL">Optional</option>
+            <option value="COMPANY">Company</option>
+          </select>
+        </div>
+        <div className="form-group">
+          <label>Optional / Restricted Holiday?</label>
+          <select name="is_optional" defaultValue={v("is_optional") || "false"}>
+            <option value="false">No (Gazetted / Mandatory)</option>
+            <option value="true">Yes (Optional / Restricted)</option>
+          </select>
+        </div>
       </div>
     </>
   );

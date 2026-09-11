@@ -175,7 +175,7 @@ export default function AssetMaintenancePage() {
         ]}
         actions={
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>â†» Refresh</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => void load()}>↻ Refresh</button>
             <button className="btn btn-primary btn-sm" onClick={() => setShowLogModal(true)}>+ Log Repair / Service</button>
           </div>
         }
@@ -206,7 +206,7 @@ export default function AssetMaintenancePage() {
           </div>
           <div className="stat-card">
             <div className="stat-label">Total Repair Cost</div>
-            <div className="stat-value" style={{ fontSize: 20 }}>â‚¹{totalCost.toLocaleString("en-IN")}</div>
+            <div className="stat-value" style={{ fontSize: 20 }}>₹{totalCost.toLocaleString("en-IN")}</div>
             <div className="stat-sub">Hardware upkeep expenses</div>
           </div>
         </div>
@@ -216,11 +216,11 @@ export default function AssetMaintenancePage() {
           <div className="card-header" style={{ flexWrap: "wrap", gap: 10 }}>
             <div>
               <h2>Maintenance History & Repairs</h2>
-              <p>{filtered.length} records{statusFilter !== "ALL" ? ` Â· ${statusFilter}` : ""}</p>
+              <p>{filtered.length} records{statusFilter !== "ALL" ? ` · ${statusFilter}` : ""}</p>
             </div>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <input
-                placeholder="Search ticket, asset, vendorâ€¦"
+                placeholder="Search ticket, asset, vendor…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{ width: 220 }}
@@ -235,7 +235,7 @@ export default function AssetMaintenancePage() {
           </div>
 
           {loading ? (
-            <div className="loading-spinner"><div className="spinner" /> Loadingâ€¦</div>
+            <div className="loading-spinner"><div className="spinner" /> Loading…</div>
           ) : (
             <DataTable
               rows={filtered}
@@ -262,7 +262,7 @@ export default function AssetMaintenancePage() {
           <div className="modal" style={{ maxWidth: 540 }}>
             <div className="modal-header">
               <h2>Log Asset Repair / Servicing</h2>
-              <button className="btn btn-ghost btn-sm" onClick={() => setShowLogModal(false)}>âœ•</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowLogModal(false)}>✕</button>
             </div>
             <form onSubmit={handleLogMaintenance}>
               <div className="modal-body">
@@ -272,7 +272,7 @@ export default function AssetMaintenancePage() {
                     <option value="" disabled>Choose asset</option>
                     {assets.map((a) => (
                       <option key={String(a.id)} value={String(a.id)}>
-                        {String(a.asset_code)} â€” {String(a.model)} ({String(a.category)} Â· {String(a.status)})
+                        {String(a.asset_code)} — {String(a.model)} ({String(a.category)} · {String(a.status)})
                       </option>
                     ))}
                   </select>
@@ -295,7 +295,7 @@ export default function AssetMaintenancePage() {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Estimated / Approved Cost (â‚¹)</label>
+                    <label>Estimated / Approved Cost (₹)</label>
                     <input name="cost" type="number" min={0} placeholder="e.g. 3500" />
                   </div>
                   <div className="form-group">
@@ -317,7 +317,7 @@ export default function AssetMaintenancePage() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowLogModal(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Savingâ€¦" : "Create Repair Ticket"}
+                  {saving ? "Saving…" : "Create Repair Ticket"}
                 </button>
               </div>
             </form>
@@ -331,18 +331,18 @@ export default function AssetMaintenancePage() {
           <div className="modal" style={{ maxWidth: 500 }}>
             <div className="modal-header">
               <h2>Complete Maintenance for {completingRecord.asset_code}</h2>
-              <button className="btn btn-ghost btn-sm" onClick={() => setCompletingRecord(null)}>âœ•</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setCompletingRecord(null)}>✕</button>
             </div>
             <form onSubmit={handleCompleteMaintenance}>
               <div className="modal-body">
                 <div style={{ background: "var(--bg)", padding: 12, borderRadius: 8, marginBottom: 16, fontSize: 13 }}>
-                  <div><strong>Issue:</strong> {completingRecord.description || "â€”"}</div>
-                  <div style={{ marginTop: 4 }}><strong>Vendor:</strong> {completingRecord.vendor || "â€”"}</div>
+                  <div><strong>Issue:</strong> {completingRecord.description || "—"}</div>
+                  <div style={{ marginTop: 4 }}><strong>Vendor:</strong> {completingRecord.vendor || "—"}</div>
                 </div>
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>Actual Invoiced Cost (â‚¹) *</label>
+                    <label>Actual Invoiced Cost (₹) *</label>
                     <input
                       name="actual_cost"
                       type="number"
@@ -383,7 +383,7 @@ export default function AssetMaintenancePage() {
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setCompletingRecord(null)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={saving}>
-                  {saving ? "Confirmingâ€¦" : "Mark Fixed & Return to Stock"}
+                  {saving ? "Confirming…" : "Mark Fixed & Return to Stock"}
                 </button>
               </div>
             </form>

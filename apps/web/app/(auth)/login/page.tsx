@@ -42,20 +42,29 @@ export default function LoginPage() {
   if (otpSent) {
     return (
       <div className="login-page">
-        <div className="login-card">
-          <div className="login-brand">
-            <div className="brand-mark">L</div>
-            <div>
-              <strong>Loan On Tip</strong>
-              <span>ACG Leasing Limited</span>
+        <div className="login-shell">
+          <LoginHero />
+          <main className="login-panel">
+            <div className="login-card">
+              <div className="login-brand">
+                <Image src="/logo.png" alt="Loan On Tip Logo" width={40} height={40} className="brand-logo" />
+                <div>
+                  <strong>Loan On Tip</strong>
+                  <span>ACG Leasing Limited</span>
+                </div>
+              </div>
+
+              <h2>Check your inbox</h2>
+              <p>We emailed a magic sign-in link to you.</p>
+
+              <div className="alert alert-success" role="status">
+                Magic link sent to <strong>{email}</strong>. Open the link in the email to sign in instantly.
+              </div>
+              <button className="btn btn-secondary" style={{ width: "100%" }} onClick={() => setOtpSent(false)}>
+                Back to sign in
+              </button>
             </div>
-          </div>
-          <div className="alert alert-success" role="status">
-            Magic link sent to <strong>{email}</strong>. Check your inbox and click the link to sign in.
-          </div>
-          <button className="btn btn-secondary" style={{ width: "100%" }} onClick={() => setOtpSent(false)}>
-            Back to sign in
-          </button>
+          </main>
         </div>
       </div>
     );
@@ -63,19 +72,22 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
-      <div className="login-card">
-        <div className="login-brand">
-          <Image src="/logo.png" alt="Loan On Tip Logo" width={84} height={84} className="brand-logo" />
-          <div>
-            <strong>Loan On Tip</strong>
-            <span>ACG Leasing Limited</span>
-          </div>
-        </div>
+      <div className="login-shell">
+        <LoginHero />
+        <main className="login-panel">
+          <div className="login-card">
+            <div className="login-brand">
+              <Image src="/logo.png" alt="Loan On Tip Logo" width={40} height={40} className="brand-logo" />
+              <div>
+                <strong>Loan On Tip</strong>
+                <span>ACG Leasing Limited</span>
+              </div>
+            </div>
 
-        <h2>Sign in to HRMS</h2>
-        <p>Enter your work email and password to continue.</p>
+            <h2>Sign in to HRMS</h2>
+            <p>Enter your work email and password to continue.</p>
 
-        {error && <div className="alert alert-error">{error}</div>}
+            {error && <div className="alert alert-error">{error}</div>}
 
         <form onSubmit={handleLogin}>
           <div className="form-group">
@@ -111,21 +123,22 @@ export default function LoginPage() {
                 tabIndex={-1}
               >
                 {showPassword ? (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M2 6h20M2 18h20M6 6v12M18 6v12" /></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                 ) : (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M12 3v18" /><path d="M5 9a7 2.5 0 0 1 14 9" /></svg>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 )}
               </button>
             </div>
           </div>
-          <button className="btn btn-primary" style={{ width: "100%", marginTop: 4 }} type="submit" disabled={loading}>
+          <button className="btn btn-primary btn-lg" style={{ width: "100%", marginTop: 4 }} type="submit" disabled={loading}>
             {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
 
-        <div style={{ textAlign: "center", margin: "16px 0", color: "var(--text-4)", fontSize: 12 }}>or</div>
+        <div className="login-form-divider">or continue with</div>
 
         <button className="btn btn-secondary" style={{ width: "100%" }} onClick={handleMagicLink} disabled={loading}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           Send magic link
         </button>
 
@@ -144,8 +157,62 @@ export default function LoginPage() {
           <a className="btn btn-download" href={MOBILE_APP_DOWNLOAD_PATH} download>
             Download APK
           </a>
+          </div>
         </div>
+        </main>
       </div>
     </div>
+  );
+}
+
+function LoginHero() {
+  return (
+    <aside className="login-hero" aria-hidden="true">
+      <div className="login-brand login-brand--hero">
+        <Image src="/logo.png" alt="" width={46} height={46} className="brand-logo" />
+        <div>
+          <strong>Loan On Tip</strong>
+          <span>ACG Leasing Limited</span>
+        </div>
+      </div>
+
+      <h1>
+        People operations, <span className="text-gradient">simplified.</span>
+      </h1>
+      <p>
+        Attendance, leave, payroll, assets and self-service — one secure workspace
+        for the entire ACG Leasing workforce.
+      </p>
+
+      <ul className="login-features">
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="20 6 9 17 4 12"/></svg>
+          Real-time attendance with geofenced check-ins
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="20 6 9 17 4 12"/></svg>
+          One-click leave requests &amp; smart approval flows
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><polyline points="20 6 9 17 4 12"/></svg>
+          Digital payslips, asset tracking &amp; HR helpdesk
+        </li>
+      </ul>
+
+      <div className="login-hero-stats">
+        <div>
+          <strong>24×7</strong>
+          <span>Workforce support</span>
+        </div>
+        <div>
+          <strong>100%</strong>
+          <span>Digital &amp; paperless</span>
+        </div>
+        <div>
+          <strong>1 app</strong>
+          <span>Web + Android</span>
+        </div>
+      </div>
+    </aside>
   );
 }

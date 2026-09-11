@@ -1,15 +1,14 @@
-﻿"use client";
+"use client";
 
 export const dynamic = "force-dynamic";
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
 import { useProfile } from "@/hooks/useProfile";
 import { fetchOrgLookups } from "@/features/organization/queries";
-import { PageHeader, DataTable, Modal, useForm, Input, Select, SkeletonTable, Skeleton } from "@/components";
+import { PageHeader, DataTable, Modal, useForm, Input, Select, SkeletonTable, Skeleton, StatusBadge } from "@/components";
 import { useToast } from "@/components/Toast";
 
 type Row = Record<string, unknown>;
@@ -51,21 +50,15 @@ export default function PeoplePage() {
     if (!companyId) { if (!profileLoading) setLoading(false); return; }
     setLoading(true);
     setError(null);
-    const { data, error } = await supabase
-      .from("v_employee_directory")
-      .select("*")
-      .eq("company_id", companyId)
-      .order("display_name")
-      .limit(1000);
 
-    if (error) setError(error.message);
-    const list = (data as Row[]) ?? [];
+    const res = await apiFetch<{ data: Row[]; pagination: unknown }>(`/api/employees?pageSize=1000`);
+    if (res.error) setError(res.error.message);
+    const list = (res.data?.data ?? []) as Row[];
     setEmployees(list);
 
     const depts = Array.from(new Set(list.map((e) => String(e.department ?? "")).filter(Boolean)));
     setDepartments(depts);
 
-    // Load real department / designation / location options for the Add form
     const lookups = await fetchOrgLookups(companyId, { onlyActive: true });
     setDeptOptions(lookups.departments as Option[]);
     setDesigOptions(lookups.designations as Option[]);
@@ -127,16 +120,16 @@ export default function PeoplePage() {
         official_email: values.official_email || null,
         official_mobile: values.official_mobile || null,
         joining_date: values.joining_date,
-        department_id: values.department || null,   // real UUID from DB
-        designation_id: values.designation || null, // real UUID from DB
-        location_id: values.location || null,       // real UUID from DB
+        department_id: values.department || null,
+        designation_id: values.designation || null,
+        location_id: values.location || null,
       }),
     });
     if (res.error) {
       showToast({ type: "error", title: "Failed to add employee", message: res.error.message });
       return false;
     }
-    showToast({ type: "success", title: "Employee added", message: `${values.first_name} ${values.last_name} has been added.` });
+    showToast({ type: "success", title: "Employee created", message: `${values.first_name} ${values.last_name} has been enrolled.` });
     return true;
   }
 
@@ -149,7 +142,6 @@ export default function PeoplePage() {
     }
   });
 
-  // Pagination calculation
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE) || 1;
   const paginatedRows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
@@ -157,8 +149,8 @@ export default function PeoplePage() {
     return (
       <>
         <PageHeader
-          title="People"
-          subtitle="Staff members registered"
+          title="Staff Directory"
+          subtitle="All enrolled employees across branches"
           breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "People Directory" }]}
           actions={
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -177,25 +169,36 @@ export default function PeoplePage() {
               </div>
               <Skeleton variant="text" width={200} />
             </div>
-            <SkeletonTable rows={5} columns={8} />
+            <SkeletonTable rows={6} columns={8} />
           </div>
         </div>
       </>
     );
   }
 
+  const hasActiveFilters = search.trim() !== "" || statusFilter !== "ALL" || deptFilter !== "ALL";
+
   return (
     <>
       <PageHeader
-        title="People"
-        subtitle={`${employees.length} total staff members registered`}
+        title="Staff Directory"
+        subtitle="Manage employee records, placements and statuses"
+        badge={<span className="code-badge font-mono-num">{employees.length} Total</span>}
         breadcrumbs={[{ label: "Dashboard", href: "/dashboard" }, { label: "People Directory" }]}
         actions={
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button className="btn btn-secondary btn-sm" onClick={() => router.push("/people/import")}>
-              â¬† Import CSV
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => router.push("/people/import")}
+            >
+              ⬆ Import CSV
             </button>
-            <button className="btn btn-primary btn-sm" onClick={() => setShowForm(true)}>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => setShowForm(true)}
+            >
               + Add Employee
             </button>
           </div>
@@ -205,180 +208,266 @@ export default function PeoplePage() {
       <div className="page-body">
         {error && <div className="alert alert-error">{error}</div>}
 
-        <div className="card">
-          <div className="card-header" style={{ flexWrap: "wrap", gap: 10 }}>
-            <div style={{ display: "flex", gap: 10, flex: 1, flexWrap: "wrap", alignItems: "center" }}>
+        {/* Modern Filter Toolbar */}
+        <div className="filter-toolbar">
+          <div className="filter-group">
+            <div className="search-input-wrap">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
               <input
-                placeholder="Search staff by name, code, email, deptâ€¦"
+                placeholder="Search staff by name, ID, email, dept…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                style={{ maxWidth: 280 }}
+                aria-label="Search employees"
               />
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ width: "auto" }}>
-                <option value="ALL">All Statuses</option>
-                <option value="ACTIVE">Active</option>
-                <option value="ON_NOTICE">On Notice</option>
-                <option value="INACTIVE">Inactive</option>
-                <option value="TERMINATED">Terminated / Exited</option>
-              </select>
-              <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} style={{ width: "auto" }}>
-                <option value="ALL">All Departments</option>
-                {departments.map((d) => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 13, color: "var(--text-3)" }}>
-                Showing {paginatedRows.length} of {filtered.length} staff
-              </span>
-              <button className="btn btn-ghost btn-sm" onClick={() => void load()}>â†»</button>
-            </div>
-          </div>
 
-          <DataTable
-            rows={paginatedRows}
-            columns={COLUMNS}
-            action={(row) => (
+            <select
+              className="filter-select"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              aria-label="Filter by employment status"
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="ACTIVE">Active</option>
+              <option value="ON_NOTICE">On Notice</option>
+              <option value="INACTIVE">Inactive</option>
+              <option value="TERMINATED">Terminated</option>
+            </select>
+
+            <select
+              className="filter-select"
+              value={deptFilter}
+              onChange={(e) => setDeptFilter(e.target.value)}
+              aria-label="Filter by department"
+            >
+              <option value="ALL">All Departments</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+
+            {hasActiveFilters && (
               <button
-                className="btn btn-sm btn-secondary"
-                onClick={() => router.push(`/people/${String(row.id)}`)}
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  setSearch("");
+                  setStatusFilter("ALL");
+                  setDeptFilter("ALL");
+                }}
               >
-                View Profile
+                Reset Filters
               </button>
             )}
-            striped
-            hoverable
-          />
+          </div>
 
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div style={{
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ fontSize: 12.5, color: "var(--text-muted)", fontWeight: 500 }}>
+              Showing <strong>{paginatedRows.length}</strong> of <strong>{filtered.length}</strong>
+            </span>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => void load()}
+              title="Refresh list"
+            >
+              ↻ Refresh
+            </button>
+          </div>
+        </div>
+
+        {/* Employee Directory Table */}
+        <DataTable
+          rows={paginatedRows}
+          columns={COLUMNS}
+          onRowClick={(row) => router.push(`/people/${String(row.id)}`)}
+          action={(row) => (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/people/${String(row.id)}`);
+              }}
+            >
+              View 360°
+            </button>
+          )}
+          striped
+          hoverable
+          emptyTitle="No staff records match criteria"
+          emptyMessage={hasActiveFilters ? "Try adjusting your search query or status/department filters." : "No employees currently registered in this company."}
+        />
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div
+            style={{
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              padding: "12px 20px",
-              borderTop: "1px solid var(--border)",
+              padding: "16px 20px",
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderTop: "none",
+              borderRadius: "0 0 var(--radius-lg) var(--radius-lg)",
               fontSize: 13,
-            }}>
-              <div style={{ color: "var(--text-3)" }}>
-                Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong> ({filtered.length} staff records)
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  disabled={currentPage <= 1}
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                >
-                  â† Previous
-                </button>
-                <button
-                  className="btn btn-secondary btn-sm"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                >
-                  Next â†’
-                </button>
-              </div>
+            }}
+          >
+            <div style={{ color: "var(--text-muted)" }}>
+              Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong> ({filtered.length} staff records)
             </div>
-          )}
-        </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              >
+                ← Previous
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* Modern Add Employee Modal */}
       <Modal
         isOpen={showForm}
         onClose={() => { form.resetForm(); setShowForm(false); }}
-        title="Add New Employee"
+        title="Enroll New Employee"
         size="lg"
-        footer={
-          <>
-            <button className="btn btn-secondary" onClick={() => { form.resetForm(); setShowForm(false); }}>
-              Cancel
-            </button>
-          </>
-        }
       >
         <form onSubmit={handleFormSubmit}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <Input
-              label="First Name *"
-              name="first_name"
-              value={form.values.first_name}
-              onChange={form.handleChange("first_name")}
-              onBlur={form.handleBlur("first_name")}
-              error={form.meta.first_name.touched ? form.errors.first_name?.message : null}
-              placeholder="Rahul"
-              required
-            />
-            <Input
-              label="Last Name *"
-              name="last_name"
-              value={form.values.last_name}
-              onChange={form.handleChange("last_name")}
-              onBlur={form.handleBlur("last_name")}
-              error={form.meta.last_name.touched ? form.errors.last_name?.message : null}
-              placeholder="Sharma"
-              required
-            />
-            <Input
-              label="Official Work Email"
-              name="official_email"
-              type="email"
-              value={form.values.official_email}
-              onChange={form.handleChange("official_email")}
-              onBlur={form.handleBlur("official_email")}
-              error={form.meta.official_email.touched ? form.errors.official_email?.message : null}
-              placeholder="rahul@company.com"
-            />
-            <Input
-              label="Mobile Number"
-              name="official_mobile"
-              value={form.values.official_mobile}
-              onChange={form.handleChange("official_mobile")}
-              onBlur={form.handleBlur("official_mobile")}
-              placeholder="+91 98765 43210"
-            />
-            <Input
-              label="Joining Date *"
-              name="joining_date"
-              type="date"
-              value={form.values.joining_date}
-              onChange={form.handleChange("joining_date")}
-              onBlur={form.handleBlur("joining_date")}
-              error={form.meta.joining_date.touched ? form.errors.joining_date?.message : null}
-              required
-            />
-            <Select
-              label="Department"
-              name="department"
-              value={form.values.department}
-              onChange={form.handleChange("department")}
-              onBlur={form.handleBlur("department")}
-              options={deptOptions.map(d => ({ value: d.id, label: d.name }))}
-              placeholder="Select department"
-            />
-            <Select
-              label="Designation"
-              name="designation"
-              value={form.values.designation}
-              onChange={form.handleChange("designation")}
-              onBlur={form.handleBlur("designation")}
-              options={desigOptions.map(d => ({ value: d.id, label: d.name }))}
-              placeholder="Select designation"
-            />
-            <Select
-              label="Location"
-              name="location"
-              value={form.values.location}
-              onChange={form.handleChange("location")}
-              onBlur={form.handleBlur("location")}
-              options={locOptions.map(l => ({ value: l.id, label: l.name }))}
-              placeholder="Select location"
-            />
+          <div style={{ padding: "8px 0" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 14 }}>
+              Basic Information
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+              <Input
+                label="First Name *"
+                name="first_name"
+                value={form.values.first_name}
+                onChange={form.handleChange("first_name")}
+                onBlur={form.handleBlur("first_name")}
+                error={form.meta.first_name.touched ? form.errors.first_name?.message : null}
+                placeholder="Rahul"
+                required
+              />
+              <Input
+                label="Last Name *"
+                name="last_name"
+                value={form.values.last_name}
+                onChange={form.handleChange("last_name")}
+                onBlur={form.handleBlur("last_name")}
+                error={form.meta.last_name.touched ? form.errors.last_name?.message : null}
+                placeholder="Sharma"
+                required
+              />
+            </div>
+
+            <div style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-muted)", marginBottom: 14 }}>
+              Official Contact & Placement
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+              <Input
+                label="Official Work Email"
+                name="official_email"
+                type="email"
+                value={form.values.official_email}
+                onChange={form.handleChange("official_email")}
+                onBlur={form.handleBlur("official_email")}
+                error={form.meta.official_email.touched ? form.errors.official_email?.message : null}
+                placeholder="rahul.sharma@loanontip.com"
+              />
+              <Input
+                label="Official Mobile Number"
+                name="official_mobile"
+                value={form.values.official_mobile}
+                onChange={form.handleChange("official_mobile")}
+                onBlur={form.handleBlur("official_mobile")}
+                placeholder="+91 98765 43210"
+              />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+              <Input
+                label="Joining Date *"
+                name="joining_date"
+                type="date"
+                value={form.values.joining_date}
+                onChange={form.handleChange("joining_date")}
+                onBlur={form.handleBlur("joining_date")}
+                error={form.meta.joining_date.touched ? form.errors.joining_date?.message : null}
+                required
+              />
+              <Select
+                label="Department"
+                name="department"
+                value={form.values.department}
+                onChange={form.handleChange("department")}
+                onBlur={form.handleBlur("department")}
+                options={deptOptions.map((d) => ({ value: d.id, label: d.name }))}
+                placeholder="Select department"
+              />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <Select
+                label="Designation"
+                name="designation"
+                value={form.values.designation}
+                onChange={form.handleChange("designation")}
+                onBlur={form.handleBlur("designation")}
+                options={desigOptions.map((d) => ({ value: d.id, label: d.name }))}
+                placeholder="Select designation"
+              />
+              <Select
+                label="Branch / Location"
+                name="location"
+                value={form.values.location}
+                onChange={form.handleChange("location")}
+                onBlur={form.handleBlur("location")}
+                options={locOptions.map((l) => ({ value: l.id, label: l.name }))}
+                placeholder="Select location"
+              />
+            </div>
           </div>
-          <div style={{ marginTop: 20, display: "flex", justifyContent: "flex-end", gap: 10 }}>
-            <button type="submit" className="btn btn-primary" disabled={form.isSubmitting}>
-              {form.isSubmitting ? "Savingâ€¦" : "Add Employee"}
+
+          <div
+            style={{
+              marginTop: 24,
+              paddingTop: 16,
+              borderTop: "1px solid var(--border)",
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 10,
+            }}
+          >
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => { form.resetForm(); setShowForm(false); }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={form.isSubmitting}
+            >
+              {form.isSubmitting ? "Enrolling…" : "Enroll Employee"}
             </button>
           </div>
         </form>

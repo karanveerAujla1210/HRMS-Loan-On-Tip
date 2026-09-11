@@ -16,7 +16,7 @@ export const PATCH = withApi({
 
     const { data: leave, error: lvErr } = await db
       .from("leave_requests")
-      .select("id, employee_id, leave_type_id, from_date, total_days, status, company_id")
+      .select("id, employee_id, leave_type_id, from_date, total_days, status, employees!inner(company_id)")
       .eq("id", leaveId)
       .maybeSingle();
     if (lvErr) throw mapDatabaseError(lvErr);
@@ -27,7 +27,9 @@ export const PATCH = withApi({
         404
       );
     }
-    if ((leave as { company_id: string }).company_id !== companyId) {
+    const empRel = (leave as unknown as { employees: { company_id: string } | { company_id: string }[] }).employees;
+    const leaveCompanyId = Array.isArray(empRel) ? empRel[0]?.company_id : empRel?.company_id;
+    if (leaveCompanyId !== companyId) {
       return jsonOk(
         { error: "FORBIDDEN", message: "Leave request belongs to another company" },
         requestId,

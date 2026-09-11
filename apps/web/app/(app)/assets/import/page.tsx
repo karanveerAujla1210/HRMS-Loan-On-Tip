@@ -83,9 +83,9 @@ export default function AssetImportPage() {
         if (!row[f]) errs.push(`Row ${rowNum}: "${f}" is required`);
       });
       if (row.category && !categories[row.category.toLowerCase().trim()])
-        errs.push(`Row ${rowNum}: category "${row.category}" not found â€” check Organisation > Asset Categories`);
+        errs.push(`Row ${rowNum}: category "${row.category}" not found — check Organisation > Asset Categories`);
       if (row.location && !locations[row.location.toLowerCase().trim()])
-        errs.push(`Row ${rowNum}: location "${row.location}" not found â€” check Organisation > Locations`);
+        errs.push(`Row ${rowNum}: location "${row.location}" not found — check Organisation > Locations`);
       if (row.serial_number) {
         if (serials.has(row.serial_number.toLowerCase()))
           errs.push(`Row ${rowNum}: duplicate serial_number "${row.serial_number}"`);
@@ -167,7 +167,7 @@ export default function AssetImportPage() {
           { label: "Bulk CSV Import" },
         ]}
         actions={
-          <button className="btn btn-secondary btn-sm" onClick={() => router.push("/assets")}>â† Asset Inventory</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => router.push("/assets")}>← Asset Inventory</button>
         }
       />
 
@@ -176,10 +176,10 @@ export default function AssetImportPage() {
       <div className="page-body">
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="card-header">
-            <div><h2>Step 1 â€” Download sample CSV</h2><p>Fill asset data and save as .csv</p></div>
+            <div><h2>Step 1 — Download sample CSV</h2><p>Fill asset data and save as .csv</p></div>
             <div style={{ display: "flex", gap: 10 }}>
-              <a className="btn btn-secondary btn-sm" href="/templates/asset_import_template.csv" download>â¬‡ Download Template.csv</a>
-              <button className="btn btn-primary btn-sm" onClick={downloadSample}>â¬‡ Generate Sample CSV</button>
+              <a className="btn btn-secondary btn-sm" href="/templates/asset_import_template.csv" download>⬇ Download Template.csv</a>
+              <button className="btn btn-primary btn-sm" onClick={downloadSample}>⬇ Generate Sample CSV</button>
             </div>
           </div>
           <div className="card-body" style={{ overflowX: "auto" }}>
@@ -208,14 +208,14 @@ export default function AssetImportPage() {
 
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="card-header">
-            <div><h2>Step 2 â€” Upload filled CSV</h2><p>Only .csv files Â· UTF-8 encoding</p></div>
-            {!lookupReady && <span style={{ fontSize: 12, color: "var(--text-3)" }}>Loading lookupsâ€¦</span>}
+            <div><h2>Step 2 — Upload filled CSV</h2><p>Only .csv files · UTF-8 encoding</p></div>
+            {!lookupReady && <span style={{ fontSize: 12, color: "var(--text-3)" }}>Loading lookups…</span>}
           </div>
           <div className="card-body">
             <input type="file" accept=".csv" onChange={handleFile} disabled={!lookupReady} />
             {rows.length > 0 && !errors.length && (
               <p style={{ marginTop: 10, fontSize: 13, color: "var(--green)" }}>
-                âœ… {rows.length} rows parsed â€” no validation errors
+                ✅ {rows.length} rows parsed — no validation errors
               </p>
             )}
           </div>
@@ -235,13 +235,13 @@ export default function AssetImportPage() {
         {rows.length > 0 && (
           <div className="card" style={{ marginBottom: 20 }}>
             <div className="card-header">
-              <div><h2>Step 3 â€” Preview ({rows.length} rows)</h2><p>Verify before importing</p></div>
+              <div><h2>Step 3 — Preview ({rows.length} rows)</h2><p>Verify before importing</p></div>
               <button
                 className="btn btn-primary"
                 onClick={handleImport}
                 disabled={importing || errors.length > 0}
               >
-                {importing ? "Importingâ€¦" : `Import ${rows.length} assets`}
+                {importing ? "Importing…" : `Import ${rows.length} assets`}
               </button>
             </div>
             <div className="table-wrap">
@@ -253,7 +253,7 @@ export default function AssetImportPage() {
                   {rows.map((row, i) => (
                     <tr key={i}>
                       {PREVIEW_COLS.map((c) => (
-                        <td key={c}>{row[c] || <span style={{ color: "var(--text-4)" }}>â€”</span>}</td>
+                        <td key={c}>{row[c] || <span style={{ color: "var(--text-4)" }}>—</span>}</td>
                       ))}
                     </tr>
                   ))}
@@ -266,7 +266,7 @@ export default function AssetImportPage() {
         {result && (
           <div className={`alert ${result.failed === 0 ? "alert-success" : "alert-error"}`}>
             <div>
-              <strong>âœ… {result.success} imported{result.failed > 0 ? `, âŒ ${result.failed} failed` : ""}.</strong>
+              <strong>✅ {result.success} imported{result.failed > 0 ? `, ❌ ${result.failed} failed` : ""}.</strong>
               {result.failedRows.length > 0 && (
                 <ul style={{ margin: "8px 0 0 16px" }}>
                   {result.failedRows.map((r, i) => <li key={i}>{r}</li>)}

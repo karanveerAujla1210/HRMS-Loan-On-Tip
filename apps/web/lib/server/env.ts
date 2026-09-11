@@ -36,6 +36,12 @@ export function cronSecret(): string | undefined {
   return read("CRON_SECRET");
 }
 
+export function openRouterApiKey(): string {
+  const value = read("OPENROUTER_API_KEY");
+  if (!value) throw new Error("OPENROUTER_API_KEY is not configured");
+  return value;
+}
+
 export function appUrl(): string {
   return read("NEXT_PUBLIC_APP_URL") ?? "http://localhost:3000";
 }
