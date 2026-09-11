@@ -65,7 +65,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { isOpen: sidebarOpen, close: closeSidebar, toggle: toggleSidebar } = useSidebar();
-  const { role: effectiveRole, roles: effectiveRoles, employeeId, loading: profileLoading } = useProfile();
+  const { role: effectiveRole, roles: effectiveRoles, employeeId, displayName: profileDisplayName, loading: profileLoading } = useProfile();
   const [user, setUser] = useState<import("@supabase/supabase-js").User | null>(null);
   const [checking, setChecking] = useState(true);
   const [unread, setUnread] = useState(0);
@@ -169,10 +169,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Derive a friendly display name + initials from the account email.
+  // Derive a friendly display name + initials from DB profile or fallback to email.
   const userEmail = user?.email ?? "";
   const localPart = userEmail.split("@")[0] ?? "";
-  const displayName =
+  const emailDerived =
     localPart
       .replace(/[._-]+/g, " ")
       .trim()
@@ -180,6 +180,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       .filter(Boolean)
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ") || "Admin";
+  const displayName = profileDisplayName || emailDerived;
   const initials = (displayName.replace(/[^A-Za-z]/g, "").slice(0, 2) || "HR").toUpperCase();
   const roleLabel = effectiveRole
     ? effectiveRole.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())

@@ -28,7 +28,7 @@ const QUICK_ACTIONS = [
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { activeCompanyId: companyId, role, loading: profileLoading } = useProfile();
+  const { activeCompanyId: companyId, role, roles, displayName: profileName, loading: profileLoading } = useProfile();
   const [metrics, setMetrics] = useState<Row>({});
   const [attendance, setAttendance] = useState<Row[]>([]);
   const [leaves, setLeaves] = useState<Row[]>([]);
@@ -76,7 +76,9 @@ export default function DashboardPage() {
   const onLeave = Number(metrics.on_leave_today ?? 0);
   const rate    = active ? Math.round((present / active) * 100) : 0;
   const isAdmin = Boolean(role && ADMIN_ROLES.includes(role));
-  const availableQuickActions = QUICK_ACTIONS.filter(({ roles }) => Boolean(role && roles.includes(role)));
+  const availableQuickActions = QUICK_ACTIONS.filter(({ roles: required }) =>
+    roles.includes("SUPER_ADMIN") || roles.some(r => required.includes(r))
+  );
 
   useEffect(() => {
     if (!profileLoading && role && !ADMIN_ROLES.includes(role)) {
@@ -180,7 +182,7 @@ export default function DashboardPage() {
               </span>
             </div>
             <div style={{ fontSize: 22, fontWeight: 800, fontFamily: "var(--font-display)", letterSpacing: "-0.01em" }}>
-              {greeting}, Team
+              {greeting}, {profileName?.split(" ")[0] ?? "Team"}
             </div>
             <div style={{ fontSize: 13, color: "#94a3b8", marginTop: 4 }}>
               Here is the live workforce and HR operations summary for today

@@ -12,6 +12,7 @@ export const COMPANY_CONTEXT_EVENT = "lot-hrms:company-context-changed";
 type ProfileCtx = {
   companyId: string | null;
   employeeId: string | null;
+  displayName: string | null;
   role: string | null;
   roles: string[];
   /** True when the user holds the SUPER_ADMIN role. */
@@ -29,7 +30,7 @@ type ProfileCtx = {
 };
 
 const EMPTY: ProfileCtx = {
-  companyId: null, employeeId: null, role: null, roles: [],
+  companyId: null, employeeId: null, displayName: null, role: null, roles: [],
   isSuperAdmin: false, activeCompanyId: null,
   loading: true, error: null, setActiveCompany: () => {},
 };
@@ -101,6 +102,16 @@ export function useProfile(): ProfileCtx {
           .eq("auth_user_id", session.user.id)
           .single();
 
+        let displayName: string | null = null;
+        if (prof?.employee_id) {
+          const { data: emp } = await supabase
+            .from("employees")
+            .select("display_name")
+            .eq("id", prof.employee_id)
+            .single();
+          displayName = (emp as { display_name?: string | null } | null)?.display_name ?? null;
+        }
+
         if (cancelled) return;
 
         if (profError) {
@@ -143,6 +154,7 @@ export function useProfile(): ProfileCtx {
           setCtx({
             companyId: prof?.company_id ?? null,
             employeeId: prof?.employee_id ?? null,
+            displayName,
             role,
             roles,
             isSuperAdmin,
