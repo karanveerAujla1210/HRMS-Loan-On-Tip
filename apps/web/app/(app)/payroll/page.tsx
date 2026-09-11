@@ -8,9 +8,8 @@ import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
 import { useProfile } from "@/hooks/useProfile";
-import { PageHeader, DataTable, StatusBadge, Modal } from "@/components";
+import { PageHeader, DataTable, StatusBadge, Modal, SkeletonPageHeader, SkeletonTable } from "@/components";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
-import { SkeletonPageHeader, SkeletonTable } from "@/components/Skeleton";
 
 type Row = Record<string, unknown>;
 
@@ -27,7 +26,7 @@ export default function PayrollPage() {
     allowedRoles: ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN"],
   });
   const [runs, setRuns] = useState<Row[]>([]);
-  const [_loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);

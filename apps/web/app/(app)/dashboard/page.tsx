@@ -9,10 +9,13 @@ import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
 import { useProfile } from "@/hooks/useProfile";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
+import { PageHeader, DataTable, SkeletonDashboard, SkeletonPageHeader, StatusBadge } from "@/components";
 
 type Row = Record<string, unknown>;
 
 import { supabase } from "@/lib/supabase";
+
+const ADMIN_ROLES = ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN", "ASSET_ADMIN", "OPERATIONS_ADMIN", "LOCATION_ADMIN", "MANAGER"];
 
 const QUICK_ACTIONS = [
   { href: "/people",                 label: "People Directory", Icon: IcUsers,    roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "MANAGER"] },
@@ -29,6 +32,7 @@ const QUICK_ACTIONS = [
 export default function DashboardPage() {
   const router = useRouter();
   const { activeCompanyId: companyId, role, roles, displayName: profileName, loading: profileLoading } = useProfile();
+  const { allowed, loading: guardLoading } = useRoleGuard({ allowedRoles: ADMIN_ROLES });
   const [metrics, setMetrics] = useState<Row>({});
   const [attendance, setAttendance] = useState<Row[]>([]);
   const [leaves, setLeaves] = useState<Row[]>([]);
@@ -95,7 +99,7 @@ export default function DashboardPage() {
     }
   }, [profileLoading, role, router]);
 
-  if (loading || profileLoading) {
+  if (loading || profileLoading || guardLoading) {
     return (
       <>
         <SkeletonPageHeader />
@@ -103,6 +107,7 @@ export default function DashboardPage() {
       </>
     );
   }
+  if (!allowed) return null;
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
