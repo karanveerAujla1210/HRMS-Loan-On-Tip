@@ -8,11 +8,11 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api/client";
 import { API } from "@/lib/api/endpoints";
 import { useProfile } from "@/hooks/useProfile";
-import { PageHeader, DataTable, SkeletonDashboard, SkeletonPageHeader, StatusBadge } from "@/components";
+import { useRoleGuard } from "@/hooks/useRoleGuard";
 
 type Row = Record<string, unknown>;
 
-const ADMIN_ROLES = ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN", "ASSET_ADMIN", "OPERATIONS_ADMIN", "LOCATION_ADMIN", "MANAGER"];
+import { supabase } from "@/lib/supabase";
 
 const QUICK_ACTIONS = [
   { href: "/people",                 label: "People Directory", Icon: IcUsers,    roles: ["SUPER_ADMIN", "HR_ADMIN", "OPERATIONS_ADMIN", "MANAGER"] },
@@ -66,7 +66,16 @@ export default function DashboardPage() {
     setLoading(false);
   }, [companyId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (!companyId) return;
+    const channel = supabase.channel(`dashboard-metrics-${companyId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance_records' }, payload => {
+        // For simplicity we re-fetch metrics on any change
+        void load();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [companyId]);
 
   const active  = Number(metrics.active_employees ?? 0);
   const present = Number(metrics.present_today ?? 0);
