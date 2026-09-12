@@ -28,7 +28,6 @@ export function Skeleton({
     stat: "rounded-xl",
   };
 
-  const widthClass = typeof width === "number" ? `${width}px` : width;
   const heightClass = typeof height === "number" ? `h-[${height}px]` : (height ? `h-[${height}]` : "");
 
   // Use Tailwind's animate-pulse when animation is "pulse", otherwise use a custom
