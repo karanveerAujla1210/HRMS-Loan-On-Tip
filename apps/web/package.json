@@ -10,24 +10,27 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@hrms/api-contract": "*",
+    "@hrms/config": "*",
+    "@hrms/domain": "*",
+    "@hrms/ui-tokens": "*",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.49.1",
     "next": "15.3.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "zod": "^3.23.8",
-    "@hrms/api-contract": "*",
-    "@hrms/domain": "*",
-    "@hrms/config": "*",
-    "@hrms/ui-tokens": "*"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@types/node": "^22.13.9",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.2.4",
+    "autoprefixer": "^10.5.6",
     "eslint": "^9.18.0",
     "eslint-config-next": "15.3.9",
+    "postcss": "^8.4.31",
+        "tailwindcss": "^3.3.0",
     "typescript": "^5.8.2"
   }
 }

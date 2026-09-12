@@ -19,28 +19,35 @@ export function Skeleton({
   style,
   animation = "wave",
 }: SkeletonProps) {
-  const baseStyles: React.CSSProperties = {
-    background: animation === "none"
-      ? "var(--border)"
-      : "linear-gradient(90deg, var(--border-light) 25%, var(--border) 50%, var(--border-light) 75%)",
-    backgroundSize: animation === "wave" ? "200% 100%" : "auto",
-    borderRadius: 4,
-    animation: animation === "wave" ? "skeletonShimmer 1.5s infinite" : animation === "pulse" ? "skeletonPulse 1.5s infinite ease-in-out" : "none",
+  const variantClasses: Record<string, string> = {
+    text: "h-[14px] w-full rounded-sm",
+    circular: "rounded-full",
+    rectangular: "rounded-md",
+    card: "rounded-xl",
+    "table-row": "rounded-none",
+    stat: "rounded-xl",
   };
 
-  const variantStyles: Record<string, React.CSSProperties> = {
-    text: { height: height || 14, width, borderRadius: 4 },
-    circular: { width: width || 40, height: height || 40, borderRadius: "50%" },
-    rectangular: { width, height: height || 100, borderRadius: 8 },
-    card: { width: "100%", height: height || 120, borderRadius: "var(--radius)" },
-    "table-row": { width: "100%", height: height || 56, borderRadius: 0 },
-    stat: { width: "100%", height: height || 100, borderRadius: "var(--radius)" },
-  };
+  const widthClass = typeof width === "number" ? `${width}px` : width;
+  const heightClass = typeof height === "number" ? `h-[${height}px]` : (height ? `h-[${height}]` : "");
+
+  // Use Tailwind's animate-pulse when animation is "pulse", otherwise use a custom
+  // gradient shimmer (wave) via Tailwind utilities.
+  const animClass =
+    animation === "none"
+      ? ""
+      : animation === "pulse"
+      ? "animate-pulse"
+      : "bg-gradient-to-r from-border-light via-border to-border-light bg-[length:200%_100%] animate-[shimmer_1.5s_infinite]";
 
   return (
     <div
-      className={`skeleton ${className}`}
-      style={{ ...baseStyles, ...variantStyles[variant], ...style }}
+      className={`skeleton ${variantClasses[variant] ?? ""} ${animClass} ${className}`}
+      style={{
+        width: typeof width === "number" ? width : width,
+        ...heightClass ? { height } : {},
+        ...style,
+      }}
       aria-hidden="true"
     />
   );
@@ -58,7 +65,7 @@ export function SkeletonText({ lines = 3, width = "100%", gap = 8 }: { lines?: n
 
 export function SkeletonCard({ lines = 3 }: { lines?: number }) {
   return (
-    <div className="card" style={{ padding: 20 }}>
+    <div className="card bg-surface/50 dark:bg-gray-800/50 border border-border animate-pulse">
       <Skeleton variant="text" width="40%" height={20} />
       <SkeletonText lines={lines} />
     </div>
@@ -67,9 +74,9 @@ export function SkeletonCard({ lines = 3 }: { lines?: number }) {
 
 export function SkeletonStatCard() {
   return (
-    <div className="stat-card skeleton stat" style={{ padding: "18px 20px" }}>
-      <Skeleton variant="text" width="80px" height={11} style={{ marginBottom: 8 }} />
-      <Skeleton variant="text" width="60px" height={28} style={{ margin: "8px 0 4px" }} />
+    <div className="stat-card skeleton stat bg-surface/50 dark:bg-gray-800/50 border border-border animate-pulse p-4">
+      <Skeleton variant="text" width="80px" height={11} className="mb-2" />
+      <Skeleton variant="text" width="60px" height={28} className="mt-2 mb-1" />
       <Skeleton variant="text" width="100px" height={12} />
     </div>
   );
@@ -78,11 +85,11 @@ export function SkeletonStatCard() {
 export function SkeletonTable({ rows = 5, columns = 4 }: { rows?: number; columns?: number }) {
   return (
     <div className="table-wrap">
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      <table className="w-full border-collapse">
         <thead>
           <tr>
             {Array.from({ length: columns }).map((_, i) => (
-              <th key={i} style={{ padding: "10px 16px", textAlign: "left" }}>
+              <th key={i} className="px-4 py-2 text-left">
                 <Skeleton variant="text" width="80px" height={10} />
               </th>
             ))}
@@ -92,7 +99,7 @@ export function SkeletonTable({ rows = 5, columns = 4 }: { rows?: number; column
           {Array.from({ length: rows }).map((_, rowIndex) => (
             <tr key={rowIndex}>
               {Array.from({ length: columns }).map((_, colIndex) => (
-                <td key={colIndex} style={{ padding: "12px 16px" }}>
+                <td key={colIndex} className="px-3 py-3">
                   <Skeleton variant="text" width={colIndex === 0 ? "120px" : "80px"} />
                 </td>
               ))}
@@ -106,9 +113,9 @@ export function SkeletonTable({ rows = 5, columns = 4 }: { rows?: number; column
 
 export function SkeletonList({ items = 5, avatar = true, lines = 2 }: { items?: number; avatar?: boolean; lines?: number }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+    <div className="flex flex-col gap-3">
       {Array.from({ length: items }).map((_, i) => (
-        <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+        <div key={i} className="flex gap-3 items-start">
           {avatar && <Skeleton variant="circular" width={40} height={40} />}
           <SkeletonText lines={lines} />
         </div>
@@ -121,7 +128,7 @@ export function SkeletonDashboard() {
   return (
     <div className="page-body">
       {/* Stats grid skeleton */}
-      <div className="stats-grid" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <SkeletonStatCard />
         <SkeletonStatCard />
         <SkeletonStatCard />
@@ -129,7 +136,7 @@ export function SkeletonDashboard() {
       </div>
 
       {/* Secondary stats skeleton */}
-      <div className="stats-grid" style={{ gridTemplateColumns: "repeat(4,1fr)" }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <SkeletonStatCard />
         <SkeletonStatCard />
         <SkeletonStatCard />
@@ -137,7 +144,7 @@ export function SkeletonDashboard() {
       </div>
 
       {/* Dashboard grid skeleton */}
-      <div className="dashboard-grid">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4">
         <SkeletonCard lines={5} />
         <SkeletonCard lines={5} />
       </div>
@@ -150,9 +157,9 @@ export function SkeletonPageHeader() {
     <div className="page-header">
       <div className="page-title">
         <Skeleton variant="text" width="200px" height={28} />
-        <Skeleton variant="text" width="300px" height={14} style={{ marginTop: 4 }} />
+        <Skeleton variant="text" width="300px" height={14} className="mt-1" />
       </div>
-      <div className="header-actions">
+      <div className="header-actions flex items-center gap-2">
         <Skeleton variant="rectangular" width={100} height={36} />
         <Skeleton variant="rectangular" width={100} height={36} />
       </div>

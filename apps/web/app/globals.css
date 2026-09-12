@@ -1,6 +1,8 @@
-/* ══════════════════════════════════════════════════════════
-   Loan On Tip HRMS - Enhanced UI/UX Styles
-   ══════════════════════════════════════════════════════════ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Existing custom CSS follows */
 
 /* ── Base Reset & Typography ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -123,8 +125,14 @@ body {
   --transition-bounce: 250ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
   /* ── Typography Scale (Refined) ── */
-  --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-sans: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-display: var(--font-manrope), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Additional palette aliases shared with ui-tokens package */
+  --mint: #10b981;
+  --navy: #1e3a5f;
+  --muted: #6b7280;
   
   --text-xs: 11px;
   --text-sm: 13px;
@@ -250,8 +258,75 @@ body {
   --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
   --shadow-md: 0 4px 12px rgba(0,0,0,.08);
   --shadow-lg: 0 12px 28px rgba(0,0,0,.1);
-  --shadow-xl: 0 20px 48px rgba(0,0,0,.12);
+    --shadow-xl: 0 20px 48px rgba(0,0,0,.12);
   --shadow-focus: 0 0 0 3px rgba(232,85,52,.18);
+}
+
+/* ── Dark-mode via .dark class (Tailwind darkMode: 'class') ──
+   The useTheme hook adds .dark to <html>.  These overrides mirror the
+   @media (prefers-color-scheme: dark) values but also apply when the user
+   manually toggles dark mode in a light-preference environment. */
+.dark {
+  --brand: #f97052;
+  --brand-dark: #e85534;
+  --brand-light: #3d1a14;
+  --brand-contrast: #ffffff;
+
+  --bg: #0f1419;
+  --bg-elevated: #1a1f2e;
+  --surface: #1a1f2e;
+  --surface-hover: #232a3d;
+  --border: #2d3548;
+  --border-light: #232a3d;
+  --border-strong: #3d4a6b;
+
+  --text: #f2f4f7;
+  --text-strong: #ffffff;
+  --text-base: #d0d5dd;
+  --text-muted: #98a2b3;
+  --text-subtle: #6b7280;
+  --text-inverse: #1a2236;
+
+  --success: #34d399;
+  --success-light: #064e3b;
+  --success-dark: #a7f3d0;
+  --warning: #fbbf24;
+  --warning-light: #422006;
+  --warning-dark: #fde68a;
+  --danger: #f87171;
+  --danger-light: #450a0a;
+  --danger-dark: #fecaca;
+  --info: #60a5fa;
+  --info-light: #1e3a5f;
+  --info-dark: #bfdbfe;
+  --purple: #a78bfa;
+  --purple-light: #2e1065;
+  --purple-dark: #ddd6fe;
+
+  --mint: #34d399;
+  --navy: #1e3a5f;
+  --muted: #98a2b3;
+
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.2);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.3), 0 1px 2px rgba(0,0,0,.2);
+  --shadow-md: 0 4px 12px rgba(0,0,0,.4);
+  --shadow-lg: 0 12px 28px rgba(0,0,0,.5);
+  --shadow-xl: 0 20px 48px rgba(0,0,0,.6);
+  --shadow-2xl: 0 25px 50px -12px rgba(0,0,0,.6);
+  --shadow-focus: 0 0 0 3px rgba(249,112,82,.25);
+}
+
+/* When the user explicitly prefers light, force light variables */
+html.dark[data-theme="light"] {
+  --brand: #e85534;
+  --brand-dark: #c94420;
+  --brand-light: #fceae5;
+  --bg: #f4f5f9;
+  --surface: #ffffff;
+  --border: #e8eaf0;
+  --text: #1a2236;
+  --text-strong: #0f1419;
+  --text-muted: #667085;
 }
 
 body {

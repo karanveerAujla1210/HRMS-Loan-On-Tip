@@ -168,8 +168,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (checking || profileLoading) {
     return (
-      <div className="loading-spinner" style={{ minHeight: "100vh" }}>
-        <div className="spinner" /> Loading…
+      <div className="flex items-center justify-center min-h-screen bg-gray-900/80">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white" />
+        <span className="ml-3 text-white">Loading…</span>
       </div>
     );
   }
@@ -326,7 +327,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 />
       
 
-      <div className="main-content" id="main-content">
+      <div className="flex-1 flex flex-col overflow-hidden" id="main-content">
         {/* Mobile topbar with hamburger to open the sidebar */}
         <div className="mobile-topbar">
           <button

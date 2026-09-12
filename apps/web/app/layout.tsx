@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Manrope } from "next/font/google";
+import { Inter, Manrope, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
+import ThemeInitializer from "@/components/ThemeInitializer";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -13,6 +14,12 @@ const manrope = Manrope({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-manrope",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-jetbrains-mono",
 });
 
 const APP_NAME = "Loan On Tip | HRMS";
@@ -51,8 +58,9 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${manrope.variable}`}>
-      <body>
+    <html lang="en" className={`${inter.variable} ${manrope.variable} ${jetbrainsMono.variable}`}>
+      <body className="font-sans antialiased">
+        <ThemeInitializer />
         <a href="#main-content" className="skip-link">
           Skip to main content
         </a>
