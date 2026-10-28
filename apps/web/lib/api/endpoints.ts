@@ -16,6 +16,7 @@ export const API = {
     maintenanceComplete: (id: string) => `/api/assets/maintenance/${id}`,
   },
   auth: {
+    session: "/api/auth/session",
     companyContext: "/api/auth/company-context",
   },
   companies: "/api/companies",
