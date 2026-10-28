@@ -60,7 +60,7 @@ const PG_RAISE_EXCEPTION = "P0001";
  * `HRMS:LEAVE_OVERLAP:...`, which are translated back into API error codes so
  * clients receive a stable contract regardless of where the rule lives.
  */
-export function mapDatabaseError(error: unknown, fallbackMessage?: string): ApiError {
+export function mapDatabaseError(error: unknown): ApiError {
   const pg = (error ?? {}) as PostgresError;
   const raw = pg.message ?? "";
 
