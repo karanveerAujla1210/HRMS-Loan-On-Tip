@@ -327,7 +327,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 />
       
 
-      <div className="flex-1 flex flex-col overflow-hidden" id="main-content">
+      <main className="app-main-content" id="main-content" tabIndex={-1}>
         {/* Mobile topbar with hamburger to open the sidebar */}
         <div className="mobile-topbar">
           <button
@@ -354,7 +354,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
         <CompanyContextBanner />
         {children}
-      </div>
+      </main>
 
       {/* Dismissible keyboard shortcuts help panel */}
       {showShortcuts && (
