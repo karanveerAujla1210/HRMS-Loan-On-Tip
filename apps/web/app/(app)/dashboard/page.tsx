@@ -439,16 +439,16 @@ interface StatCardProps {
 function StatCard({ href, label, value, sub, icon, iconColor, iconBg, progress, progressColor }: StatCardProps) {
   return (
     <Link href={href} className="group">
-        <div className="bg-white/60 backdrop-blur-sm rounded-xl border border-gray-200 dark:border-gray-700 p-4 transition-transform transform hover:scale-105 shadow-sm">
+        <div className="dashboard-stat-card">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">{label}</div>
+            <div className="dashboard-stat-label text-sm font-medium">{label}</div>
             <div className="flex items-center justify-center w-10 h-10 rounded-full" style={{ background: iconBg, color: iconColor }} aria-hidden="true">
               {icon}
             </div>
           </div>
           <div className="mt-2 flex items-baseline space-x-2">
-            <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100 tabular-nums">{value.toLocaleString('en-IN')}</div>
-            <div className="text-sm text-gray-600 dark:text-gray-300">{sub}</div>
+            <div className="dashboard-stat-value text-2xl font-semibold">{value.toLocaleString('en-IN')}</div>
+            <div className="dashboard-stat-sub text-sm">{sub}</div>
           </div>
           {progress !== undefined && (
             <div className="mt-3 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
