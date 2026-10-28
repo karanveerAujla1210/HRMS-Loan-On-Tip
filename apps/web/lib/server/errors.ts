@@ -92,25 +92,25 @@ export function mapDatabaseError(error: unknown, fallbackMessage?: string): ApiE
       return new ApiError(ERROR_CODES.CONFLICT, "A record with these details already exists.");
     }
     case PG_FOREIGN_KEY_VIOLATION:
+      // Do not return raw PostgreSQL constraint names or messages to clients.
       return new ApiError(
         ERROR_CODES.VALIDATION_ERROR,
-        "A referenced record does not exist.",
-        { constraint: raw }
+        "A referenced record does not exist."
       );
     case PG_CHECK_VIOLATION:
     case PG_NOT_NULL_VIOLATION:
-      return new ApiError(ERROR_CODES.VALIDATION_ERROR, "The request violates a data rule.", {
-        constraint: raw,
-      });
+      // Database messages can expose internal schema details; keep the API response generic.
+      return new ApiError(
+        ERROR_CODES.VALIDATION_ERROR,
+        "The request violates a data rule."
+      );
     case PG_RLS_VIOLATION:
       return new ApiError(ERROR_CODES.FORBIDDEN, "This operation is not permitted for your role.");
     case PG_RAISE_EXCEPTION:
       return new ApiError(ERROR_CODES.CONFLICT, raw.replace(/^HRMS:/, ""));
     default:
-      return internalError(fallbackMessage ?? "A database error occurred.", {
-        code: pg.code,
-        message: raw,
-      });
+      // Never serialize raw database errors into the public API response.
+      return internalError(fallbackMessage ?? "A database error occurred.");
   }
 }
 
