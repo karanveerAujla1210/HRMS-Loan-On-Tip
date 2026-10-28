@@ -24,8 +24,8 @@ describe("HRMS schema snapshot contract", () => {
   });
 
   it("contains row identity and access-control tables", () => {
-    expect(schema).toMatch(/CREATE TABLE public\\.roles\\b/);
-    expect(schema).toMatch(/CREATE TABLE public\\.permissions\\b/);
-    expect(schema).toMatch(/CREATE TABLE public\\.role_permissions\\b/);
+    expect(schema).toMatch(/CREATE TABLE public\.roles\b/);
+    expect(schema).toMatch(/CREATE TABLE public\.permissions\b/);
+    expect(schema).toMatch(/CREATE TABLE public\.role_permissions\b/);
   });
 });
