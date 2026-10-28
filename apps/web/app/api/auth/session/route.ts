@@ -3,6 +3,8 @@ import { withApi, jsonOk } from "@/lib/server/http";
 import { SessionResponseSchema } from "@hrms/api-contract";
 
 export const GET = withApi({
+  requireEmployee: false,
+  requireCompany: false,
   handler: async ({ ctx, requestId }) => {
     const session = SessionResponseSchema.parse({
       authUserId: ctx.authUserId,
