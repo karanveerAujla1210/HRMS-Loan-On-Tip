@@ -3211,3 +3211,130 @@ tbody tr[data-selected] { background: var(--brand-light); }
   color: var(--text-muted);
   margin-top: 4px;
 }
+
+
+/* ── App viewport, scrolling and spacing fixes ──
+   Keep the sidebar fixed while the content pane owns vertical scrolling.
+   This prevents long dashboards/forms from being clipped by overflow-hidden. */
+.app-main-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: calc(100% - 16rem);
+  margin-left: 16rem;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  background: var(--bg);
+}
+
+.app-main-content > .page-header {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+}
+
+.app-main-content > .page-body {
+  flex: 1 0 auto;
+  width: 100%;
+  padding: clamp(16px, 2.2vw, 32px);
+}
+
+.app-main-content .dashboard-grid > .card {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.app-main-content .table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.dashboard-stat-card {
+  height: 100%;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-base), box-shadow var(--transition-base), border-color var(--transition-base);
+}
+
+.dashboard-stat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.dashboard-stat-card .dashboard-stat-label {
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.dashboard-stat-card .dashboard-stat-value {
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-stat-card .dashboard-stat-sub {
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+@media (max-width: 767px) {
+  .app-main-content {
+    margin-left: 0;
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  .app-main-content > .page-header {
+    position: relative;
+    top: auto;
+    height: auto;
+    min-height: var(--header-h);
+    padding-top: 12px;
+    padding-bottom: 12px;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .app-main-content > .page-body {
+    padding: 16px 14px 32px;
+  }
+
+  .app-main-content .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .app-main-content .quick-actions-bar {
+    align-items: flex-start;
+  }
+
+  .app-main-content .quick-actions-list {
+    min-width: 0;
+  }
+
+  .app-main-content .dashboard-stat-card {
+    padding: 15px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-main-content,
+  .dashboard-stat-card {
+    scroll-behavior: auto;
+    transition: none;
+  }
+}
