@@ -68,7 +68,9 @@ export function mapDatabaseError(error: unknown, fallbackMessage?: string): ApiE
   if (tagged) {
     const code = tagged[1] as ErrorCode;
     if (code in ERROR_STATUS) {
-      return new ApiError(code, tagged[2]?.trim() || undefined);
+      // Preserve the stable business code, but use the centrally defined public
+      // message instead of forwarding text originating from the database.
+      return new ApiError(code);
     }
   }
 
@@ -107,10 +109,11 @@ export function mapDatabaseError(error: unknown, fallbackMessage?: string): ApiE
     case PG_RLS_VIOLATION:
       return new ApiError(ERROR_CODES.FORBIDDEN, "This operation is not permitted for your role.");
     case PG_RAISE_EXCEPTION:
-      return new ApiError(ERROR_CODES.CONFLICT, raw.replace(/^HRMS:/, ""));
+      // P0001 messages may contain database-generated details; never echo them.
+      return new ApiError(ERROR_CODES.CONFLICT, "The requested operation could not be completed.");
     default:
-      // Never serialize raw database errors into the public API response.
-      return internalError(fallbackMessage ?? "A database error occurred.");
+      // Never serialize raw database errors or caller-supplied fallback text.
+      return internalError("A database error occurred.");
   }
 }
 
