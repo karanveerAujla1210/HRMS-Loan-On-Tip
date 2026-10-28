@@ -119,6 +119,7 @@ export function toApiError(error: unknown): ApiError {
   if (error && typeof error === "object" && "code" in error && "message" in error) {
     return mapDatabaseError(error);
   }
-  if (error instanceof Error) return internalError(error.message);
+  // Unexpected exceptions may contain SQL, schema names, or infrastructure details.
+  if (error instanceof Error) return internalError("An unexpected server error occurred.");
   return internalError();
 }
