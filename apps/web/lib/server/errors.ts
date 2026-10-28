@@ -60,7 +60,7 @@ const PG_RAISE_EXCEPTION = "P0001";
  * `HRMS:LEAVE_OVERLAP:...`, which are translated back into API error codes so
  * clients receive a stable contract regardless of where the rule lives.
  */
-export function mapDatabaseError(error: unknown, fallbackMessage?: string): ApiError {
+export function mapDatabaseError(error: unknown): ApiError {
   const pg = (error ?? {}) as PostgresError;
   const raw = pg.message ?? "";
 
@@ -68,7 +68,9 @@ export function mapDatabaseError(error: unknown, fallbackMessage?: string): ApiE
   if (tagged) {
     const code = tagged[1] as ErrorCode;
     if (code in ERROR_STATUS) {
-      return new ApiError(code, tagged[2]?.trim() || undefined);
+      // Preserve the stable business code, but use the centrally defined public
+      // message instead of forwarding text originating from the database.
+      return new ApiError(code);
     }
   }
 
@@ -92,25 +94,26 @@ export function mapDatabaseError(error: unknown, fallbackMessage?: string): ApiE
       return new ApiError(ERROR_CODES.CONFLICT, "A record with these details already exists.");
     }
     case PG_FOREIGN_KEY_VIOLATION:
+      // Do not return raw PostgreSQL constraint names or messages to clients.
       return new ApiError(
         ERROR_CODES.VALIDATION_ERROR,
-        "A referenced record does not exist.",
-        { constraint: raw }
+        "A referenced record does not exist."
       );
     case PG_CHECK_VIOLATION:
     case PG_NOT_NULL_VIOLATION:
-      return new ApiError(ERROR_CODES.VALIDATION_ERROR, "The request violates a data rule.", {
-        constraint: raw,
-      });
+      // Database messages can expose internal schema details; keep the API response generic.
+      return new ApiError(
+        ERROR_CODES.VALIDATION_ERROR,
+        "The request violates a data rule."
+      );
     case PG_RLS_VIOLATION:
       return new ApiError(ERROR_CODES.FORBIDDEN, "This operation is not permitted for your role.");
     case PG_RAISE_EXCEPTION:
-      return new ApiError(ERROR_CODES.CONFLICT, raw.replace(/^HRMS:/, ""));
+      // P0001 messages may contain database-generated details; never echo them.
+      return new ApiError(ERROR_CODES.CONFLICT, "The requested operation could not be completed.");
     default:
-      return internalError(fallbackMessage ?? "A database error occurred.", {
-        code: pg.code,
-        message: raw,
-      });
+      // Never serialize raw database errors or caller-supplied fallback text.
+      return internalError("A database error occurred.");
   }
 }
 
@@ -119,6 +122,7 @@ export function toApiError(error: unknown): ApiError {
   if (error && typeof error === "object" && "code" in error && "message" in error) {
     return mapDatabaseError(error);
   }
-  if (error instanceof Error) return internalError(error.message);
+  // Unexpected exceptions may contain SQL, schema names, or infrastructure details.
+  if (error instanceof Error) return internalError("An unexpected server error occurred.");
   return internalError();
 }
