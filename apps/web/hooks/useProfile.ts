@@ -9,23 +9,24 @@ const ACTIVE_COMPANY_KEY = "lot-hrms-active-company";
 /** Fired whenever a Super Admin switches the organizational context. */
 export const COMPANY_CONTEXT_EVENT = "lot-hrms:company-context-changed";
 
+type ServerSession = {
+  employeeId: string | null;
+  displayName: string | null;
+  companyId: string | null;
+  roles: string[];
+  primaryRole: string | null;
+};
+
 type ProfileCtx = {
   companyId: string | null;
   employeeId: string | null;
   displayName: string | null;
   role: string | null;
   roles: string[];
-  /** True when the user holds the SUPER_ADMIN role. */
   isSuperAdmin: boolean;
-  /**
-   * Organizational context for reads: the company the admin is currently
-   * operating on. Equals `companyId` for everyone except a Super Admin who
-   * has switched context via the company switcher.
-   */
   activeCompanyId: string | null;
   loading: boolean;
   error: string | null;
-  /** Super Admin only: switch the organizational context (null = all companies). */
   setActiveCompany: (companyId: string | null) => void;
 };
 
@@ -36,7 +37,7 @@ const EMPTY: ProfileCtx = {
 };
 const IDLE: ProfileCtx = { ...EMPTY, loading: false };
 
-function ROLE_PRECEDENCE(code: string): number {
+function rolePrecedence(code: string): number {
   const order = ["SUPER_ADMIN", "HR_ADMIN", "FINANCE_ADMIN", "ASSET_ADMIN", "OPERATIONS_ADMIN", "LOCATION_ADMIN", "MANAGER", "EMPLOYEE"];
   const i = order.indexOf(code);
   return i === -1 ? order.length : i;
@@ -50,17 +51,13 @@ function readActiveCompanyOverride(): string | null {
   }
 }
 
-/**
- * Persist the switched-company context. The HTTP-only `lot_super_admin_company`
- * cookie is set server-side by `/api/auth/company-context`; localStorage only
- * mirrors it for instant UI reads. API routes resolve the authoritative cookie.
- */
+/** Keep the UI preference in localStorage; the server cookie remains authoritative. */
 function persistActiveCompany(companyId: string | null) {
   try {
     if (companyId) window.localStorage.setItem(ACTIVE_COMPANY_KEY, companyId);
     else window.localStorage.removeItem(ACTIVE_COMPANY_KEY);
   } catch {
-    /* storage unavailable — context still applies for this session */
+    /* storage unavailable — server context still applies for this session */
   }
   void apiFetch(API.auth.companyContext, {
     method: "POST",
@@ -69,9 +66,10 @@ function persistActiveCompany(companyId: string | null) {
 }
 
 /**
- * Resolves the signed-in user's profile context (company, employee, role).
- * Single source of truth for identity in client components — pages must not
- * re-query `profiles` / `employee_roles` themselves.
+ * Resolves identity and effective roles from the trusted server session endpoint.
+ * Client-side employee_roles queries can be hidden by RLS and incorrectly display
+ * an administrator as Employee, so roles must come from the server's verified
+ * auth context instead of a browser-side join.
  */
 export function useProfile(): ProfileCtx {
   const [ctx, setCtx] = useState<ProfileCtx>(EMPTY);
@@ -81,7 +79,7 @@ export function useProfile(): ProfileCtx {
 
     async function load() {
       try {
-        const { data, error: sessionError } = await supabase.auth.getSession();
+        const { data: authData, error: sessionError } = await supabase.auth.getSession();
         if (cancelled) return;
 
         if (sessionError) {
@@ -90,60 +88,40 @@ export function useProfile(): ProfileCtx {
           return;
         }
 
-        const session = data.session;
-        if (!session) {
+        if (!authData.session) {
           setCtx(IDLE);
           return;
         }
 
-        const { data: prof, error: profError } = await supabase
-          .from("profiles")
-          .select("employee_id,company_id")
-          .eq("auth_user_id", session.user.id)
-          .single();
-
-        let displayName: string | null = null;
-        if (prof?.employee_id) {
-          const { data: emp } = await supabase
-            .from("employees")
-            .select("display_name")
-            .eq("id", prof.employee_id)
-            .single();
-          displayName = (emp as { display_name?: string | null } | null)?.display_name ?? null;
-        }
-
+        const response = await apiFetch<ServerSession>(API.auth.session);
         if (cancelled) return;
 
-        if (profError) {
-          console.error("[useProfile] failed to load profile:", profError.message);
-          setCtx({ ...IDLE, error: "Could not load your profile. Please refresh." });
+        if (response.error || !response.data) {
+          console.error("[useProfile] failed to resolve server session:", response.error?.code);
+          setCtx({ ...IDLE, error: "Could not load your access profile. Please refresh." });
           return;
         }
 
-        const roles: string[] = [];
-        if (prof?.employee_id) {
-          // Collect every active role so SUPER_ADMIN is never masked by a
-          // lower-precedence role returned first.
-          const { data: roleRows, error: roleError } = await supabase
-            .from("employee_roles")
-            .select("roles(code)")
-            .eq("employee_id", prof.employee_id)
-            .eq("is_active", true);
+        const serverProfile = response.data;
+        const roles = [...new Set((serverProfile.roles ?? []).filter((role): role is string => typeof role === "string" && role.length > 0))];
+        const isSuperAdmin = roles.includes("SUPER_ADMIN");
 
-          if (cancelled) return;
-
-          if (!roleError) {
-            for (const row of (roleRows ?? []) as unknown as { roles: { code: string } | null }[]) {
-              if (row.roles?.code && !roles.includes(row.roles.code)) roles.push(row.roles.code);
-            }
-          } else {
-            console.error("[useProfile] failed to load role:", roleError.message);
-          }
+        // Keep the home-company lookup separate from authorization. A missing or
+        // RLS-hidden profile row must never downgrade the server-resolved roles.
+        let homeCompanyId = serverProfile.companyId;
+        try {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("company_id")
+            .eq("auth_user_id", authData.session.user.id)
+            .maybeSingle<{ company_id: string | null }>();
+          if (profile?.company_id) homeCompanyId = profile.company_id;
+        } catch {
+          // Server session is authoritative for access even if this optional read fails.
         }
 
-        const isSuperAdmin = roles.includes("SUPER_ADMIN");
         const override = isSuperAdmin ? readActiveCompanyOverride() : null;
-        const role = [...roles].sort((a, b) => ROLE_PRECEDENCE(a) - ROLE_PRECEDENCE(b))[0] ?? null;
+        const role = serverProfile.primaryRole ?? [...roles].sort((a, b) => rolePrecedence(a) - rolePrecedence(b))[0] ?? null;
 
         function setActiveCompany(companyId: string | null) {
           persistActiveCompany(companyId);
@@ -152,16 +130,13 @@ export function useProfile(): ProfileCtx {
 
         if (!cancelled) {
           setCtx({
-            companyId: prof?.company_id ?? null,
-            employeeId: prof?.employee_id ?? null,
-            displayName,
+            companyId: homeCompanyId,
+            employeeId: serverProfile.employeeId ?? null,
+            displayName: serverProfile.displayName ?? null,
             role,
             roles,
             isSuperAdmin,
-            // The organizational context narrows visibility for Super Admins;
-            // it always falls back to the home company, so pages can safely
-            // alias `activeCompanyId` as their company filter.
-            activeCompanyId: isSuperAdmin ? (override ?? (prof?.company_id ?? null)) : (prof?.company_id ?? null),
+            activeCompanyId: isSuperAdmin ? (override ?? homeCompanyId) : homeCompanyId,
             loading: false,
             error: null,
             setActiveCompany,
@@ -177,25 +152,16 @@ export function useProfile(): ProfileCtx {
 
     void load();
 
-    // Keep every mounted consumer in sync when the context is switched.
     function onContextChange() {
       setCtx((prev) =>
-        prev.isSuperAdmin ? { ...prev, activeCompanyId: readActiveCompanyOverride() } : prev
+        prev.isSuperAdmin ? { ...prev, activeCompanyId: readActiveCompanyOverride() ?? prev.companyId } : prev
       );
     }
     window.addEventListener(COMPANY_CONTEXT_EVENT, onContextChange);
 
-    // Re-check when the session changes (sign-in from another tab, token refresh, sign-out)
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT" && !cancelled) setCtx(IDLE);
-      if (event === "SIGNED_IN" && !cancelled) {
-        // Re-fetch profile/roles without resetting to EMPTY first.
-        // Resetting to EMPTY causes role to briefly become null, which
-        // triggers every useEffect that depends on `role` or `profileLoading`
-        // and can cause redirect loops when combined with role guards.
-        // load() already handles the no-session case by setting IDLE.
-        void load();
-      }
+      if (event === "SIGNED_IN" && !cancelled) void load();
     });
 
     return () => {
